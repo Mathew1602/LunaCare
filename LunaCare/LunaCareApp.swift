@@ -11,7 +11,8 @@ import SwiftUI
 struct LunaCareApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            //ContentView()
+            HomeView()
         }
     }
 }
