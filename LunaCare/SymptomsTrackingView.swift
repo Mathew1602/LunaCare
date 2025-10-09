@@ -10,7 +10,7 @@ import SwiftUI
 struct SymptomEntry: Identifiable, Hashable {
     let id = UUID()
     let name: String
-    var value: Double  
+    var value: Double  // 0...10
 }
 
 fileprivate func severityText(_ value: Double) -> String {
