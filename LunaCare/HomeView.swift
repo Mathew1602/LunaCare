@@ -125,6 +125,25 @@ struct HomeContentView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(10)
                         }
+                        
+                        Text("Calendar")
+                            .font(.headline)
+                            .padding(.top, 8)
+
+                        // Mood Calendar card
+                        NavigationLink {
+                            MoodCalendarView()
+                        } label: {
+                            HStack {
+                                Label("Mood Calendar", systemImage: "calendar")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                        }
                     }
                     .padding(.bottom, 40)
                 }

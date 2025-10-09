@@ -5,7 +5,7 @@
 //  Created by Mathew Boyd on 2025-10-09.
 //
 
-import SwiftUICore
+import SwiftUI
 
 struct QuickAccessButton: View {
     var icon: String
