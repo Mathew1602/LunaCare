@@ -12,7 +12,8 @@ struct LunaCareApp: App {
     var body: some Scene {
         WindowGroup {
             //ContentView()
-            HomeView()
+            //HomeView()
+            LoginView()
         }
     }
 }
