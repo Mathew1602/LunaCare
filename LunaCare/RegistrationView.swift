@@ -5,6 +5,7 @@
 //  Created by Mathew Boyd on 2025-10-09.
 //
 
+
 import SwiftUI
 
 struct RegistrationView: View {
@@ -66,4 +67,5 @@ struct RegistrationView: View {
 #Preview {
     RegistrationView()
 }
+
 
