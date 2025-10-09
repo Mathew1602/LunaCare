@@ -144,6 +144,20 @@ struct HomeContentView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(10)
                         }
+                        
+                        NavigationLink {
+                            SymptomCalendarView()
+                        } label: {
+                            HStack {
+                                Label("Symptom Calendar", systemImage: "calendar")
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                        }
+
                     }
                     .padding(.bottom, 40)
                 }
