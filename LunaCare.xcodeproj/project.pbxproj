@@ -10,9 +10,28 @@
 		E7E7BA662E731299007FBFD7 /* LunaCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LunaCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D5193E9E2EA5824700BE3FC5 /* Exceptions for "LunaCare" folder in "LunaCare" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"LunaCareWatchOS Watch App/Assets.xcassets",
+				"LunaCareWatchOS Watch App/HomeView.swift",
+				"LunaCareWatchOS Watch App/LunaCareWatchOSApp.swift",
+				"LunaCareWatchOS Watch App/MoodHistoryView.swift",
+				"LunaCareWatchOS Watch App/MoodReportView.swift",
+				"LunaCareWatchOS Watch App/MoodTracking.swift",
+				"LunaCareWatchOS Watch App/SymptomsTrackingView.swift",
+			);
+			target = E7E7BA652E731299007FBFD7 /* LunaCare */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E7E7BA682E731299007FBFD7 /* LunaCare */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D5193E9E2EA5824700BE3FC5 /* Exceptions for "LunaCare" folder in "LunaCare" target */,
+			);
 			path = LunaCare;
 			sourceTree = "<group>";
 		};
@@ -253,7 +272,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 95AC3EK6J9;
+				DEVELOPMENT_TEAM = C26735D5VT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -281,7 +300,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 95AC3EK6J9;
+				DEVELOPMENT_TEAM = C26735D5VT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

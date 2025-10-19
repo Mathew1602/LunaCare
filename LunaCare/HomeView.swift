@@ -84,14 +84,16 @@ struct HomeContentView: View {
                     }
                     
                     // Quick Access
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Quick Access")
-                            .font(.headline)
-                        HStack(spacing: 20) {
-                            QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
+                    // In HomeContentView, inside "Quick Access"
+                    HStack(spacing: 20) {
+                        QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
+                        NavigationLink {
+                            InsightsOverviewView()
+                        } label: {
                             QuickAccessButton(icon: "chart.bar.xaxis", title: "Insights")
                         }
                     }
+
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Trackers")
