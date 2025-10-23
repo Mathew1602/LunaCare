@@ -1,18 +1,18 @@
 //
-//  SymptomsTrackingView.swift
+//  MoodHistoryView.swift
 //  LunaCareWatchOS Watch App
 //
-//  Created by Mathew Boyd on 2025-10-19.
+//  Created by Mathew Boyd on 2025-10-23.
 //
 
 import SwiftUI
 
-struct SymptomsTrackingView: View {
+struct MoodHistoryView: View {
     var body: some View {
         Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
     }
 }
 
 #Preview {
-    SymptomsTrackingView()
+    MoodHistoryView()
 }
