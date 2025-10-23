@@ -6,9 +6,17 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct LunaCareApp: App {
+    
+    init() {
+        // set delegate + ask for permission once on launch
+        NotificationManager.shared.center.delegate = NotificationManager.shared
+        NotificationManager.shared.requestAuthorization()
+    }
+    
     var body: some Scene {
         WindowGroup {
             //ContentView()
