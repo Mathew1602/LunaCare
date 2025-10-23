@@ -8,8 +8,20 @@
 import SwiftUI
 
 struct SymptomsTrackingView: View {
+    @State private var fatigue = false
+    @State private var bleeding = false
+
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack(spacing: 12) {
+            Text("Symptoms Tracking")
+                .font(.headline)
+            
+            Toggle("Fatigue", isOn: $fatigue)
+            Toggle("Bleeding", isOn: $bleeding)
+            
+            Spacer()
+        }
+        .padding()
     }
 }
 

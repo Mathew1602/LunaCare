@@ -6,38 +6,60 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E71C14DB2EAA959D0021E34C /* LunaCareWatchOS Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E71C14D02EAA959B0021E34C /* LunaCareWatchOS Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E71C14D82EAA959D0021E34C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E7E7BA5E2E731299007FBFD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E71C14CF2EAA959B0021E34C;
+			remoteInfo = "LunaCareWatchOS Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E71C14DA2EAA959D0021E34C /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				E71C14DB2EAA959D0021E34C /* LunaCareWatchOS Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		E71C14D02EAA959B0021E34C /* LunaCareWatchOS Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LunaCareWatchOS Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7E7BA662E731299007FBFD7 /* LunaCare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LunaCare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D5193E9E2EA5824700BE3FC5 /* Exceptions for "LunaCare" folder in "LunaCare" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"LunaCareWatchOS Watch App/Assets.xcassets",
-				"LunaCareWatchOS Watch App/HomeView.swift",
-				"LunaCareWatchOS Watch App/LunaCareWatchOSApp.swift",
-				"LunaCareWatchOS Watch App/MoodHistoryView.swift",
-				"LunaCareWatchOS Watch App/MoodReportView.swift",
-				"LunaCareWatchOS Watch App/MoodTracking.swift",
-				"LunaCareWatchOS Watch App/SymptomsTrackingView.swift",
-			);
-			target = E7E7BA652E731299007FBFD7 /* LunaCare */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		E71C14D12EAA959B0021E34C /* LunaCareWatchOS Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "LunaCareWatchOS Watch App";
+			sourceTree = "<group>";
+		};
 		E7E7BA682E731299007FBFD7 /* LunaCare */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				D5193E9E2EA5824700BE3FC5 /* Exceptions for "LunaCare" folder in "LunaCare" target */,
-			);
 			path = LunaCare;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E71C14CD2EAA959B0021E34C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E7E7BA632E731299007FBFD7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -52,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				E7E7BA682E731299007FBFD7 /* LunaCare */,
+				E71C14D12EAA959B0021E34C /* LunaCareWatchOS Watch App */,
 				E7E7BA672E731299007FBFD7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				E7E7BA662E731299007FBFD7 /* LunaCare.app */,
+				E71C14D02EAA959B0021E34C /* LunaCareWatchOS Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -67,6 +91,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E71C14CF2EAA959B0021E34C /* LunaCareWatchOS Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E71C14DC2EAA959D0021E34C /* Build configuration list for PBXNativeTarget "LunaCareWatchOS Watch App" */;
+			buildPhases = (
+				E71C14CC2EAA959B0021E34C /* Sources */,
+				E71C14CD2EAA959B0021E34C /* Frameworks */,
+				E71C14CE2EAA959B0021E34C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				E71C14D12EAA959B0021E34C /* LunaCareWatchOS Watch App */,
+			);
+			name = "LunaCareWatchOS Watch App";
+			packageProductDependencies = (
+			);
+			productName = "LunaCareWatchOS Watch App";
+			productReference = E71C14D02EAA959B0021E34C /* LunaCareWatchOS Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		E7E7BA652E731299007FBFD7 /* LunaCare */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E7E7BA712E73129B007FBFD7 /* Build configuration list for PBXNativeTarget "LunaCare" */;
@@ -74,10 +120,12 @@
 				E7E7BA622E731299007FBFD7 /* Sources */,
 				E7E7BA632E731299007FBFD7 /* Frameworks */,
 				E7E7BA642E731299007FBFD7 /* Resources */,
+				E71C14DA2EAA959D0021E34C /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				E71C14D92EAA959D0021E34C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				E7E7BA682E731299007FBFD7 /* LunaCare */,
@@ -96,9 +144,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1640;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
+					E71C14CF2EAA959B0021E34C = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 					E7E7BA652E731299007FBFD7 = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -119,11 +170,19 @@
 			projectRoot = "";
 			targets = (
 				E7E7BA652E731299007FBFD7 /* LunaCare */,
+				E71C14CF2EAA959B0021E34C /* LunaCareWatchOS Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E71C14CE2EAA959B0021E34C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E7E7BA642E731299007FBFD7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -134,6 +193,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E71C14CC2EAA959B0021E34C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E7E7BA622E731299007FBFD7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -143,7 +209,81 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		E71C14D92EAA959D0021E34C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E71C14CF2EAA959B0021E34C /* LunaCareWatchOS Watch App */;
+			targetProxy = E71C14D82EAA959D0021E34C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		E71C14DD2EAA959D0021E34C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C26735D5VT;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = LunaCareWatchOS;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = luna.LunaCare;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = luna.LunaCare.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		E71C14DE2EAA959D0021E34C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = C26735D5VT;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = LunaCareWatchOS;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = luna.LunaCare;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = luna.LunaCare.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 		E7E7BA6F2E73129B007FBFD7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -324,6 +464,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E71C14DC2EAA959D0021E34C /* Build configuration list for PBXNativeTarget "LunaCareWatchOS Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E71C14DD2EAA959D0021E34C /* Debug */,
+				E71C14DE2EAA959D0021E34C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E7E7BA612E731299007FBFD7 /* Build configuration list for PBXProject "LunaCare" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
