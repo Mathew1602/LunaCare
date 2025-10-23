@@ -37,9 +37,9 @@ struct HomeContentView: View {
                     Text("how are you feeling today?")
                         .foregroundColor(.gray)
                     
-                    // Log Mood Button
-                    Button {
-                        // Dummy log mood action
+                    // Log Mood Button -> navigates to MoodTrackingView
+                    NavigationLink {
+                        MoodTrackingView()
                     } label: {
                         HStack {
                             Text("Log Mood")
@@ -51,7 +51,9 @@ struct HomeContentView: View {
                         .foregroundColor(Color(.systemIndigo))
                         .cornerRadius(10)
                     }
+                    .buttonStyle(.plain)
                     .padding(.top, 10)
+
                     
                     // Key Health Metrics
                     VStack(alignment: .leading, spacing: 10) {
