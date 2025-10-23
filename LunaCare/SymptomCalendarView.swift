@@ -137,7 +137,13 @@ struct SymptomCalendarView: View {
             }
             .navigationTitle("Symptom Calendar")
         }
-        .onAppear { seedMock() }
+        .onAppear {
+            seedMock()
+            
+            // display user notification
+            NotificationManager.shared.scheduleDemo(after: 5)
+        }
+        
     }
 
     private var monthStart: Date {
