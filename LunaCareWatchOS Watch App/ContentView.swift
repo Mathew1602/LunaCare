@@ -39,7 +39,7 @@ struct ContentView: View {
                             MetricView(icon: "flame.fill", label: "3,231 cal", detail: "Activity")
                             MetricView(icon: "heart.fill", label: "71", detail: "Resting HR")
                         }
-                    }
+                    } 
                     .padding(.top)
 
                     // Navigation to all other screens
