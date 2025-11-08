@@ -5,13 +5,21 @@
 //  Created by Fernanda Battig on 2025-10-19.
 //
 
+
+//
+//  InsightsOverviewView.swift
+//  LunaCare
+//
+//  Created by Fernanda Battig on 2025-10-19.
+//
+
 import SwiftUI
 
 // MARK: - Palette (kept local so file is standalone)
 private extension Color {
-    static let lcLavender      = Color(red: 0.74, green: 0.68, blue: 0.95)    // #BCAEF2
-    static let lcLavenderSoft  = Color(red: 0.95, green: 0.95, blue: 0.98)    // ~#F7F7FB
-    static let lcCardShadow    = Color.black.opacity(0.08)
+    static let lcLavender       = Color(red: 0.74, green: 0.68, blue: 0.95)    // #BCAEF2
+    static let lcLavenderSoft   = Color(red: 0.95, green: 0.95, blue: 0.98)    // ~#F7F7FB
+    static let lcCardShadow     = Color.black.opacity(0.08)
 }
 
 // MARK: - Screen
@@ -72,12 +80,23 @@ struct InsightsOverviewView: View {
 
                 // Actions
                 VStack(spacing: 16) {
-                    PrimaryButton(title: "View Detailed Report") {
-                        // TODO: navigate to detail screen
+                    // 1) Detailed report
+                    NavigationLink {
+                        InsightsDetailView()
+                    } label: {
+                        NavPrimaryButton(title: "View Detailed Report")
                     }
 
+                    // 2) Health Alerts
+                    NavigationLink {
+                        HealthAlertsView()
+                    } label: {
+                        NavSecondaryButton(title: "View Health Alerts")
+                    }
+
+                    // 3) Share (local action)
                     SecondaryButton(title: "Share Insights") {
-                        // TODO: share action
+                        // TODO: share action (UIActivityViewController, export, etc.)
                     }
                 }
                 .padding(.bottom, 24)
@@ -102,7 +121,7 @@ private struct InsightCard: View {
     let subtitle: String
     let topRightTag: TagStyle?
     let bottomRightTag: TagStyle?
-    let trailingIcon: AnyView?     // <- Accept any styled view
+    let trailingIcon: AnyView?      // <- Accept any styled view
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -153,22 +172,37 @@ private struct InsightCard: View {
     }
 }
 
-private struct PrimaryButton: View {
+private struct NavPrimaryButton: View {
     var title: String
-    var action: () -> Void
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(Color.lcLavender)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .shadow(color: Color.lcCardShadow, radius: 12, y: 6)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
+        Text(title)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(Color.lcLavender)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: Color.lcCardShadow, radius: 12, y: 6)
+    }
+}
+
+private struct NavSecondaryButton: View {
+    var title: String
+    var body: some View {
+        Text(title)
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundColor(.lcLavender)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.lcLavender, lineWidth: 2)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.clear)
+            )
+            .shadow(color: Color.lcCardShadow, radius: 10, y: 6)
     }
 }
 

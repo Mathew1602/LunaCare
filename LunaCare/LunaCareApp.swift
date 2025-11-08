@@ -3,25 +3,23 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2025-09-11.
-//
+//  Updated by Fernanda
 
 import SwiftUI
-import UserNotifications
+import Firebase
 
 @main
 struct LunaCareApp: App {
-    
-    init() {
-        // set delegate + ask for permission once on launch
-        NotificationManager.shared.center.delegate = NotificationManager.shared
-        NotificationManager.shared.requestAuthorization()
-    }
-    
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    @StateObject private var env  = AppEnvironment.shared
+    @StateObject private var auth = AuthViewModel()
+
     var body: some Scene {
         WindowGroup {
-            //ContentView()
-            //HomeView()
-            LoginView()
+            ContentView()
+                .environmentObject(env)
+                .environmentObject(auth)
         }
     }
 }

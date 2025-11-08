@@ -3,22 +3,30 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2025-09-11.
-//
+//  Updated by Fernanda
 
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var auth: AuthViewModel
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world this is Luna Care")
+        Group {
+            if auth.isAuthenticated {
+                HomeView()
+            } else {
+                LoginView()
+            }
         }
-        .padding()
+        .environmentObject(auth)
+        .environmentObject(env)
     }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(AppEnvironment.shared)
+        .environmentObject(AuthViewModel())
 }
+

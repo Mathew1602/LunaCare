@@ -1,0 +1,17 @@
+# Xcode
+DerivedData/
+build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# SwiftPM
+.swiftpm/
+.build/
+
+# Misc
+.DS_Store
+
+# Firebase (public repos)
+GoogleService-Info.plist
+

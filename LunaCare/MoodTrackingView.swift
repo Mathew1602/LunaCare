@@ -3,7 +3,7 @@
 //  LunaCare
 //
 //  Created by Xiaoya Zou on 2025-10-08.
-//
+// Updated by Fernanda
 
 import SwiftUI
 
@@ -29,11 +29,15 @@ struct MoodEntry: Identifiable {
 }
 
 struct MoodTrackingView: View {
+    @EnvironmentObject var auth: AuthViewModel
+
     @State private var selectedMood: Mood? = nil
     @State private var note: String = ""
     @State private var showSavedAlert = false
     @FocusState private var noteFocused: Bool
     @State private var entries: [MoodEntry] = []
+
+    @State private var backendStatus = ""
 
     var body: some View {
         NavigationStack {
@@ -54,6 +58,13 @@ struct MoodTrackingView: View {
                 .disabled(selectedMood == nil && note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .padding(.horizontal)
 
+                if !backendStatus.isEmpty {
+                    Text(backendStatus)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal)
+                }
+
                 Spacer()
             }
             .navigationTitle("Mood Tracking")
@@ -70,16 +81,46 @@ struct MoodTrackingView: View {
     }
 
     private func saveEntry() {
-        // A) allow default mood if not picked:
+        // Local list update
         let mood: Mood = selectedMood ?? .okay
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
         entries.append(MoodEntry(mood: mood, note: trimmed))
+
+        // Push to Firestore if signed in
+        let uid = auth.uid
+        if !uid.isEmpty {
+            MoodLogRepository().create(
+                uid: uid,
+                mood: moodScore(mood),
+                notes: trimmed.isEmpty ? nil : trimmed,
+                tags: ["manual"],
+                source: "manual"
+            ) { err in
+                if let err = err {
+                    backendStatus = " Mood save error: \(err.localizedDescription)"
+                } else {
+                    backendStatus = " Mood saved to Firestore"
+                }
+            }
+        } else {
+            backendStatus = "▲ Not signed in; saved locally only."
+        }
 
         // reset UI
         selectedMood = nil
         note = ""
         noteFocused = false
         showSavedAlert = true
+    }
+
+    private func moodScore(_ m: Mood) -> Int {
+        switch m {
+        case .ecstatic: return 4
+        case .happy:    return 2
+        case .okay:     return 0
+        case .sad:      return -1
+        case .angry:    return -2
+        }
     }
 }
 
@@ -140,7 +181,6 @@ struct NoteBox: View {
     }
 }
 
-
 #Preview {
-    MoodTrackingView()
+    MoodTrackingView().environmentObject(AuthViewModel())
 }

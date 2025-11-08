@@ -4,19 +4,27 @@
 //
 //  Created by Xiaoya Zou on 2025-10-08.
 //  Updated by Mathew on 2025-10-09
+//  Updated by Fernanda
 
 import SwiftUI
 
 struct HomeView: View {
+    @EnvironmentObject var auth: AuthViewModel
+    @EnvironmentObject var env: AppEnvironment
+
     var body: some View {
         TabView {
             HomeContentView()
+                .environmentObject(env)
+                .environmentObject(auth)
                 .tabItem {
                     Image(systemName: "house")
                     Text("Home")
                 }
-            
+
             SettingsView()
+                .environmentObject(auth)
+                .environmentObject(env)
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")
@@ -27,19 +35,38 @@ struct HomeView: View {
 }
 
 struct HomeContentView: View {
+    @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var auth: AuthViewModel
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("Hi Emma,")
-                        .font(.title)
-                        .fontWeight(.semibold)
-                    Text("how are you feeling today?")
-                        .foregroundColor(.gray)
-                    
-                    // Log Mood Button -> navigates to MoodTrackingView
-                    NavigationLink {
-                        MoodTrackingView()
+                    // Greeting
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Hi Emma,")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                        Text("how are you feeling today?")
+                            .foregroundColor(.gray)
+
+                        // Sync status chip
+                        HStack {
+                            Image(systemName: env.isCloudSyncOn ? "icloud" : "internaldrive")
+                                .imageScale(.small)
+                            Text(env.isCloudSyncOn ? "Synced to Cloud" : "Local Only")
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .accessibilityLabel(env.isCloudSyncOn ? "Cloud sync enabled" : "Cloud sync disabled")
+                    }
+
+                    // Log Mood Button
+                    Button {
+                        // Hook to open mood screen if desired
                     } label: {
                         HStack {
                             Text("Log Mood")
@@ -51,15 +78,13 @@ struct HomeContentView: View {
                         .foregroundColor(Color(.systemIndigo))
                         .cornerRadius(10)
                     }
-                    .buttonStyle(.plain)
                     .padding(.top, 10)
 
-                    
                     // Key Health Metrics
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Key Health Metrics")
                             .font(.headline)
-                        
+
                         HStack(spacing: 20) {
                             MetricCard(icon: "moon", value: "7 hrs", label: "Sleep")
                             MetricCard(icon: "waveform.path.ecg", value: "3,231 cal", label: "Activity")
@@ -67,7 +92,7 @@ struct HomeContentView: View {
                         }
                     }
                     .padding(.top, 10)
-                    
+
                     // Alerts
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Alerts")
@@ -84,9 +109,8 @@ struct HomeContentView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(10)
                     }
-                    
+
                     // Quick Access
-                    // In HomeContentView, inside "Quick Access"
                     HStack(spacing: 20) {
                         QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
                         NavigationLink {
@@ -96,14 +120,14 @@ struct HomeContentView: View {
                         }
                     }
 
-
+                    // Trackers + Calendars
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Trackers")
                             .font(.headline)
                             .padding(.top, 20)
-                        
+
                         NavigationLink {
-                            MoodTrackingView()
+                            MoodTrackingView().environmentObject(auth)
                         } label: {
                             HStack {
                                 Label("Mood Tracking", systemImage: "face.smiling")
@@ -115,7 +139,7 @@ struct HomeContentView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(10)
                         }
-                        
+
                         NavigationLink {
                             SymptomsTrackingView()
                         } label: {
@@ -129,12 +153,11 @@ struct HomeContentView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(10)
                         }
-                        
+
                         Text("Calendar")
                             .font(.headline)
                             .padding(.top, 8)
 
-                        // Mood Calendar card
                         NavigationLink {
                             MoodCalendarView()
                         } label: {
@@ -148,7 +171,7 @@ struct HomeContentView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(10)
                         }
-                        
+
                         NavigationLink {
                             SymptomCalendarView()
                         } label: {
@@ -161,22 +184,31 @@ struct HomeContentView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(10)
                         }
-
                     }
                     .padding(.bottom, 40)
                 }
                 .padding()
             }
             .navigationTitle("Home")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        if !auth.email.isEmpty {
+                            Text("Signed in as \(auth.email)")
+                        }
+                        Button("Sign out", role: .destructive) { auth.signOut() }
+                    } label: {
+                        Image(systemName: "gear")
+                    }
+                }
+            }
         }
     }
 }
 
 
-
-
-
 #Preview {
     HomeView()
+        .environmentObject(AuthViewModel())
+        .environmentObject(AppEnvironment.shared)
 }
-
