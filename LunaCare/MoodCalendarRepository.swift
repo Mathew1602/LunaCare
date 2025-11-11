@@ -4,17 +4,23 @@
 //
 //  Created by Xiaoya Zou on 2025-11-11.
 //
-
+//
 import Foundation
 import FirebaseFirestore
 
+struct CalendarDayLog: Identifiable, Hashable {
+    let id = UUID()
+    let mood: Mood
+    let note: String?
+    let createdAt: Date
+}
+
 final class MoodCalendarRepository {
 
-    func fetchMonth(uid: String, monthStart: Date) async throws -> [Date: Mood] {
+    func fetchMonth(uid: String, monthStart: Date) async throws -> [Date: [CalendarDayLog]] {
         let cal = Calendar.current
         guard let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart) else { return [:] }
 
-        // Query this user's mood logs within [monthStart, monthEnd)
         let ref = Firestore.firestore()
             .collection("users").document(uid)
             .collection("mood_logs")
@@ -24,20 +30,26 @@ final class MoodCalendarRepository {
 
         let snapshot = try await ref.getDocuments()
 
-        // For each calendar day, keep the *latest* mood
-        var latestPerDay: [Date: Mood] = [:]
+        var grouped: [Date: [CalendarDayLog]] = [:]
         for doc in snapshot.documents {
+            let data = doc.data()
             guard
-                let moodScore = doc.data()["mood"] as? Int,
-                let ts = doc.data()["createdAt"] as? Timestamp
+                let score = data["mood"] as? Int,
+                let ts = data["createdAt"] as? Timestamp
             else { continue }
 
-            let dayStart = cal.startOfDay(for: ts.dateValue())
-            if latestPerDay[dayStart] == nil {               // first seen = latest due to desc order
-                latestPerDay[dayStart] = mapScoreToMood(moodScore)
-            }
+            let note = data["notes"] as? String
+            let created = ts.dateValue()
+            let dayKey = cal.startOfDay(for: created)
+
+            let item = CalendarDayLog(
+                mood: mapScoreToMood(score),
+                note: note,
+                createdAt: created
+            )
+            grouped[dayKey, default: []].append(item)
         }
-        return latestPerDay
+        return grouped
     }
 
     private func mapScoreToMood(_ s: Int) -> Mood {
