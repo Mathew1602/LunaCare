@@ -5,239 +5,137 @@
 //  Created by Xiaoya Zou on 2025-10-09.
 //
 
+//
+//  MoodCalendarView.swift
+//  LunaCare
+//
+//  Created by Xiaoya Zou on 2025-10-09.
+//
+
 import SwiftUI
-import FirebaseFirestore
 
 struct MoodCalendarView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @StateObject private var vm = MoodCalendarViewModel()
 
-    private let headerImageName = "moodCalendar"
-
-    @State private var monthOffset = 0
-    @State private var selected: Date? = nil
-    @State private var moodByDay: [Date: Mood] = [:]
-    @State private var noteByDay: [Date: String] = [:]
-
-    private let cal = Calendar.current
     private let cols = Array(repeating: GridItem(.flexible()), count: 7)
-    
-    @State private var loading = false
-    @State private var errorText: String? = nil
-    
-    final class MoodCalendarRepository {
-        func fetchMonth(uid: String, monthStart: Date) async throws -> [Date: (mood: Mood, note: String?)]{
-            let cal = Calendar.current
-            let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart)!
-            let ref = Firestore.firestore()
-                .collection("users").document(uid)
-                .collection("mood_logs")
-                .whereField("createdAt", isGreaterThanOrEqualTo: monthStart)
-                .whereField("createdAt", isLessThan: monthEnd)
-                .order(by: "createdAt", descending: true)
-
-            let snap = try await ref.getDocuments()
-            var result: [Date: (mood: Mood, note: String?)] = [:]
-            for d in snap.documents {
-                guard let score = d["mood"] as? Int,
-                      let ts = d["createdAt"] as? Timestamp else { continue }
-                let note = d["notes"] as? String
-                let day = cal.startOfDay(for: ts.dateValue())
-                if result[day] == nil {
-                    result[day] = (mapScore(score), note)
-                }
-
-            }
-            return result
-        }
-        private func mapScore(_ s: Int) -> Mood {
-            switch s { case 4: return .ecstatic; case 2: return .happy; case 0: return .okay; case -1: return .sad; case -2: return .angry; default: return .okay }
-        }
-    }
+    private let noteTint = Color(red: 139/255, green: 146/255, blue: 250/255)
+    private let tileBG   = Color(red: 249/255, green: 248/255, blue: 255/255)
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
 
-//                    Text("Mood Calendar")
-//                        .font(.title2).bold()
-//                        .padding(.horizontal)
-
-                    // header illustration
-//                    Image(headerImageName)
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(height: 300)
-//                        .frame(maxWidth: .infinity)
-//                        .clipped()
-//                        .cornerRadius(18)
-//                        .padding(.horizontal)
-
-                    // month header
-//                    HStack(spacing: 12) {
-//                        Button { monthOffset -= 1; seedMock() } label: { Image(systemName: "chevron.left") }
-//                        Spacer()
-//                        Text(monthTitle).font(.headline)
-//                        Spacer()
-//                        Button { monthOffset += 1; seedMock() } label: { Image(systemName: "chevron.right") }
-//                    }
-//                    .padding(.horizontal)
+                    // Month header
                     HStack(spacing: 12) {
-                        Button { monthOffset -= 1; Task { await loadMonth() } } label: { Image(systemName: "chevron.left") }
+                        Button { Task { await vm.setMonth(delta: -1, uid: auth.uid) } } label: {
+                            Image(systemName: "chevron.left")
+                        }
                         Spacer()
-                        Text(monthTitle).font(.headline)
+                        Text(vm.monthTitle).font(.headline)
                         Spacer()
-                        Button { monthOffset += 1; Task { await loadMonth() } } label: { Image(systemName: "chevron.right") }
+                        Button { Task { await vm.setMonth(delta: 1, uid: auth.uid) } } label: {
+                            Image(systemName: "chevron.right")
+                        }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 20)
 
-                    // weekday titles
+                    // Weekday titles
                     HStack {
-                        ForEach(weekdaySymbols, id: \.self) { s in
-                            Text(s).font(.caption).foregroundStyle(.secondary)
+                        ForEach(vm.weekdaySymbols, id: \.self) { s in
+                            Text(s)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity)
                         }
                     }
-                    .padding(.horizontal, 8)
-                    
-                    if loading { ProgressView().frame(maxWidth: .infinity) }
+                    .padding(.horizontal, 20)
 
-                    // days grid
+                    if vm.loading {
+                        ProgressView().frame(maxWidth: .infinity)
+                    }
+
+                    // Days grid
                     LazyVGrid(columns: cols, spacing: 10) {
-                        ForEach(daysGrid, id: \.self) { day in
+                        ForEach(vm.daysGrid, id: \.self) { day in
                             DayCell(
                                 date: day,
-                                selected: selected,
-                                //mood: moodByDay[day?.startOfDay ?? .distantPast]
-                                mood: moodByDay[ day.map { Calendar.current.startOfDay(for: $0) } ?? .distantPast ]
+                                selected: vm.selected,
+                                mood: vm.latestMood(for: day)
                             ) {
-                                if let d = day {
-                                    selected = d
-                                    // mock: cycle a mood each tap
-//                                    let next = nextMood(after: moodByDay[d.startOfDay])
-//                                    moodByDay[d.startOfDay] = next
-                                }
+                                if let d = day { vm.selected = d }
                             }
                         }
                     }
                     .padding(.horizontal, 20)
 
-                    // selected info (optional)
-//                    if let sel = selected {
-//                        HStack {
-//                            Text(DateFormatter.medium.string(from: sel)).bold()
-//                            Text(moodByDay[sel.startOfDay]?.rawValue ?? "—")
-//                        }
-//                        .padding(.horizontal)
-//                        .foregroundStyle(.secondary)
-//                    }
-                    if let sel = selected {
+                    // Selected day's details: multiple notes (latest first), each as its own block
+                    if let sel = vm.selected {
                         let dateText = DateFormatter.medium.string(from: sel)
-                        let moodEmoji = moodByDay[sel.startOfDay]?.rawValue ?? ""
-                        let noteText = noteByDay[sel.startOfDay] ?? ""
-                        
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text(dateText)
-                                        .font(.headline)
-                                        .bold()
-                                    Spacer()
-//                                    if !noteText.isEmpty {
-//                                        Text("Note")
-//                                            .font(.caption)
-//                                            .fontWeight(.semibold)
-//                                            .padding(.horizontal, 8)
-//                                            .padding(.vertical, 4)
-//                                            .background(Color(red: 249/255, green: 248/255, blue: 255/255))
-//                                            .cornerRadius(8)
-//                                    }
-                                }
-                                
+                        let logs = vm.logsForSelected()
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(dateText)
+                                .font(.headline)
+                                .bold()
+                                .padding(.horizontal, 20)
+
+                            if logs.isEmpty {
                                 HStack(spacing: 8) {
-                                    Text(moodEmoji)
-                                        .font(.title3)
-                                    if !noteText.isEmpty {
-                                        Text(noteText)
-                                            .font(.body)
-                                            .foregroundColor(.secondary)
-                                            .fixedSize(horizontal: false, vertical: true)
+                                    Text("No logs today")
+                                        .foregroundStyle(.secondary)
+                                        .italic()
+                                }
+                                .padding(.horizontal, 20)
+                            } else {
+                                ForEach(logs) { log in
+                                    HStack(alignment: .top, spacing: 10) {
+                                        // Emoji
+                                        Text(log.mood.rawValue)
+                                            .font(.title3)
+                                            .padding(.top, 2)
+
+                                        // Note + time
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text((log.note ?? "").isEmpty ? "No note" : (log.note ?? ""))
+                                                .foregroundColor(.secondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+
+                                            Text(DateFormatter.timeShort.string(from: log.createdAt))
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+
+                                        Spacer()
+
+                                        // Edit icon (no navigation attached)
+                                        Image(systemName: "square.and.pencil")
+                                            .font(.title3)
+                                            .foregroundColor(noteTint)
                                     }
-                                    else {
-                                           Text("No logs today")
-                                               .font(.body)
-                                               .foregroundColor(.secondary)
-                                               .italic()
-                                       }
+                                    .padding(14)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(tileBG)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(noteTint.opacity(0.25), lineWidth: 1)
+                                    )
+                                    .shadow(color: .black.opacity(0.05), radius: 3, x: 0, y: 2)
+                                    .padding(.horizontal, 20)
                                 }
                             }
-                            
-                            Spacer()
-                            Image(systemName: "square.and.pencil")
-                                .font(.title3)
-                                .foregroundColor(Color(red: 139/255, green: 146/255, blue: 250/255))
                         }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(red: 249/255, green: 248/255, blue: 255/255))
-                        )
-                        .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 2)
-                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
                     }
                 }
                 .padding(.vertical, 8)
             }
             .navigationTitle("Mood Calendar")
         }
-        //.onAppear { seedMock() }
-        .task { await loadMonth() }
-    }
-
-    private var monthStart: Date {
-        cal.date(from: cal.dateComponents([.year, .month], from: cal.date(byAdding: .month, value: monthOffset, to: Date())!))!
-    }
-    private var monthTitle: String {
-        let f = DateFormatter(); f.dateFormat = "LLLL yyyy"; return f.string(from: monthStart)
-    }
-    private var weekdaySymbols: [String] {
-        let f = DateFormatter(); f.locale = .current; return f.shortWeekdaySymbols // SUN MON...
-    }
-    private var daysGrid: [Date?] {
-        let firstWeekday = cal.component(.weekday, from: monthStart) // 1..7
-        let leading = (firstWeekday + 6) % 7 // 0..6
-        let days = cal.range(of: .day, in: .month, for: monthStart)!.count
-        var arr = Array<Date?>(repeating: nil, count: leading)
-        for i in 0..<days { arr.append(cal.date(byAdding: .day, value: i, to: monthStart)!) }
-        return arr
-    }
-    private func nextMood(after current: Mood?) -> Mood {
-        guard let c = current, let i = Mood.allCases.firstIndex(of: c) else { return .happy }
-        return Mood.allCases[(i + 1) % Mood.allCases.count]
-    }
-//    private func seedMock() {
-//        // mock: populate a few emoji for the current month
-//        moodByDay.removeAll()
-//        let sample: [(Int, Mood)] = [ (2,.sad), (3,.angry), (9,.sad), (11,.happy), (19,.happy), (20,.okay) ]
-//        for (day, mood) in sample {
-//            if let d = cal.date(byAdding: .day, value: day-1, to: monthStart) {
-//                moodByDay[d.startOfDay] = mood
-//            }
-//        }
-//    }
-    private func loadMonth() async {
-        guard !auth.uid.isEmpty else { return }
-        loading = true; errorText = nil
-        do {
-            let map = try await MoodCalendarRepository().fetchMonth(uid: auth.uid, monthStart: monthStart)
-            await MainActor.run {
-                self.moodByDay = map.mapValues { $0.mood }
-                self.noteByDay = map.compactMapValues { $0.note }
-                self.loading = false
-            }
-        } catch {
-            await MainActor.run { self.loading = false; self.errorText = "Failed to load: \(error.localizedDescription)" }
-        }
+        .task { await vm.load(uid: auth.uid) }
     }
 }
 
@@ -246,6 +144,9 @@ private struct DayCell: View {
     let selected: Date?
     let mood: Mood?
     let onTap: () -> Void
+
+    private let tileBG   = Color(red: 249/255, green: 248/255, blue: 255/255)
+    private let accent   = Color(red: 139/255, green: 146/255, blue: 250/255)
 
     var body: some View {
         Button(action: onTap) {
@@ -260,13 +161,10 @@ private struct DayCell: View {
             .padding(6)
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    //.fill(Color(.secondarySystemBackground))
-                    .fill(Color(red: 249/255, green: 248/255, blue: 255/255))
+                    .fill(tileBG)
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            //.stroke(isSelected ? Color.blue : .clear, lineWidth: 2)
-                            .stroke(isSelected ? Color(red: 139/255, green: 146/255, blue: 250/255) : .clear, lineWidth: 2)
-
+                            .stroke(isSelected ? accent : .clear, lineWidth: 2)
                     )
             )
         }
@@ -279,13 +177,20 @@ private struct DayCell: View {
     }
 }
 
-private extension Date {
-    var startOfDay: Date { Calendar.current.startOfDay(for: self) }
-}
 private extension DateFormatter {
-    static let medium: DateFormatter = { let f = DateFormatter(); f.dateStyle = .medium; return f }()
-}
+    static let medium: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
 
+    static let timeShort: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
+}
 
 #Preview {
     MoodCalendarView()
