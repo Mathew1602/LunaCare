@@ -3,11 +3,29 @@
 //  LunaCare
 //
 //  Created by Fernanda Battig on 2025-11-07.
-//
+//  Updated by Xiaoya Zou
 
 import Foundation
 
+enum Mood: String, CaseIterable, Identifiable, Codable {
+    case ecstatic = "🤩"
+    case happy    = "😊"
+    case okay     = "😐"
+    case sad      = "😕"
+    case angry    = "😠"
 
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .ecstatic: return "Ecstatic"
+        case .happy:    return "Happy"
+        case .okay:     return "Okay"
+        case .sad:      return "Sad"
+        case .angry:    return "Angry"
+        }
+    }
+}
 
 struct UserProfile: Codable, Identifiable {
     var id: String?             // Firestore doc id

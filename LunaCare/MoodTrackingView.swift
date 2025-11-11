@@ -4,125 +4,93 @@
 //
 //  Created by Xiaoya Zou on 2025-10-08.
 // Updated by Fernanda
+//  Updated by Xiaoya Zou, following MVVM
 
 import SwiftUI
 
-enum Mood: String, CaseIterable, Identifiable {
-    case ecstatic = "🤩", happy = "😊", okay = "😐", sad = "😕", angry = "😠"
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .ecstatic: return "Ecstatic"
-        case .happy:    return "Happy"
-        case .okay:     return "Okay"
-        case .sad:      return "Sad"
-        case .angry:    return "Angry"
-        }
-    }
-}
-
-struct MoodEntry: Identifiable {
-    let id = UUID()
-    let date = Date()
-    let mood: Mood
-    let note: String
-}
-
 struct MoodTrackingView: View {
     @EnvironmentObject var auth: AuthViewModel
-
-    @State private var selectedMood: Mood? = nil
-    @State private var note: String = ""
-    @State private var showSavedAlert = false
+    @StateObject private var vm = MoodTrackingViewModel()
     @FocusState private var noteFocused: Bool
-    @State private var entries: [MoodEntry] = []
 
-    @State private var backendStatus = ""
+    // Custom border color for the note text editor
+    private let noteBorder = Color(red: 139/255, green: 146/255, blue: 250/255)
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Mood Tracking")
-                    .font(.title2).bold()
-                    .padding(.horizontal)
+//                Text("Mood Tracking")
+//                    .font(.title2).bold()
+//                    .padding(.horizontal)
 
-                MoodPickerGrid(selectedMood: $selectedMood)
+                MoodPickerGrid(selectedMood: $vm.selectedMood)
 
-                NoteBox(note: $note, focused: _noteFocused)
-
-                Button(action: saveEntry) {
-                    Text("Save Mood")
-                        .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 8) {
+                    DatePicker(
+                        "Date & Time",
+                        selection: $vm.createdAt,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+                    .tint(Color(red: 139/255, green: 146/255, blue: 250/255))
+                    .foregroundColor(Color(red: 139/255, green: 146/255, blue: 250/255))
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(selectedMood == nil && note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .padding(.horizontal)
 
-                if !backendStatus.isEmpty {
-                    Text(backendStatus)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
+                NoteBox(note: $vm.note, focused: _noteFocused, borderColor: noteBorder)
+
+                // Save button
+                // Save button
+                // Save button
+                Button {
+                    vm.save(uid: auth.uid)
+                } label: {
+                    HStack {
+                        if vm.loading {
+                            ProgressView()
+                                .tint(Color(.systemIndigo))
+                        } else {
+                            Text("Save Mood")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        vm.loading || (vm.selectedMood == nil &&
+                        vm.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        ? Color.gray.opacity(0.15)
+                        : Color(.systemIndigo).opacity(0.2)
+                    )
+                    .foregroundColor(
+                        vm.loading || (vm.selectedMood == nil &&
+                        vm.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        ? .gray
+                        : Color(.systemIndigo)
+                    )
+                    .cornerRadius(16)
+                    .padding(.horizontal, 16)
                 }
+                .disabled(vm.loading || (vm.selectedMood == nil &&
+                    vm.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
 
                 Spacer()
             }
             .navigationTitle("Mood Tracking")
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") { noteFocused = false }
-                }
-            }
+//            .toolbar {
+//                ToolbarItemGroup(placement: .keyboard) {
+//                    Spacer()
+//                    Button("Done") { noteFocused = false }
+//                }
+//            }
         }
-        .alert("Your mood journal has been saved", isPresented: $showSavedAlert) {
+        .alert("Your mood journal has been saved", isPresented: $vm.showSavedAlert) {
             Button("OK", role: .cancel) { }
         }
     }
-
-    private func saveEntry() {
-        // Local list update
-        let mood: Mood = selectedMood ?? .okay
-        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        entries.append(MoodEntry(mood: mood, note: trimmed))
-
-        // Push to Firestore if signed in
-        let uid = auth.uid
-        if !uid.isEmpty {
-            MoodLogRepository().create(
-                uid: uid,
-                mood: moodScore(mood),
-                notes: trimmed.isEmpty ? nil : trimmed,
-                tags: ["manual"],
-                source: "manual"
-            ) { err in
-                if let err = err {
-                    backendStatus = " Mood save error: \(err.localizedDescription)"
-                } else {
-                    backendStatus = " Mood saved to Firestore"
-                }
-            }
-        } else {
-            backendStatus = "▲ Not signed in; saved locally only."
-        }
-
-        // reset UI
-        selectedMood = nil
-        note = ""
-        noteFocused = false
-        showSavedAlert = true
-    }
-
-    private func moodScore(_ m: Mood) -> Int {
-        switch m {
-        case .ecstatic: return 4
-        case .happy:    return 2
-        case .okay:     return 0
-        case .sad:      return -1
-        case .angry:    return -2
-        }
-    }
 }
+
 
 struct MoodPickerGrid: View {
     @Binding var selectedMood: Mood?
@@ -160,13 +128,17 @@ struct MoodPickerGrid: View {
 struct NoteBox: View {
     @Binding var note: String
     @FocusState var focused: Bool
+    var borderColor: Color = .gray.opacity(0.3)
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             TextEditor(text: $note)
                 .frame(minHeight: 120)
                 .padding(8)
-                .background(RoundedRectangle(cornerRadius: 12).stroke(.gray.opacity(0.3)))
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(borderColor, lineWidth: 1)
+                )
                 .focused($focused)
 
             if note.isEmpty {
