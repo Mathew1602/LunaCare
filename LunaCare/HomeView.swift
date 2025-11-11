@@ -5,6 +5,7 @@
 //  Created by Xiaoya Zou on 2025-10-08.
 //  Updated by Mathew on 2025-10-09
 //  Updated by Fernanda
+//  Updated by Xiaoya, fixing navigation link for 'log mood' button 
 
 import SwiftUI
 
@@ -65,9 +66,7 @@ struct HomeContentView: View {
                     }
 
                     // Log Mood Button
-                    Button {
-                        // Hook to open mood screen if desired
-                    } label: {
+                    NavigationLink(destination: MoodTrackingView()) {
                         HStack {
                             Text("Log Mood")
                             Image(systemName: "smiley")
