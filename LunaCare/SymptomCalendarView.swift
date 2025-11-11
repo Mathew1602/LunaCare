@@ -9,7 +9,6 @@ import SwiftUI
 
 import SwiftUI
 
-// MARK: - Symptom “mark” shown on the calendar
 enum SymptomMark: CaseIterable, Identifiable, Codable, Hashable {
     case pain, nausea, fever, fatigue, none
 
@@ -17,7 +16,7 @@ enum SymptomMark: CaseIterable, Identifiable, Codable, Hashable {
 
     var icon: String {
         switch self {
-        case .pain:    return "bandage"       // SF Symbol
+        case .pain:    return "bandage"
         case .nausea:  return "pills"
         case .fever:   return "thermometer"
         case .fatigue: return "bed.double"
@@ -46,13 +45,12 @@ enum SymptomMark: CaseIterable, Identifiable, Codable, Hashable {
     }
 }
 
-// MARK: - View
 struct SymptomCalendarView: View {
-    private let headerImageName = "sympCalendar"   // <-- add this image to Assets
+    private let headerImageName = "sympCalendar"
 
     @State private var monthOffset = 0
     @State private var selected: Date? = nil
-    @State private var markByDay: [Date: SymptomMark] = [:]   // MOCK (no DB)
+    @State private var markByDay: [Date: SymptomMark] = [:]
 
     private let cal = Calendar.current
     private let cols = Array(repeating: GridItem(.flexible()), count: 7)
