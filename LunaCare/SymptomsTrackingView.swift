@@ -24,6 +24,8 @@ fileprivate func severityText(_ value: Double) -> String {
 }
 
 struct SymptomsTrackingView: View {
+    @EnvironmentObject var auth: AuthViewModel
+    
     @State private var symptoms: [SymptomEntry] = [
         .init(name: "Fatigue",       value: 0),
         .init(name: "Bleeding",      value: 0),
@@ -33,6 +35,8 @@ struct SymptomsTrackingView: View {
     ]
 
     @State private var showSavedAlert = false
+    
+    @State private var backendStatus = ""
 
     var body: some View {
         NavigationStack {
@@ -59,12 +63,32 @@ struct SymptomsTrackingView: View {
         }
     }
 
+//    private func save() {
+//        // mock “persist”: print to console; wire to real storage later
+//        for s in symptoms {
+//            print("\(s.name): \(Int(s.value))/10 (\(severityText(s.value)))")
+//        }
+//        showSavedAlert = true
+//    }
     private func save() {
-        // mock “persist”: print to console; wire to real storage later
-        for s in symptoms {
-            print("\(s.name): \(Int(s.value))/10 (\(severityText(s.value)))")
+        let uid = auth.uid
+        guard !uid.isEmpty else {
+            backendStatus = "▲ Not signed in; saved locally only."
+            showSavedAlert = true
+            return
         }
-        showSavedAlert = true
+        SymptomLogRepository().create(
+            uid: uid,
+            entries: symptoms,
+            notes: nil,
+            tags: ["manual"],
+            source: "manual"
+        ) { err in
+            DispatchQueue.main.async {
+                backendStatus = err == nil ? "Symptoms saved to Firestore" : "Symptom save error: \(err!.localizedDescription)"
+                showSavedAlert = true
+            }
+        }
     }
 }
 
