@@ -7,8 +7,6 @@
 
 import SwiftUI
 
-import SwiftUI
-
 enum SymptomMark: CaseIterable, Identifiable, Codable, Hashable {
     case pain, nausea, fever, fatigue, none
 
