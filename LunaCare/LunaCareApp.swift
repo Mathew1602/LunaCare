@@ -15,6 +15,11 @@ struct LunaCareApp: App {
     @StateObject private var env  = AppEnvironment.shared
     @StateObject private var auth = AuthViewModel()
 
+    init() {
+        //REQUIRED: activate connectivity with watch to send data back and forth
+        WatchConnectivityManager.shared.activate()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
