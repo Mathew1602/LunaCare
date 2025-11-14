@@ -16,7 +16,7 @@ struct LunaCareApp: App {
     @StateObject private var auth = AuthViewModel()
 
     init() {
-        //REQUIRED: activate connectivity with watch to send data back and forth
+        // This activates connectivity to watchOS
         WatchConnectivityManager.shared.activate()
     }
 
@@ -25,6 +25,10 @@ struct LunaCareApp: App {
             ContentView()
                 .environmentObject(env)
                 .environmentObject(auth)
+                .onAppear {
+                    WatchSyncService.shared.configure(uidProvider: { auth.uid })
+                }
         }
     }
 }
+

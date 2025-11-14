@@ -11,7 +11,6 @@ import Combine
 
 final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDelegate {
 
-
     static let shared = WatchConnectivityManager()
 
     @Published var lastReceived: SyncMessage? = nil
@@ -19,11 +18,11 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
     private var session: WCSession?
 
-
     private override init() {
         super.init()
         startSession()
     }
+
     func activate() {
         startSession()
     }
@@ -32,7 +31,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
     private func startSession() {
         guard WCSession.isSupported() else {
-            print("Watch Connectivity is not supported on this device.")
+            print("WatchConnectivity not supported on this device.")
             return
         }
 
@@ -43,7 +42,6 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
     // MARK: - Sending
 
-    /// Generic send for any Codable payload, mirroring your original API.
     func send<T: Codable>(_ model: T, type: SyncType) {
         guard let session = session else {
             errorMessage = "WCSession not initialized."
@@ -66,13 +64,18 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
             "payload": string
         ]
 
-        // Prefer immediate message when reachable, else fall back to background transfer
+        print("Sending message:")
+        print("- Type: \(type.rawValue)")
+        print("- Payload: \(string)")
+        print("- Reachable: \(session.isReachable)")
+
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil) { error in
                 self.errorMessage = "Failed to send message: \(error.localizedDescription)"
                 print(self.errorMessage ?? "")
             }
         } else {
+            print("Device not reachable. Using transferUserInfo()")
             session.transferUserInfo(message)
         }
     }
@@ -80,13 +83,21 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     // MARK: - Receiving
 
     private func handleIncoming(_ message: [String: Any]) {
+
+        print("Incoming raw message: \(message)")
+
         guard let typeString = message["type"] as? String,
               let payload = message["payload"] as? String,
               let type = SyncType(rawValue: typeString),
               let data = payload.data(using: .utf8) else {
-            print("Received invalid message format: \(message)")
+
+            print("Invalid message format.")
             return
         }
+
+        print("Decoding incoming message:")
+        print("- Type: \(typeString)")
+        print("- Payload JSON: \(payload)")
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -95,52 +106,63 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
         case .moodLog:
             if let mood = try? decoder.decode(MoodLog.self, from: data) {
+                print("Decoded MoodLog: \(mood)")
                 DispatchQueue.main.async {
                     self.lastReceived = SyncMessage(type: type, moodLog: mood)
                 }
+            } else {
+                print("Failed to decode MoodLog")
             }
 
         case .measurement:
             if let measurement = try? decoder.decode(Measurement.self, from: data) {
+                print("Decoded Measurement: \(measurement)")
                 DispatchQueue.main.async {
                     self.lastReceived = SyncMessage(type: type, measurement: measurement)
                 }
+            } else {
+                print("Failed to decode Measurement")
             }
 
         case .insight:
             if let insight = try? decoder.decode(Insight.self, from: data) {
+                print("Decoded Insight: \(insight)")
                 DispatchQueue.main.async {
                     self.lastReceived = SyncMessage(type: type, insight: insight)
                 }
+            } else {
+                print("Failed to decode Insight")
             }
 
         case .profile:
             if let profile = try? decoder.decode(UserProfile.self, from: data) {
+                print("Decoded UserProfile: \(profile)")
                 DispatchQueue.main.async {
                     self.lastReceived = SyncMessage(type: type, profile: profile)
                 }
+            } else {
+                print("Failed to decode UserProfile")
             }
         }
     }
 
-    // Immediate messages
+    // MARK: - WCSessionDelegate
+
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        print("didReceiveMessage triggered")
         handleIncoming(message)
     }
 
-    // Background userInfo
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
+        print("didReceiveUserInfo triggered")
         handleIncoming(userInfo)
     }
-
-    // MARK: - Activation & lifecycle
 
     func session(_ session: WCSession,
                  activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
         if let error = error {
-            errorMessage = "WCSession activation failed: \(error.localizedDescription)"
-            print(errorMessage ?? "")
+            print("WCSession activation failed: \(error.localizedDescription)")
         } else {
             print("WCSession activated with state: \(activationState.rawValue)")
         }
@@ -148,11 +170,11 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
     #if os(iOS)
     func sessionDidBecomeInactive(_ session: WCSession) {
-        // No-op, but required on iOS
+        print("WCSession didBecomeInactive")
     }
 
     func sessionDidDeactivate(_ session: WCSession) {
-        // After deactivation, the session needs to be reactivated
+        print("WCSession didDeactivate — reactivating")
         WCSession.default.activate()
     }
     #endif
