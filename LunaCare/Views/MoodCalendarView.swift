@@ -12,7 +12,8 @@ struct MoodCalendarView: View {
     @StateObject private var vm = MoodCalendarViewModel()
 
     private let cols = Array(repeating: GridItem(.flexible()), count: 7)
-    private let noteTint = Color(red: 139/255, green: 146/255, blue: 250/255)
+    //private let noteTint = Color(red: 139/255, green: 146/255, blue: 250/255)
+    private let noteTint = Color(.systemIndigo)
     private let tileBG   = Color(red: 249/255, green: 248/255, blue: 255/255)
 
     var body: some View {
@@ -61,7 +62,9 @@ struct MoodCalendarView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 10)
+                    
+                    Divider()
 
                     // Selected day's details: multiple notes (latest first), each as its own block
                     if let sel = vm.selected {
@@ -92,7 +95,7 @@ struct MoodCalendarView: View {
                                         // Note + time
                                         VStack(alignment: .leading, spacing: 6) {
                                             Text((log.note ?? "").isEmpty ? "No note" : (log.note ?? ""))
-                                                .foregroundColor(.secondary)
+                                                .foregroundColor(.primary)
                                                 .fixedSize(horizontal: false, vertical: true)
 
                                             Text(DateFormatter.timeShort.string(from: log.createdAt))
@@ -102,7 +105,7 @@ struct MoodCalendarView: View {
 
                                         Spacer()
 
-                                        // Edit icon (no navigation attached)
+                                        // Edit icon
                                         Image(systemName: "square.and.pencil")
                                             .font(.title3)
                                             .foregroundColor(noteTint)
@@ -134,41 +137,63 @@ struct MoodCalendarView: View {
 
 private struct DayCell: View {
     let date: Date?
-    let selected: Date?
-    let mood: Mood?
-    let onTap: () -> Void
+        let selected: Date?
+        let mood: Mood?
+        let onTap: () -> Void
 
-    private let tileBG   = Color(red: 249/255, green: 248/255, blue: 255/255)
-    private let accent   = Color(red: 139/255, green: 146/255, blue: 250/255)
+//        private let accent = Color(red: 139/255, green: 146/255, blue: 250/255)
+    private let accent = Color(.systemIndigo)
 
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 4) {
-                Text(date.map { String(Calendar.current.component(.day, from: $0)) } ?? "")
-                    .font(.callout)
-                    .foregroundStyle(date == nil ? .clear : .primary)
-                Text(mood?.rawValue ?? " ")
-                    .font(.title3)
+        var body: some View {
+            Button(action: onTap) {
+                VStack(spacing: 2) {
+                    ZStack {
+                        // TODAY circle
+                        if isToday {
+                            Circle()
+                                .fill(accent)
+                                .frame(width: 28, height: 28)
+                        }
+
+                        // Day number
+                        Text(dayText)
+                            .font(.callout)
+                            .foregroundColor(
+                                date == nil
+                                ? .clear
+                                : (isToday ? .white : .primary)
+                            )
+                    }
+
+                    // Emoji mood
+                    Text(mood?.rawValue ?? " ")
+                        .font(.title3)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.vertical, 6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isSelected ? accent : .clear, lineWidth: 2)
+                )
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .padding(6)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(tileBG)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(isSelected ? accent : .clear, lineWidth: 2)
-                    )
-            )
+            .disabled(date == nil)
         }
-        .disabled(date == nil)
-    }
 
-    private var isSelected: Bool {
-        guard let d = date, let s = selected else { return false }
-        return Calendar.current.isDate(d, inSameDayAs: s)
+        private var isToday: Bool {
+            guard let d = date else { return false }
+            return Calendar.current.isDateInToday(d)
+        }
+
+        private var isSelected: Bool {
+            guard let d = date, let s = selected else { return false }
+            return Calendar.current.isDate(d, inSameDayAs: s)
+        }
+
+        private var dayText: String {
+            guard let d = date else { return "" }
+            return String(Calendar.current.component(.day, from: d))
+        }
     }
-}
 
 private extension DateFormatter {
     static let medium: DateFormatter = {

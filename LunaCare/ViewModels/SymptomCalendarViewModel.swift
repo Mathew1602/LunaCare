@@ -107,6 +107,8 @@ final class SymptomCalendarViewModel: ObservableObject {
     
     func changeMonth(by delta: Int, uid: String) async {
         monthOffset += delta
+        selected = nil
+        selectedDetails = [:]
         await loadMonth(for: uid)
     }
 
