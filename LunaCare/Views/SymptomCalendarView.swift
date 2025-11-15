@@ -18,14 +18,7 @@ struct SymptomCalendarView: View {
 
             // ---------- TOP HALF: CALENDAR ----------
             VStack(spacing: 12) {
-//                // 1. extra space above month title
-//                Spacer()
-//                    .frame(height: 24)
-//
-//                // Month title (purple)
-//                Text(vm.monthTitle)
-//                    .font(.title3.weight(.semibold))
-//                    .foregroundColor(symptomTint)
+
                 HStack {
                     Button {
                         Task { await vm.changeMonth(by: -1, uid: auth.uid) }
@@ -87,7 +80,6 @@ struct SymptomCalendarView: View {
                 .padding(.top, 8)
             }
 
-            // 3. fixed spacing between calendar and bottom section
             Spacer()
                 .frame(height: 24)
 
@@ -104,7 +96,6 @@ struct SymptomCalendarView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
-                    // 4. show symptom name + value
                     ForEach(vm.selectedDetails.keys.sorted(), id: \.self) { key in
                         if let value = vm.selectedDetails[key] {
                             HStack {
@@ -130,11 +121,8 @@ struct SymptomCalendarView: View {
             guard !uid.isEmpty else { return }
             await vm.loadMonth(for: uid)
         }
-        // IMPORTANT: no navigation title here, so it looks like the iOS Calendar
     }
 }
-
-// MARK: - Day cell
 
 private struct SymptomDayCell: View {
     let date: Date?
@@ -160,12 +148,11 @@ private struct SymptomDayCell: View {
                         .fontWeight(isToday ? .semibold : .regular)
                         .foregroundStyle(
                             date == nil
-                            ? .clear                      // hide text in empty cell
+                            ? .clear
                             : (isToday ? Color.white : .primary)
                         )
                 }
 
-                // small dot for "has symptoms"
                 Circle()
                     .fill(tint)
                     .frame(width: 5, height: 5)
