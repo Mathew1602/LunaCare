@@ -4,173 +4,122 @@
 //
 //  Created by Xiaoya Zou on 2025-10-09.
 //
-
 import SwiftUI
 
-enum SymptomMark: CaseIterable, Identifiable, Codable, Hashable {
-    case pain, nausea, fever, fatigue, none
-
-    var id: Self { self }
-
-    var icon: String {
-        switch self {
-        case .pain:    return "bandage"
-        case .nausea:  return "pills"
-        case .fever:   return "thermometer"
-        case .fatigue: return "bed.double"
-        case .none:    return "checkmark"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .pain:    return .red
-        case .nausea:  return .pink
-        case .fever:   return .orange
-        case .fatigue: return .green
-        case .none:    return .blue
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .pain:    return "Pain"
-        case .nausea:  return "Nausea"
-        case .fever:   return "Fever"
-        case .fatigue: return "Fatigue"
-        case .none:    return "OK"
-        }
-    }
-}
-
 struct SymptomCalendarView: View {
-    private let headerImageName = "sympCalendar"
+    @EnvironmentObject var auth: AuthViewModel
+    @StateObject private var vm = SymptomCalendarViewModel()
 
-    @State private var monthOffset = 0
-    @State private var selected: Date? = nil
-    @State private var markByDay: [Date: SymptomMark] = [:]
-
-    private let cal = Calendar.current
     private let cols = Array(repeating: GridItem(.flexible()), count: 7)
+    private let symptomTint = Color(red: 139/255, green: 146/255, blue: 250/255)
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-//                    Text("Symptom Calendar")
-//                        .font(.title2).bold()
-//                        .padding(.horizontal)
+        VStack(spacing: 0) {
 
-                    // Header illustration
-                    Image(headerImageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(height: 180)                 // adjust height to taste
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                        .cornerRadius(18)
-                        .padding(.horizontal)
+            // ---------- TOP HALF: CALENDAR ----------
+            VStack(spacing: 12) {
 
-                    // Month header
-                    HStack(spacing: 12) {
-                        Button {
-                            monthOffset -= 1
-                            seedMock()
-                        } label: { Image(systemName: "chevron.left") }
-
-                        Spacer()
-                        Text(monthTitle).font(.headline)
-                        Spacer()
-
-                        Button {
-                            monthOffset += 1
-                            seedMock()
-                        } label: { Image(systemName: "chevron.right") }
+                HStack {
+                    Button {
+                        Task { await vm.changeMonth(by: -1, uid: auth.uid) }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(symptomTint)
+                            .font(.title3)
                     }
-                    .padding(.horizontal)
 
-                    // Weekday row
-                    HStack {
-                        ForEach(weekdaySymbols, id: \.self) { s in
-                            Text(s).font(.caption).foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity)
-                        }
+                    Spacer()
+
+                    Text(vm.monthTitle)
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(symptomTint)
+
+                    Spacer()
+
+                    Button {
+                        Task { await vm.changeMonth(by: 1, uid: auth.uid) }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(symptomTint)
+                            .font(.title3)
                     }
-                    .padding(.horizontal, 8)
+                }
+                .padding(.horizontal, 24)
 
-                    // Calendar grid
-                    LazyVGrid(columns: cols, spacing: 10) {
-                        ForEach(daysGrid, id: \.self) { day in
-                            SymptomDayCell(
-                                date: day,
-                                selected: selected,
-                                mark: markByDay[day?.startOfDay ?? .distantPast]
-                            ) {
-//                                if let d = day {
-//                                    selected = d
-//                                    // MOCK: cycle through marks on tap
-//                                    let all = SymptomMark.allCases
-//                                    let current = markByDay[d.startOfDay]
-//
-//                                    let next: SymptomMark = {
-//                                        guard let cur = current, let i = all.firstIndex(of: cur) else { return .pain }
-//                                        return all[(i + 1) % all.count]
-//                                    }()
-//
-//                                    markByDay[d.startOfDay] = next
-//                                }
+                // Weekday row
+                HStack {
+                    ForEach(vm.weekdaySymbols, id: \.self) { s in
+                        Text(s)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
 
+                // Calendar grid
+                LazyVGrid(columns: cols, spacing: 10) {
+                    ForEach(vm.daysGrid, id: \.self) { day in
+                        SymptomDayCell(
+                            date: day,
+                            selected: vm.selected,
+                            hasSymptoms: vm.hasSymptoms(on: day),
+                            isToday: vm.isToday(day),
+                            tint: symptomTint
+                        ) {
+                            if let d = day {
+                                Task {
+                                    await vm.select(day: d, uid: auth.uid)
+                                }
                             }
                         }
                     }
-                    .padding(.horizontal, 8)
-
-//                    // Legend
-//                    LegendView()
-//                        .padding(.horizontal)
                 }
-                .padding(.vertical, 8)
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
             }
-            .navigationTitle("Symptom Calendar")
-        }
-        .onAppear {
-            seedMock()
-            
-            // display user notification
-            NotificationManager.shared.scheduleDemo(after: 5)
-        }
-        
-    }
 
-    private var monthStart: Date {
-        cal.date(from: cal.dateComponents([.year, .month], from: cal.date(byAdding: .month, value: monthOffset, to: Date())!))!
-    }
-    private var monthTitle: String {
-        let f = DateFormatter(); f.dateFormat = "LLLL yyyy"; return f.string(from: monthStart)
-    }
-    private var weekdaySymbols: [String] {
-        let f = DateFormatter(); f.locale = .current; return f.shortWeekdaySymbols
-    }
-    private var daysGrid: [Date?] {
-        let first = cal.component(.weekday, from: monthStart)   // 1..7
-        let leading = (first + 6) % 7                           // 0..6
-        let days = cal.range(of: .day, in: .month, for: monthStart)!.count
-        var arr = Array<Date?>(repeating: nil, count: leading)
-        for i in 0..<days { arr.append(cal.date(byAdding: .day, value: i, to: monthStart)!) }
-        return arr
-    }
+            Spacer()
+                .frame(height: 24)
 
-    private func seedMock() {
-        // mock colored icon marks for current visible month
-        markByDay.removeAll()
-        let sample: [(Int, SymptomMark)] = [
-            (2, .pain), (7, .nausea), (8, .pain), (9, .fever),
-            (11, .fatigue), (16, .pain), (17, .nausea), (20, .none)
-        ]
-        for (d, m) in sample {
-            if let date = cal.date(byAdding: .day, value: d-1, to: monthStart) {
-                markByDay[date.startOfDay] = m
+            Divider()
+
+            // ---------- BOTTOM HALF: DETAILS ----------
+            VStack(alignment: .leading, spacing: 12) {
+                // Selected date title
+                Text(vm.selectedTitle)
+                    .font(.headline)
+
+                if vm.selectedDetails.isEmpty {
+                    Text("No symptom logs recorded for this day.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(vm.selectedDetails.keys.sorted(), id: \.self) { key in
+                        if let value = vm.selectedDetails[key] {
+                            HStack {
+                                Text(key)
+                                    .font(.body)
+                                Spacer()
+                                Text("\(value) / 10")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+        }
+        // load current month when the view appears
+        .task {
+            let uid = auth.uid
+            guard !uid.isEmpty else { return }
+            await vm.loadMonth(for: uid)
         }
     }
 }
@@ -178,42 +127,39 @@ struct SymptomCalendarView: View {
 private struct SymptomDayCell: View {
     let date: Date?
     let selected: Date?
-    let mark: SymptomMark?
+    let hasSymptoms: Bool
+    let isToday: Bool
+    let tint: Color
     let onTap: () -> Void
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(date?.timeIntervalSince1970 ?? -1)
-    }
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 6) {
-                Text(dayText)
-                    .font(.callout)
-                    .foregroundStyle(date == nil ? .clear : .primary)
-
+            VStack(spacing: 4) {
                 ZStack {
-                    Circle()
-                        .fill((mark?.color ?? Color(.tertiarySystemFill)).opacity(mark == nil ? 0.4 : 0.9))
-                        .frame(width: 26, height: 26)
-
-                    if let mark {
-                        Image(systemName: mark.icon)
-                            .font(.caption2)
-                            .foregroundStyle(.white)
+                    // big purple circle for "today"
+                    if isToday {
+                        Circle()
+                            .fill(tint)
+                            .frame(width: 28, height: 28)
                     }
+
+                    Text(dayText)
+                        .font(.callout)
+                        .fontWeight(isToday ? .semibold : .regular)
+                        .foregroundStyle(
+                            date == nil
+                            ? .clear
+                            : (isToday ? Color.white : .primary)
+                        )
                 }
+
+                Circle()
+                    .fill(tint)
+                    .frame(width: 5, height: 5)
+                    .opacity(hasSymptoms ? 1 : 0)
             }
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .padding(6)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(.secondarySystemBackground))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(isSelected ? Color.blue : .clear, lineWidth: 2)
-                    )
-            )
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
         }
         .disabled(date == nil)
     }
@@ -222,34 +168,8 @@ private struct SymptomDayCell: View {
         guard let d = date else { return "" }
         return String(Calendar.current.component(.day, from: d))
     }
-    private var isSelected: Bool {
-        guard let d = date, let s = selected else { return false }
-        return Calendar.current.isDate(d, inSameDayAs: s)
-    }
 }
 
-private struct LegendView: View {
-    private let items: [SymptomMark] = [.pain, .nausea, .fever, .fatigue, .none]
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(items) { mark in
-                HStack(spacing: 6) {
-                    Circle().fill(mark.color).frame(width: 14, height: 14)
-                    Image(systemName: mark.icon).font(.caption2)
-                    Text(mark.label).font(.caption)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 8)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(8)
-            }
-            Spacer()
-        }
-    }
-}
-
-private extension Date { var startOfDay: Date { Calendar.current.startOfDay(for: self) } }
 
 #Preview {
     SymptomCalendarView()

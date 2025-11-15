@@ -64,3 +64,9 @@ struct Insight: Codable, Identifiable {
     var inputs: [String: String]?
     var createdAt: Date?
 }
+
+struct SymptomRow: Identifiable {
+    let id = UUID()
+    let name: String
+    let value: Int
+}

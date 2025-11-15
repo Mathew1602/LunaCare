@@ -8,6 +8,7 @@
 
 import Foundation
 
+@MainActor
 final class MoodCalendarViewModel: ObservableObject {
 
     @Published var monthOffset: Int = 0
