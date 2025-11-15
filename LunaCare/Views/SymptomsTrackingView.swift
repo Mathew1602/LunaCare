@@ -4,7 +4,6 @@
 //
 //  Created by Xiaoya Zou on 2025-10-08.
 //
-
 import SwiftUI
 
 struct SymptomEntry: Identifiable, Hashable {
@@ -25,68 +24,42 @@ fileprivate func severityText(_ value: Double) -> String {
 
 struct SymptomsTrackingView: View {
     @EnvironmentObject var auth: AuthViewModel
-    
-    @State private var symptoms: [SymptomEntry] = [
-        .init(name: "Fatigue",       value: 0),
-        .init(name: "Bleeding",      value: 0),
-        .init(name: "Hair Loss",     value: 0),
-        .init(name: "Appetite",      value: 0),
-        .init(name: "Sleep Trouble", value: 0)
-    ]
-
-    @State private var showSavedAlert = false
-    
-    @State private var backendStatus = ""
+    @StateObject private var vm = SymptomTrackingViewModel()
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    ForEach($symptoms) { $symptom in
+                    ForEach($vm.symptoms) { $symptom in
                         SymptomCard(symptom: $symptom)
                     }
 
-                    Button(action: save) {
+                    Button {
+                        vm.save(uid: auth.uid)
+                    } label: {
                         Text("Save Symptoms")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                     .padding(.horizontal)
                     .padding(.top, 4)
+
+                    if let status = vm.backendStatus {
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                    }
                 }
                 .padding(.vertical, 8)
             }
             .navigationTitle("Symptoms Tracking")
         }
-        .alert("Your symptoms have been saved", isPresented: $showSavedAlert) {
-            Button("OK", role: .cancel) {}
-        }
-    }
-
-//    private func save() {
-//        // mock “persist”: print to console; wire to real storage later
-//        for s in symptoms {
-//            print("\(s.name): \(Int(s.value))/10 (\(severityText(s.value)))")
-//        }
-//        showSavedAlert = true
-//    }
-    private func save() {
-        let uid = auth.uid
-        guard !uid.isEmpty else {
-            backendStatus = "▲ Not signed in; saved locally only."
-            showSavedAlert = true
-            return
-        }
-        SymptomLogRepository().create(
-            uid: uid,
-            entries: symptoms,
-            notes: nil,
-            tags: ["manual"],
-            source: "manual"
-        ) { err in
-            DispatchQueue.main.async {
-                backendStatus = err == nil ? "Symptoms saved to Firestore" : "Symptom save error: \(err!.localizedDescription)"
-                showSavedAlert = true
+        .alert("Your symptoms have been saved", isPresented: $vm.showSavedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            if let status = vm.backendStatus {
+                Text(status)
             }
         }
     }
@@ -106,7 +79,6 @@ fileprivate struct SymptomCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            // slider row
             VStack(alignment: .leading, spacing: 6) {
                 Slider(value: $symptom.value, in: 0...10, step: 1)
                 HStack {
@@ -139,7 +111,7 @@ fileprivate struct SymptomCard: View {
     }
 }
 
-
 #Preview {
     SymptomsTrackingView()
+        .environmentObject(AuthViewModel())
 }
