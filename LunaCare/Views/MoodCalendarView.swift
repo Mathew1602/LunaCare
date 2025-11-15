@@ -5,13 +5,6 @@
 //  Created by Xiaoya Zou on 2025-10-09.
 //
 
-//
-//  MoodCalendarView.swift
-//  LunaCare
-//
-//  Created by Xiaoya Zou on 2025-10-09.
-//
-
 import SwiftUI
 
 struct MoodCalendarView: View {
