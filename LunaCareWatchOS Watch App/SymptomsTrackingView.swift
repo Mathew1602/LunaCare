@@ -15,23 +15,56 @@ struct SymptomsTrackingView: View {
     @State private var sleepTrouble: Double = 0
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Text("Symptoms Tracking")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
+        VStack(spacing: 0) {
 
-                SymptomSlider(title: "Fatigue", value: $fatigue)
-                SymptomSlider(title: "Bleeding", value: $bleeding)
-                SymptomSlider(title: "Hair Loss", value: $hairLoss)
-                SymptomSlider(title: "Appetite", value: $appetite)
-                SymptomSlider(title: "Sleep Trouble", value: $sleepTrouble)
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Symptoms Tracking")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+
+                    SymptomSlider(title: "Fatigue", value: $fatigue)
+                    SymptomSlider(title: "Bleeding", value: $bleeding)
+                    SymptomSlider(title: "Hair Loss", value: $hairLoss)
+                    SymptomSlider(title: "Appetite", value: $appetite)
+                    SymptomSlider(title: "Sleep Trouble", value: $sleepTrouble)
+                }
+                .padding(.vertical)
+                Button(action: {
+                    sendSymptomLog()
+                    WKInterfaceDevice.current().play(.success)
+                }) {
+                    Text("Save & Sync")
+                        .font(.body)
+                        .padding()
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 10)
             }
-            .padding(.vertical)
         }
     }
+
+    private func sendSymptomLog() {
+        let values: [String: Int] = [
+            "Fatigue": Int(fatigue),
+            "Bleeding": Int(bleeding),
+            "Hair Loss": Int(hairLoss),
+            "Appetite": Int(appetite),
+            "Sleep Trouble": Int(sleepTrouble)
+        ]
+
+        let payload = SymptomLogPayload(
+            values: values,
+            notes: nil,
+            tags: ["watch"],
+            source: "watch"
+        )
+
+        WatchConnectivityManager.shared.send(payload, type: .symptomLog)
+    }
 }
+
 
 struct SymptomSlider: View {
     let title: String
@@ -43,7 +76,7 @@ struct SymptomSlider: View {
                 .font(.body)
                 .fontWeight(.semibold)
 
-            Slider(value: $value, in: 0...5, step: 1)
+            Slider(value: $value, in: 0...10, step: 1)
         }
         .padding(.horizontal)
     }

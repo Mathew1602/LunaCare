@@ -70,3 +70,10 @@ struct SymptomRow: Identifiable {
     let name: String
     let value: Int
 }
+
+struct SymptomLogPayload: Codable {
+    let values: [String: Int]
+    let notes: String?
+    let tags: [String]?
+    let source: String?
+}

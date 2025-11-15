@@ -113,6 +113,16 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
             } else {
                 print("Failed to decode MoodLog")
             }
+            
+        case .symptomLog:
+            if let payload = try? decoder.decode(SymptomLogPayload.self, from: data) {
+                print("Decoded SymptomLogPayload: \(payload)")
+                DispatchQueue.main.async {
+                    self.lastReceived = SyncMessage(type: type, symptomLog: payload)
+                }
+            } else {
+                print("Failed to decode SymptomLogPayload")
+            }
 
         case .measurement:
             if let measurement = try? decoder.decode(Measurement.self, from: data) {

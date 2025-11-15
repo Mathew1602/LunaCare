@@ -10,6 +10,7 @@ import Foundation
 //The type of data being synced
 enum SyncType: String, Codable {
     case moodLog
+    case symptomLog
     case measurement
     case insight
     case profile
@@ -21,7 +22,11 @@ struct SyncMessage: Identifiable {
     let type: SyncType
 
     var moodLog: MoodLog?
+    var symptomLog: SymptomLogPayload?   
     var measurement: Measurement?
     var insight: Insight?
     var profile: UserProfile?
 }
+
+
+

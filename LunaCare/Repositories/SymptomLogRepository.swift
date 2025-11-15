@@ -8,12 +8,6 @@
 import Foundation
 import FirebaseFirestore
 
-struct SymptomLogPayload {
-    let values: [String: Int]      // e.g., ["Fatigue": 6, "Bleeding": 2, ...]
-    let notes: String?
-    let tags: [String]?
-    let source: String?
-}
 
 final class SymptomLogRepository {
 

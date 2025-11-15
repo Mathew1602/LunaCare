@@ -59,6 +59,27 @@ final class WatchSyncService {
                     completion: nil
                 )
             }
+            
+        case .symptomLog:
+               guard let payload = msg.symptomLog else { return }
+
+               if uid.isEmpty {
+                   print("No UID. TODO: save symptom log locally if you want")
+                   LocalSymptomStore.shared.saveOfflineSymptomLog(payload)
+               } else {
+                   print("Saving watch symptom log to Firestore. uid = \(uid)")
+                   SymptomLogRepository().create(
+                       uid: uid,
+                       payload: payload,
+                       completion: { error in
+                           if let error = error {
+                               print("Symptom log save error: \(error.localizedDescription)")
+                           } else {
+                               print("Symptom log saved to Firestore")
+                           }
+                       }
+                   )
+               }
 
         case .measurement:
             // TODO: handle measurements
