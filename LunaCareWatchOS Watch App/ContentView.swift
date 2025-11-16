@@ -46,8 +46,6 @@ struct ContentView: View {
                     VStack(spacing: 8) {
                         NavigationLink("Symptoms Tracking", destination: SymptomsTrackingView())
                             .buttonStyle(.bordered)
-                        NavigationLink("Mood Report", destination: MoodReportView())
-                            .buttonStyle(.bordered)
                         NavigationLink("Mood History", destination: MoodHistoryView())
                             .buttonStyle(.bordered)
                         NavigationLink("SymptomHistory", destination: SymptomHistoryView())

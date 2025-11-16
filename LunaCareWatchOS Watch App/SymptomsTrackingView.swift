@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import WatchKit
 
 struct SymptomsTrackingView: View {
     @State private var fatigue: Double = 0
@@ -14,35 +15,46 @@ struct SymptomsTrackingView: View {
     @State private var appetite: Double = 0
     @State private var sleepTrouble: Double = 0
 
+    @State private var showingSavedAlert = false   // 👈 new
+
     var body: some View {
-        VStack(spacing: 0) {
+        ScrollView {
+            VStack(spacing: 20) {
+                Text("Symptoms Tracking")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
 
-            ScrollView {
-                VStack(spacing: 20) {
-                    Text("Symptoms Tracking")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
+                SymptomSlider(title: "Fatigue", value: $fatigue)
+                SymptomSlider(title: "Bleeding", value: $bleeding)
+                SymptomSlider(title: "Hair Loss", value: $hairLoss)
+                SymptomSlider(title: "Appetite", value: $appetite)
+                SymptomSlider(title: "Sleep Trouble", value: $sleepTrouble)
 
-                    SymptomSlider(title: "Fatigue", value: $fatigue)
-                    SymptomSlider(title: "Bleeding", value: $bleeding)
-                    SymptomSlider(title: "Hair Loss", value: $hairLoss)
-                    SymptomSlider(title: "Appetite", value: $appetite)
-                    SymptomSlider(title: "Sleep Trouble", value: $sleepTrouble)
-                }
-                .padding(.vertical)
                 Button(action: {
                     sendSymptomLog()
-                    WKInterfaceDevice.current().play(.success)
                 }) {
                     Text("Save & Sync")
                         .font(.body)
-                        .padding()
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
                 }
+                .background(.ultraThinMaterial)
+                .cornerRadius(40)
                 .padding(.horizontal)
                 .padding(.bottom, 10)
             }
+            .padding(.vertical)
         }
+        .alert("Symptoms Saved",
+               isPresented: $showingSavedAlert,
+               actions: {
+                   Button("OK", role: .cancel) { }
+               },
+               message: {
+                   Text("Your symptom check-in has been synced")
+               })
     }
 
     private func sendSymptomLog() {
@@ -62,9 +74,19 @@ struct SymptomsTrackingView: View {
         )
 
         WatchConnectivityManager.shared.send(payload, type: .symptomLog)
+
+        // Haptic + alert
+        WKInterfaceDevice.current().play(.success)
+        showingSavedAlert = true
+
+        // Reset sliders
+        fatigue = 0
+        bleeding = 0
+        hairLoss = 0
+        appetite = 0
+        sleepTrouble = 0
     }
 }
-
 
 struct SymptomSlider: View {
     let title: String

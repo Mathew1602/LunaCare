@@ -1,74 +1,98 @@
 //
 //  MoodTracking.swift
-//  LunaCare
+//  LunaCareWatchOS Watch App
 //
-//  Updated to sync with iOS using WatchConnectivityManager
+//  Created by Mathew Boyd on 2025-10-16.
 //
+
 
 import SwiftUI
 import WatchKit
 
 struct MoodTracking: View {
     @State private var selectedMood: Mood? = nil
-    @State private var navigateToReport = false
-    @State private var note: String = ""          // 👈 new
+    @State private var note: String = ""
+    @State private var showingSavedAlert = false
 
     private let moodOptions: [Mood] = [.angry, .sad, .ecstatic, .happy, .okay]
 
     var body: some View {
-        VStack(spacing: 16) {
+        ScrollView {
+            VStack(spacing: 12) {
+                Text("How do you feel today?")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
 
-            Text("How do you feel today?")
-                .font(.headline)
-                .padding(.top, 8)
-
-            HStack(spacing: 20) {
-                ForEach(moodOptions) { mood in
-                    Button {
-                        selectedMood = mood
-                    } label: {
-                        Text(mood.rawValue)
-                            .font(.system(size: 25))
-                            .opacity(selectedMood == mood ? 1.0 : 0.6)
-                            .scaleEffect(selectedMood == mood ? 1.2 : 1.0)
-                            .animation(.easeInOut(duration: 0.15), value: selectedMood)
+                HStack(spacing: 16) {
+                    ForEach(moodOptions) { mood in
+                        Button {
+                            selectedMood = mood
+                        } label: {
+                            Text(mood.rawValue)
+                                .font(.system(size: 24))
+                                .opacity(selectedMood == mood ? 1.0 : 0.5)
+                                .scaleEffect(selectedMood == mood ? 1.2 : 1.0)
+                                .animation(.easeInOut(duration: 0.15), value: selectedMood)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                }
+
+                if selectedMood != nil {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Add a note")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        TextField("Optional note", text: $note, axis: .vertical)
+                            .lineLimit(1...3)
+                            .font(.caption2)
+                            .padding(6)
+                            .background(Color.black.opacity(0.3))
+                            .cornerRadius(10)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let mood = selectedMood {
+                    Button {
+                        saveMood(mood)
+                    } label: {
+                        Text("Save Mood")
+                            .font(.headline)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 20)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(40)
                 }
             }
-
-            // Optional note field once a mood is chosen
-            if selectedMood != nil {
-                TextField("Optional note", text: $note)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-            }
-
-            if let mood = selectedMood {
-                Button("Save Mood") {
-                    saveMood(mood)
-                }
-                .font(.headline)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 22)
-                .background(.ultraThinMaterial)
-                .cornerRadius(40)
-            }
+            .padding(.horizontal)
+            .padding(.top, 8)
         }
         .navigationTitle("Log Mood")
-        .navigationDestination(isPresented: $navigateToReport) {
-            MoodReportView()
-        }
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Mood Saved",
+               isPresented: $showingSavedAlert,
+               actions: {
+                   Button("OK", role: .cancel) { }
+               },
+               message: {
+                   Text("Thanks for checking in")
+               })
     }
 
     private func saveMood(_ mood: Mood) {
         sendMoodToPhone(mood)
+
+        // Reset UI
         selectedMood = nil
         note = ""
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            navigateToReport = true
-        }
+        // Haptic + alert
+        WKInterfaceDevice.current().play(.success)
+        showingSavedAlert = true
     }
 
     private func sendMoodToPhone(_ mood: Mood) {
