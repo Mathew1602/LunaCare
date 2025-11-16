@@ -5,6 +5,7 @@
 //  Created by Fernanda Battig on 2025-11-07.
 //  Updated by Xiaoya Zou
 
+
 import Foundation
 
 enum Mood: String, CaseIterable, Identifiable, Codable {
@@ -28,7 +29,7 @@ enum Mood: String, CaseIterable, Identifiable, Codable {
 }
 
 struct UserProfile: Codable, Identifiable {
-    var id: String?             // Firestore doc id
+    var id: String?
     var email: String?
     var consent: [String: Bool]?
     var createdAt: Date?
@@ -65,7 +66,7 @@ struct Insight: Codable, Identifiable {
     var createdAt: Date?
 }
 
-struct SymptomRow: Codable, Hashable, Identifiable {
+struct SymptomRow: Identifiable, Codable, Hashable {
     var id = UUID()
     let name: String
     let value: Int
@@ -78,17 +79,17 @@ struct SymptomLogPayload: Codable {
     let source: String?
 }
 
-//Mood CalendarDayLog
+/// One symptom check-in (time + list of SymptomRow)
+struct SymptomLogSummary: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let createdAt: Date
+    let rows: [SymptomRow]
+}
+
+// Mood history item (already used for calendar + watch)
 struct CalendarDayLog: Codable, Identifiable, Hashable {
     var id = UUID()
     let mood: Mood
     let note: String?
     let createdAt: Date
 }
-
-struct SymptomDaySummary: Codable, Identifiable, Hashable {
-    var id = UUID()
-    let date: Date
-    let rows: [SymptomRow]
-}
-

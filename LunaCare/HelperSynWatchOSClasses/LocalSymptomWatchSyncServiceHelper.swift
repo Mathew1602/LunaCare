@@ -5,6 +5,7 @@
 //  Created by Mathew Boyd on 2025-11-15.
 //
 
+
 import Foundation
 
 final class LocalSymptomStore {
@@ -34,44 +35,22 @@ final class LocalSymptomStore {
     func clearOfflineSymptomLogs() {
         UserDefaults.standard.removeObject(forKey: key)
     }
-    
-    /// Returns SymptomDaySummary for days between from/to, newest first.
-    func offlineSymptomHistory(from: Date, to: Date) -> [SymptomDaySummary] {
-        let logs = loadOfflineSymptomLogs()
-        let cal = Calendar.current
 
-        // Filter into range and group by day
-        var perDayValues: [Date: [String: Int]] = [:]
+    func offlineSymptomHistory(from: Date, to: Date) -> [SymptomLogSummary] {
+        let all = loadOfflineSymptomLogs()
 
-        for item in logs {
-            let createdAt = item.createdAt
-            guard createdAt >= from, createdAt <= to else { continue }
-
-            let dayKey = cal.startOfDay(for: createdAt)
-            var bucket = perDayValues[dayKey] ?? [:]
-
-            for (name, value) in item.payload.values {
-                bucket[name, default: 0] += value
-            }
-
-            perDayValues[dayKey] = bucket
+        let filtered = all.filter { log in
+            log.createdAt >= from && log.createdAt <= to
         }
 
-        // Convert to SymptomDaySummary
-        var summaries: [SymptomDaySummary] = []
+        return filtered
+            .map { item in
+                let rows = item.payload.values
+                    .map { SymptomRow(name: $0.key, value: $0.value) }
+                    .sorted { $0.value > $1.value }
 
-        for (day, values) in perDayValues {
-            let rows = values
-                .map { SymptomRow(name: $0.key, value: $0.value) }
-                .sorted { $0.value > $1.value }
-
-            if !rows.isEmpty {
-                summaries.append(
-                    SymptomDaySummary(date: day, rows: rows)
-                )
+                return SymptomLogSummary(createdAt: item.createdAt, rows: rows)
             }
-        }
-
-        return summaries.sorted { $0.date > $1.date }
+            .sorted { $0.createdAt > $1.createdAt }
     }
 }

@@ -4,21 +4,21 @@
 //
 //  Created by Mathew Boyd on 2025-11-14.
 //
+//
 
 import Combine
 import Foundation
 
 final class WatchSyncService {
     static let shared = WatchSyncService()
-    
+
     private var cancellable: AnyCancellable?
     private let moodRepo: MoodLogsRepositoryType
     private let calendarRepo: MoodCalendarRepository
     private let symptomRepo: SymptomCalendarRepository
-    
     private var uidProvider: () -> String = { "" }
     private var useCloudProvider: () -> Bool = { true }
-    
+
     private init(
         wc: WatchConnectivityManager = .shared,
         moodRepo: MoodLogsRepositoryType = MoodLogsRepository(),
@@ -28,15 +28,14 @@ final class WatchSyncService {
         self.moodRepo = moodRepo
         self.calendarRepo = calendarRepo
         self.symptomRepo = symptomRepo
-        
+
         cancellable = wc.$lastReceived
             .compactMap { $0 }
             .sink { [weak self] msg in
                 self?.handle(msg)
             }
     }
-    
-    // Called from the app once AuthViewModel exists
+
     func configure(
         uidProvider: @escaping () -> String,
         useCloudProvider: @escaping () -> Bool
@@ -44,19 +43,18 @@ final class WatchSyncService {
         self.uidProvider = uidProvider
         self.useCloudProvider = useCloudProvider
     }
-    
+
     private func handle(_ msg: SyncMessage) {
         let uid = uidProvider()
         let useCloud = useCloudProvider()
-        
+
         switch msg.type {
-            
-        // MARK: - Incoming mood log from watch
+
         case .moodLog:
             guard var m = msg.moodLog else { return }
-            
-            if !useCloud || uid.isEmpty {
-                print("Cloud disabled or no UID. Saving mood locally.")
+
+            if uid.isEmpty {
+                print("No UID. Saving mood locally.")
                 if m.createdAt == nil { m.createdAt = Date() }
                 LocalMoodStore.shared.saveOfflineMood(m)
             } else {
@@ -71,178 +69,106 @@ final class WatchSyncService {
                     completion: nil
                 )
             }
-            
-        // MARK: - Incoming symptom log from watch
+
         case .symptomLog:
             guard let payload = msg.symptomLog else { return }
-            
-            if !useCloud || uid.isEmpty {
-                print("Cloud disabled or no UID. Saving symptom log locally.")
+
+            if uid.isEmpty {
+                print("No UID. Saving symptom log locally.")
                 LocalSymptomStore.shared.saveOfflineSymptomLog(payload)
             } else {
                 print("Saving watch symptom log to Firestore. uid = \(uid)")
                 SymptomLogRepository().create(
                     uid: uid,
-                    payload: payload,
-                    completion: { error in
-                        if let error = error {
-                            print("Symptom log save error: \(error.localizedDescription)")
-                        } else {
-                            print("Symptom log saved to Firestore")
-                        }
+                    payload: payload
+                ) { error in
+                    if let error = error {
+                        print("Symptom log save error: \(error.localizedDescription)")
+                    } else {
+                        print("Symptom log saved to Firestore")
                     }
-                )
+                }
             }
-            
+
         case .measurement:
-            // TODO: handle measurements
             break
-            
+
         case .insight:
-            // TODO: handle insights
             break
-            
+
         case .profile:
-            // TODO: handle profile sync
             break
-            
-        // MARK: - Mood history request (watch asks iOS)
+
+        // MARK: - Mood history request
         case .getMoodRequest:
             guard let request = msg.getMoodRequest else { return }
             print("GetMoodRequest received: \(request.from) to \(request.to)")
-            
-            let uid = uidProvider()
-            let useCloud = useCloudProvider()
-            
-            // Offline/local path
+
             if !useCloud || uid.isEmpty {
                 print("Using offline mood history.")
-                let logs = LocalMoodStore.shared.offlineMoodHistory(
-                    from: request.from,
-                    to: request.to
-                )
-                WatchConnectivityManager.shared.send(
-                    logs,
-                    type: .getMoodResponse
-                )
+                let logs = LocalMoodStore.shared.offlineMoodHistory(from: request.from, to: request.to)
+                WatchConnectivityManager.shared.send(logs, type: .getMoodResponse)
                 print("Offline GetMoodResponse sent with \(logs.count) items")
                 return
             }
-            
-            // Cloud/Firestore path
+
             Task { [weak self] in
-                guard let self = self else { return }
-                
+                guard let self else { return }
+
                 do {
                     let logs = try await self.calendarRepo.fetchRange(
                         uid: uid,
                         from: request.from,
                         to: request.to
                     )
-                    
+
                     let sorted = logs.sorted { $0.createdAt > $1.createdAt }
-                    print("Fetched \(sorted.count) mood logs for watch from Firestore")
-                    
-                    WatchConnectivityManager.shared.send(
-                        sorted,
-                        type: .getMoodResponse
-                    )
+                    WatchConnectivityManager.shared.send(sorted, type: .getMoodResponse)
                     print("GetMoodResponse sent with \(sorted.count) items")
                 } catch {
                     print("Error fetching mood history for watch: \(error.localizedDescription)")
-                    WatchConnectivityManager.shared.send(
-                        [CalendarDayLog](),
-                        type: .getMoodResponse
-                    )
+                    WatchConnectivityManager.shared.send([CalendarDayLog](), type: .getMoodResponse)
                 }
             }
-            
-        // Watch received mood history (if this device is the watch)
+
         case .getMoodResponse:
             guard let log = msg.getMoodResponse else { return }
             print("GetMoodResponse received: \(log.count) items")
-            // Optional: store in some local cache if needed
-            
-        // MARK: - Symptom history request (watch asks iOS)
+
+        // MARK: - Symptom history request (range)
         case .getSymptomRequest:
             guard let request = msg.getSymptomRequest else { return }
             print("GetSymptomRequest received: \(request.from) to \(request.to)")
-            
-            let uid = uidProvider()
-            let useCloud = useCloudProvider()
-            
-            // Offline/local path
+
             if !useCloud || uid.isEmpty {
                 print("Using offline symptom history.")
-                let summaries = LocalSymptomStore.shared.offlineSymptomHistory(
-                    from: request.from,
-                    to: request.to
-                )
-                WatchConnectivityManager.shared.send(
-                    summaries,
-                    type: .getSymptomResponse
-                )
-                print("Offline GetSymptomResponse sent with \(summaries.count) days")
+                let summaries = LocalSymptomStore.shared.offlineSymptomHistory(from: request.from, to: request.to)
+                WatchConnectivityManager.shared.send(summaries, type: .getSymptomResponse)
+                print("Offline GetSymptomResponse sent with \(summaries.count) logs")
                 return
             }
-            
-            // Cloud/Firestore path
+
             Task { [weak self] in
-                guard let self = self else { return }
-                
+                guard let self else { return }
+
                 do {
-                    let cal = Calendar.current
-                    var currentDay = cal.startOfDay(for: request.from)
-                    let endDay = cal.startOfDay(for: request.to)
-                    
-                    var daySummaries: [SymptomDaySummary] = []
-                    
-                    while currentDay <= endDay {
-                        let dayValues = try await self.symptomRepo.fetchDayValues(
-                            uid: uid,
-                            day: currentDay
-                        )
-                        
-                        let rowsForDay = dayValues
-                            .map { SymptomRow(name: $0.key, value: $0.value) }
-                            .sorted { $0.value > $1.value }
-                        
-                        if !rowsForDay.isEmpty {
-                            let summary = SymptomDaySummary(
-                                date: currentDay,
-                                rows: rowsForDay
-                            )
-                            daySummaries.append(summary)
-                        }
-                        
-                        guard let next = cal.date(byAdding: .day, value: 1, to: currentDay) else { break }
-                        currentDay = next
-                    }
-                    
-                    let sortedDays = daySummaries.sorted { $0.date > $1.date }
-                    
-                    print("Fetched \(sortedDays.count) symptom days for watch")
-                    
-                    WatchConnectivityManager.shared.send(
-                        sortedDays,
-                        type: .getSymptomResponse
+                    let logs = try await self.symptomRepo.fetchRange(
+                        uid: uid,
+                        from: request.from,
+                        to: request.to
                     )
-                    print("GetSymptomResponse sent with \(sortedDays.count) days")
-                    
+
+                    WatchConnectivityManager.shared.send(logs, type: .getSymptomResponse)
+                    print("GetSymptomResponse sent with \(logs.count) logs")
                 } catch {
                     print("Error fetching symptom history for watch: \(error.localizedDescription)")
-                    WatchConnectivityManager.shared.send(
-                        [SymptomDaySummary](),
-                        type: .getSymptomResponse
-                    )
+                    WatchConnectivityManager.shared.send([SymptomLogSummary](), type: .getSymptomResponse)
                 }
             }
-            
-        // Watch received symptom history
+
         case .getSymptomResponse:
             guard let rows = msg.getSymptomResponse else { return }
             print("GetSymptomResponse received: \(rows.count) items")
-            // Optional: store or forward to store
         }
     }
 }

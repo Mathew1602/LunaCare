@@ -37,7 +37,7 @@ struct SyncMessage: Identifiable {
     var getMoodResponse: [CalendarDayLog]? = nil
 
     var getSymptomRequest: GetRequest? = nil
-    var getSymptomResponse: [SymptomDaySummary]? = nil
+    var getSymptomResponse: [SymptomLogSummary]? = nil
 }
 
 struct GetRequest: Codable {
@@ -45,7 +45,7 @@ struct GetRequest: Codable {
     let to: Date
 }
 
-/// Local symptom log storage wrapper for offline mode
+/// Used only for offline storage of symptoms.
 struct LocalSymptomLog: Codable {
     let payload: SymptomLogPayload
     let createdAt: Date

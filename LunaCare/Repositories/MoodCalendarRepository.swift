@@ -68,6 +68,42 @@ final class MoodCalendarRepository {
             )
         }
     }
+    
+    func updateLog(
+           uid: String,
+           createdAt: Date,
+           newMood: Mood,
+           newNote: String?
+       ) async throws {
+           let ref = Firestore.firestore()
+               .collection("users").document(uid)
+               .collection("mood_logs")
+
+           // Find the document with this createdAt
+           let query = ref
+               .whereField("createdAt", isEqualTo: Timestamp(date: createdAt))
+               .limit(to: 1)
+
+           let snapshot = try await query.getDocuments()
+           guard let doc = snapshot.documents.first else {
+               print("MoodCalendarRepository.updateLog: no doc found for createdAt \(createdAt)")
+               return
+           }
+
+           var data: [String: Any] = [
+               "mood": mapMoodToScore(newMood),
+               "updatedAt": FieldValue.serverTimestamp()
+           ]
+
+           if let note = newNote, !note.isEmpty {
+               data["notes"] = note
+           } else {
+               // Clear the notes field if empty
+               data["notes"] = FieldValue.delete()
+           }
+
+           try await ref.document(doc.documentID).updateData(data)
+       }
 
 
     private func mapScoreToMood(_ s: Int) -> Mood {
@@ -78,6 +114,17 @@ final class MoodCalendarRepository {
         case -1: return .sad
         case -2: return .angry
         default: return .okay
+        }
+    }
+    
+    
+    private func mapMoodToScore(_ mood: Mood) -> Int {
+        switch mood {
+        case .ecstatic: return 4
+        case .happy:    return 2
+        case .okay:     return 0
+        case .sad:      return -1
+        case .angry:    return -2
         }
     }
 }

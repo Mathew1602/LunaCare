@@ -3,7 +3,9 @@
 //  LunaCare
 //
 //  Created by Xiaoya Zou on 2025-10-09.
+//  Updated by Mathew to show per-time symptom logs for the selected day.
 //
+
 import SwiftUI
 
 struct SymptomCalendarView: View {
@@ -11,16 +13,19 @@ struct SymptomCalendarView: View {
     @StateObject private var vm = SymptomCalendarViewModel()
 
     private let cols = Array(repeating: GridItem(.flexible()), count: 7)
-    //private let symptomTint = Color(red: 139/255, green: 146/255, blue: 250/255)
+    // private let symptomTint = Color(red: 139/255, green: 146/255, blue: 250/255)
     private let symptomTint = Color(.systemIndigo)
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    
+
+                    // MARK: - Calendar section
                     VStack(spacing: 12) {
                         Spacer()
+
+                        // Month header
                         HStack {
                             Button {
                                 Task { await vm.changeMonth(by: -1, uid: auth.uid) }
@@ -29,13 +34,14 @@ struct SymptomCalendarView: View {
                                     .foregroundColor(symptomTint)
                                     .font(.title3)
                             }
-                            
+
                             Spacer()
-                            
+
                             Text(vm.monthTitle)
                                 .font(.headline)
+
                             Spacer()
-                            
+
                             Button {
                                 Task { await vm.changeMonth(by: 1, uid: auth.uid) }
                             } label: {
@@ -45,7 +51,7 @@ struct SymptomCalendarView: View {
                             }
                         }
                         .padding(.horizontal, 16)
-                        
+
                         // Weekday row
                         HStack {
                             ForEach(vm.weekdaySymbols, id: \.self) { s in
@@ -57,7 +63,7 @@ struct SymptomCalendarView: View {
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 8)
-                        
+
                         // Calendar grid
                         LazyVGrid(columns: cols, spacing: 10) {
                             ForEach(vm.daysGrid, id: \.self) { day in
@@ -79,36 +85,52 @@ struct SymptomCalendarView: View {
                         .padding(.horizontal, 24)
                         .padding(.top, 8)
                     }
-                    
+
                     Spacer()
                         .frame(height: 24)
-                    
+
                     Divider()
-                    
+
+                    // MARK: - Selected day details
                     VStack(alignment: .leading, spacing: 12) {
-                        // Selected date title
                         Text(vm.selectedTitle)
                             .font(.headline)
-                        
-                        if vm.selectedDetails.isEmpty {
+
+                        if vm.loadingSelected {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                        } else if vm.selectedEntries.isEmpty {
                             Text("No symptom logs recorded for this day.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         } else {
-                            ForEach(vm.selectedDetails.keys.sorted(), id: \.self) { key in
-                                if let value = vm.selectedDetails[key] {
-                                    HStack {
-                                        Text(key)
-                                            .font(.body)
-                                        Spacer()
-                                        Text("\(value) / 10")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
+                            ForEach(vm.selectedEntries) { entry in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    // Time of this log
+                                    Text(timeFormatter.string(from: entry.createdAt))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+
+                                    // Symptom rows for this log
+                                    ForEach(entry.rows) { row in
+                                        HStack {
+                                            Text(row.name)
+                                                .font(.body)
+                                            Spacer()
+                                            Text("\(row.value) / 10")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
                                 }
+                                .padding(.vertical, 4)
+                                Divider()
                             }
                         }
-                        
+
                         Spacer()
                     }
                     .padding(.horizontal, 24)
@@ -123,6 +145,15 @@ struct SymptomCalendarView: View {
             }
             .navigationTitle("Symptom Calendar")
         }
+    }
+
+    // MARK: - Formatters
+
+    private var timeFormatter: DateFormatter {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .short
+        return df
     }
 }
 
@@ -172,9 +203,7 @@ private struct SymptomDayCell: View {
     }
 }
 
-
 #Preview {
     SymptomCalendarView()
         .environmentObject(AuthViewModel.preview)
-    
 }

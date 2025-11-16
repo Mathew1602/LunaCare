@@ -11,7 +11,7 @@ import Combine
 struct SymptomHistoryView: View {
 
     @StateObject private var wc = WatchConnectivityManager.shared
-    @State private var days: [SymptomDaySummary] = []
+    @State private var logs: [SymptomLogSummary] = []
     @State private var isLoading: Bool = true
 
     var body: some View {
@@ -27,29 +27,38 @@ struct SymptomHistoryView: View {
                             .progressViewStyle(.circular)
                         Spacer()
                     }
-                } else if days.isEmpty {
-                    Text("No symptom data yet.\nTap the button to fetch.")
+                } else if logs.isEmpty {
+                    Text("No symptom data yet.\nLog symptoms from the tracking screen.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.leading)
                 } else {
-                    ForEach(sortedDays) { day in
+                    ForEach(groupedByDay, id: \.date) { section in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(dayTitleFormatter.string(from: day.date))
+                            Text(dayFormatter.string(from: section.date))
                                 .font(.subheadline)
                                 .fontWeight(.bold)
                                 .padding(.bottom, 2)
 
-                            ForEach(day.rows) { row in
-                                HStack {
-                                    Text(row.name)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Text("\(row.value)")
-                                        .font(.caption)
-                                        .bold()
+                            ForEach(section.entries) { entry in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(timeFormatter.string(from: entry.createdAt))
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+
+                                    ForEach(entry.rows) { row in
+                                        HStack {
+                                            Text(row.name)
+                                                .font(.caption2)
+                                                .lineLimit(1)
+                                            Spacer()
+                                            Text("\(row.value)")
+                                                .font(.caption2)
+                                                .bold()
+                                        }
+                                    }
                                 }
+                                .padding(.vertical, 3)
                             }
                         }
                         .padding(.vertical, 4)
@@ -66,7 +75,7 @@ struct SymptomHistoryView: View {
             let now = Date()
             let fiveDaysAgo = Calendar.current.date(byAdding: .day, value: -4, to: now) ?? now
             let from = Calendar.current.startOfDay(for: fiveDaysAgo)
-            let to = Calendar.current.startOfDay(for: now)
+            let to = now
 
             let request = GetRequest(from: from, to: to)
             wc.send(request, type: .getSymptomRequest)
@@ -81,19 +90,35 @@ struct SymptomHistoryView: View {
                 return
             }
             isLoading = false
-            days = summaries
+            logs = summaries.sorted { $0.createdAt > $1.createdAt }
         }
     }
 
-    // Newest → oldest
-    private var sortedDays: [SymptomDaySummary] {
-        days.sorted { $0.date > $1.date }
+    // Group logs by calendar day
+    private var groupedByDay: [(date: Date, entries: [SymptomLogSummary])] {
+        let cal = Calendar.current
+        let groups = Dictionary(grouping: logs) { log in
+            cal.startOfDay(for: log.createdAt)
+        }
+
+        return groups
+            .map { key, values in
+                (date: key, entries: values.sorted { $0.createdAt > $1.createdAt })
+            }
+            .sorted { $0.date > $1.date }
     }
 
-    private var dayTitleFormatter: DateFormatter {
+    private var dayFormatter: DateFormatter {
         let df = DateFormatter()
         df.dateStyle = .medium
         df.timeStyle = .none
+        return df
+    }
+
+    private var timeFormatter: DateFormatter {
+        let df = DateFormatter()
+        df.dateStyle = .none
+        df.timeStyle = .short
         return df
     }
 }
