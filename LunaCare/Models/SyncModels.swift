@@ -44,3 +44,9 @@ struct GetRequest: Codable {
     let from: Date
     let to: Date
 }
+
+/// Local symptom log storage wrapper for offline mode
+struct LocalSymptomLog: Codable {
+    let payload: SymptomLogPayload
+    let createdAt: Date
+}

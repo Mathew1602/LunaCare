@@ -5,7 +5,6 @@
 //  Created by Mathew Boyd on 2025-11-14.
 //
 
-
 import Foundation
 
 final class LocalMoodStore {
@@ -39,5 +38,37 @@ final class LocalMoodStore {
 
     func clearOfflineMoods() {
         UserDefaults.standard.removeObject(forKey: key)
+    }
+    
+    /// Returns CalendarDayLog objects between the given dates, newest first.
+    func offlineMoodHistory(from: Date, to: Date) -> [CalendarDayLog] {
+        let logs = loadOfflineMoods()
+
+        return logs.compactMap { log in
+            guard
+                let createdAt = log.createdAt,
+                createdAt >= from,
+                createdAt <= to
+            else {
+                return nil
+            }
+
+            let moodEnum: Mood
+            switch log.mood {
+            case 4:  moodEnum = .ecstatic
+            case 2:  moodEnum = .happy
+            case 0:  moodEnum = .okay
+            case -1: moodEnum = .sad
+            case -2: moodEnum = .angry
+            default: moodEnum = .okay
+            }
+
+            return CalendarDayLog(
+                mood: moodEnum,
+                note: log.notes,
+                createdAt: createdAt
+            )
+        }
+        .sorted { $0.createdAt > $1.createdAt }
     }
 }

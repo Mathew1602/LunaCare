@@ -96,10 +96,10 @@ struct MoodHistoryView: View {
 
     private var shortDateFormatter: DateFormatter {
         let df = DateFormatter()
-        df.dateStyle = .short
-        df.timeStyle = .none
+        df.dateFormat = "MMM d, h:mm a"
         return df
     }
+
 }
 
 #Preview {

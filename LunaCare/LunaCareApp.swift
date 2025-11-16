@@ -26,7 +26,7 @@ struct LunaCareApp: App {
                 .environmentObject(env)
                 .environmentObject(auth)
                 .onAppear {
-                    WatchSyncService.shared.configure(uidProvider: { auth.uid })
+                    WatchSyncService.shared.configure(uidProvider: { auth.uid }, useCloudProvider: {true})
                 }
         }
     }
