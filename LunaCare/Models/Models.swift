@@ -65,8 +65,8 @@ struct Insight: Codable, Identifiable {
     var createdAt: Date?
 }
 
-struct SymptomRow: Identifiable {
-    let id = UUID()
+struct SymptomRow: Codable, Hashable, Identifiable {
+    var id = UUID()
     let name: String
     let value: Int
 }
@@ -77,3 +77,18 @@ struct SymptomLogPayload: Codable {
     let tags: [String]?
     let source: String?
 }
+
+//Mood CalendarDayLog
+struct CalendarDayLog: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let mood: Mood
+    let note: String?
+    let createdAt: Date
+}
+
+struct SymptomDaySummary: Codable, Identifiable, Hashable {
+    var id = UUID()
+    let date: Date
+    let rows: [SymptomRow]
+}
+

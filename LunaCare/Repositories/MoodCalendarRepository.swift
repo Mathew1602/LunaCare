@@ -8,12 +8,6 @@
 import Foundation
 import FirebaseFirestore
 
-struct CalendarDayLog: Identifiable, Hashable {
-    let id = UUID()
-    let mood: Mood
-    let note: String?
-    let createdAt: Date
-}
 
 final class MoodCalendarRepository {
 
@@ -51,6 +45,30 @@ final class MoodCalendarRepository {
         }
         return grouped
     }
+    
+    func fetchRange(uid: String, from: Date, to: Date) async throws -> [CalendarDayLog] {
+        let ref = Firestore.firestore()
+            .collection("users").document(uid)
+            .collection("mood_logs")
+            .whereField("createdAt", isGreaterThanOrEqualTo: from)
+            .whereField("createdAt", isLessThanOrEqualTo: to)
+            .order(by: "createdAt", descending: true)
+
+        let snapshot = try await ref.getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            let data = doc.data()
+            guard let score = data["mood"] as? Int,
+                  let ts = data["createdAt"] as? Timestamp else { return nil }
+
+            return CalendarDayLog(
+                mood: mapScoreToMood(score),
+                note: data["notes"] as? String,
+                createdAt: ts.dateValue()
+            )
+        }
+    }
+
 
     private func mapScoreToMood(_ s: Int) -> Mood {
         switch s {

@@ -7,26 +7,40 @@
 
 import Foundation
 
-//The type of data being synced
+// The type of data being synced
 enum SyncType: String, Codable {
     case moodLog
     case symptomLog
     case measurement
     case insight
     case profile
+
+    case getMoodRequest
+    case getMoodResponse
+
+    case getSymptomRequest
+    case getSymptomResponse
 }
 
-//Wrapper for incoming sync messages
+// Wrapper for incoming sync messages
 struct SyncMessage: Identifiable {
     let id = UUID()
     let type: SyncType
 
-    var moodLog: MoodLog?
-    var symptomLog: SymptomLogPayload?   
-    var measurement: Measurement?
-    var insight: Insight?
-    var profile: UserProfile?
+    var moodLog: MoodLog? = nil
+    var symptomLog: SymptomLogPayload? = nil
+    var measurement: Measurement? = nil
+    var insight: Insight? = nil
+    var profile: UserProfile? = nil
+
+    var getMoodRequest: GetRequest? = nil
+    var getMoodResponse: [CalendarDayLog]? = nil
+
+    var getSymptomRequest: GetRequest? = nil
+    var getSymptomResponse: [SymptomDaySummary]? = nil
 }
 
-
-
+struct GetRequest: Codable {
+    let from: Date
+    let to: Date
+}

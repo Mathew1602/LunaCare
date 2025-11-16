@@ -50,6 +50,8 @@ struct ContentView: View {
                             .buttonStyle(.bordered)
                         NavigationLink("Mood History", destination: MoodHistoryView())
                             .buttonStyle(.bordered)
+                        NavigationLink("SymptomHistory", destination: SymptomHistoryView())
+                            .buttonStyle(.bordered)
                     }
                     .padding(.top)
                 }

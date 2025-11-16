@@ -11,6 +11,7 @@ import WatchKit
 struct MoodTracking: View {
     @State private var selectedMood: Mood? = nil
     @State private var navigateToReport = false
+    @State private var note: String = ""          // 👈 new
 
     private let moodOptions: [Mood] = [.angry, .sad, .ecstatic, .happy, .okay]
 
@@ -21,7 +22,6 @@ struct MoodTracking: View {
                 .font(.headline)
                 .padding(.top, 8)
 
-            
             HStack(spacing: 20) {
                 ForEach(moodOptions) { mood in
                     Button {
@@ -37,6 +37,13 @@ struct MoodTracking: View {
                 }
             }
 
+            // Optional note field once a mood is chosen
+            if selectedMood != nil {
+                TextField("Optional note", text: $note)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+            }
+
             if let mood = selectedMood {
                 Button("Save Mood") {
                     saveMood(mood)
@@ -46,7 +53,6 @@ struct MoodTracking: View {
                 .padding(.horizontal, 22)
                 .background(.ultraThinMaterial)
                 .cornerRadius(40)
-
             }
         }
         .navigationTitle("Log Mood")
@@ -55,9 +61,11 @@ struct MoodTracking: View {
         }
     }
 
-
     private func saveMood(_ mood: Mood) {
         sendMoodToPhone(mood)
+        selectedMood = nil
+        note = ""
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             navigateToReport = true
         }
@@ -67,7 +75,7 @@ struct MoodTracking: View {
         let moodLog = MoodLog(
             id: nil,
             mood: mapMoodToScore(mood),
-            notes: nil,
+            notes: note.isEmpty ? nil : note,
             tags: ["watch"],
             source: "watch",
             createdAt: Date(),

@@ -29,7 +29,7 @@
 		D560D8822EBE723E000A7BE0 /* FirebaseRemoteConfig in Frameworks */ = {isa = PBXBuildFile; productRef = D560D8812EBE723E000A7BE0 /* FirebaseRemoteConfig */; };
 		D560D8842EBE723E000A7BE0 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = D560D8832EBE723E000A7BE0 /* FirebaseStorage */; };
 		D560D8862EBE723E000A7BE0 /* FirebaseStorageCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = D560D8852EBE723E000A7BE0 /* FirebaseStorageCombine-Community */; };
-		E71C14DB2EAA959D0021E34C /* LunaCareWatchOS Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E71C14D02EAA959B0021E34C /* LunaCareWatchOS Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E708D4862ECA290900EB30FD /* LunaCareWatchOS Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = E71C14D02EAA959B0021E34C /* LunaCareWatchOS Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -45,14 +45,14 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		E71C14DA2EAA959D0021E34C /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 8;
+			buildActionMask = 12;
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
-				E71C14DB2EAA959D0021E34C /* LunaCareWatchOS Watch App.app in Embed Watch Content */,
+				E708D4862ECA290900EB30FD /* LunaCareWatchOS Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
-			runOnlyForDeploymentPostprocessing = 1;
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -502,8 +502,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -530,8 +529,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

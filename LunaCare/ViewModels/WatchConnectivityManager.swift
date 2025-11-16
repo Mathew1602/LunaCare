@@ -113,7 +113,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
             } else {
                 print("Failed to decode MoodLog")
             }
-            
+
         case .symptomLog:
             if let payload = try? decoder.decode(SymptomLogPayload.self, from: data) {
                 print("Decoded SymptomLogPayload: \(payload)")
@@ -153,13 +153,53 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
             } else {
                 print("Failed to decode UserProfile")
             }
+
+        case .getMoodRequest:
+            if let request = try? decoder.decode(GetRequest.self, from: data) {
+                print("Decoded GetMoodRequest: \(request)")
+                DispatchQueue.main.async {
+                    self.lastReceived = SyncMessage(type: type, getMoodRequest: request)
+                }
+            } else {
+                print("Failed to decode GetMoodRequest")
+            }
+
+        case .getMoodResponse:
+            if let logs = try? decoder.decode([CalendarDayLog].self, from: data) {
+                print("Decoded GetMoodResponse: \(logs.count) logs")
+                DispatchQueue.main.async {
+                    self.lastReceived = SyncMessage(type: type, getMoodResponse: logs)
+                }
+            } else {
+                print("Failed to decode GetMoodResponse")
+            }
+
+        case .getSymptomRequest:
+            if let request = try? decoder.decode(GetRequest.self, from: data) {
+                print("Decoded GetSymptomRequest: \(request)")
+                DispatchQueue.main.async {
+                    self.lastReceived = SyncMessage(type: type, getSymptomRequest: request)
+                }
+            } else {
+                print("Failed to decode GetSymptomRequest")
+            }
+
+        case .getSymptomResponse:
+            if let rows = try? decoder.decode([SymptomDaySummary].self, from: data) {
+                print("Decoded GetSymptomResponse: \(rows.count) rows")
+                DispatchQueue.main.async {
+                    self.lastReceived = SyncMessage(type: type, getSymptomResponse: rows)
+                }
+            } else {
+                print("Failed to decode GetSymptomResponse")
+            }
         }
     }
 
     // MARK: - WCSessionDelegate
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        print("didReceiveMessage triggered")
+        print("WATCH didReceive triggered")
         handleIncoming(message)
     }
 
