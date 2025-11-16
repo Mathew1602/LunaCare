@@ -14,7 +14,11 @@ final class AuthViewModel: ObservableObject {
     @Published var uid: String = ""
     @Published var errorMessage: String = ""
 
-    init() {
+    /// In the real app you call `AuthViewModel()` (default: listens to Firebase).
+    /// In previews you'll use `AuthViewModel(listenToAuth: false)` via `AuthViewModel.preview`.
+    init(listenToAuth: Bool = true) {
+        guard listenToAuth else { return }
+
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self = self else { return }
             self.isAuthenticated = (user != nil)
@@ -79,5 +83,17 @@ final class AuthViewModel: ObservableObject {
         case .invalidCredential: return "Login method mismatch. Use email + password here."
         default:                 return ns.localizedDescription
         }
+    }
+}
+
+// MARK: - Preview helper
+extension AuthViewModel {
+    /// Static instance used only for SwiftUI previews.
+    static var preview: AuthViewModel {
+        let vm = AuthViewModel(listenToAuth: false)
+        vm.isAuthenticated = true
+        vm.email = "preview@example.com"
+        vm.uid = ""   // keep empty so Firestore loads just no-op in `.task`
+        return vm
     }
 }

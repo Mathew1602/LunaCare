@@ -212,4 +212,5 @@ private extension DateFormatter {
 
 #Preview {
     MoodCalendarView()
+        .environmentObject(AuthViewModel.preview)
 }

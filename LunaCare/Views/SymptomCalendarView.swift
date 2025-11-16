@@ -175,4 +175,6 @@ private struct SymptomDayCell: View {
 
 #Preview {
     SymptomCalendarView()
+        .environmentObject(AuthViewModel.preview)
+    
 }
