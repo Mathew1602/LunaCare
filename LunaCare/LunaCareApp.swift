@@ -15,11 +15,20 @@ struct LunaCareApp: App {
     @StateObject private var env  = AppEnvironment.shared
     @StateObject private var auth = AuthViewModel()
 
+    init() {
+        // This activates connectivity to watchOS
+        WatchConnectivityManager.shared.activate()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(env)
                 .environmentObject(auth)
+                .onAppear {
+                    WatchSyncService.shared.configure(uidProvider: { auth.uid }, useCloudProvider: {true})
+                }
         }
     }
 }
+

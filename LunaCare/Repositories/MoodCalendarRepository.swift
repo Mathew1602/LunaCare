@@ -8,12 +8,6 @@
 import Foundation
 import FirebaseFirestore
 
-struct CalendarDayLog: Identifiable, Hashable {
-    let id = UUID()
-    let mood: Mood
-    let note: String?
-    let createdAt: Date
-}
 
 final class MoodCalendarRepository {
 
@@ -51,6 +45,66 @@ final class MoodCalendarRepository {
         }
         return grouped
     }
+    
+    func fetchRange(uid: String, from: Date, to: Date) async throws -> [CalendarDayLog] {
+        let ref = Firestore.firestore()
+            .collection("users").document(uid)
+            .collection("mood_logs")
+            .whereField("createdAt", isGreaterThanOrEqualTo: from)
+            .whereField("createdAt", isLessThanOrEqualTo: to)
+            .order(by: "createdAt", descending: true)
+
+        let snapshot = try await ref.getDocuments()
+
+        return snapshot.documents.compactMap { doc in
+            let data = doc.data()
+            guard let score = data["mood"] as? Int,
+                  let ts = data["createdAt"] as? Timestamp else { return nil }
+
+            return CalendarDayLog(
+                mood: mapScoreToMood(score),
+                note: data["notes"] as? String,
+                createdAt: ts.dateValue()
+            )
+        }
+    }
+    
+    func updateLog(
+           uid: String,
+           createdAt: Date,
+           newMood: Mood,
+           newNote: String?
+       ) async throws {
+           let ref = Firestore.firestore()
+               .collection("users").document(uid)
+               .collection("mood_logs")
+
+           // Find the document with this createdAt
+           let query = ref
+               .whereField("createdAt", isEqualTo: Timestamp(date: createdAt))
+               .limit(to: 1)
+
+           let snapshot = try await query.getDocuments()
+           guard let doc = snapshot.documents.first else {
+               print("MoodCalendarRepository.updateLog: no doc found for createdAt \(createdAt)")
+               return
+           }
+
+           var data: [String: Any] = [
+               "mood": mapMoodToScore(newMood),
+               "updatedAt": FieldValue.serverTimestamp()
+           ]
+
+           if let note = newNote, !note.isEmpty {
+               data["notes"] = note
+           } else {
+               // Clear the notes field if empty
+               data["notes"] = FieldValue.delete()
+           }
+
+           try await ref.document(doc.documentID).updateData(data)
+       }
+
 
     private func mapScoreToMood(_ s: Int) -> Mood {
         switch s {
@@ -60,6 +114,17 @@ final class MoodCalendarRepository {
         case -1: return .sad
         case -2: return .angry
         default: return .okay
+        }
+    }
+    
+    
+    private func mapMoodToScore(_ mood: Mood) -> Int {
+        switch mood {
+        case .ecstatic: return 4
+        case .happy:    return 2
+        case .okay:     return 0
+        case .sad:      return -1
+        case .angry:    return -2
         }
     }
 }
