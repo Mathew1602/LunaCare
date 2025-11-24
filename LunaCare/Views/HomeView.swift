@@ -66,11 +66,7 @@ struct HomeContentView: View {
                         .accessibilityLabel(env.isCloudSyncOn ? "Cloud sync enabled" : "Cloud sync disabled")
                     }
 
-                    // (rest of your HomeContentView unchanged)
-                    // ...
-                    // I’m leaving all your existing sections (Log Mood, metrics,
-                    // alerts, trackers, calendars) exactly as you had them.
-                    // ----------------------------
+               
                     // Log Mood Button
                     NavigationLink(destination: MoodTrackingView()) {
                         HStack {
