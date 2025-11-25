@@ -37,6 +37,9 @@ struct HomeView: View {
     }
 }
 
+import SwiftUI
+import FirebaseFirestore
+
 struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
@@ -45,10 +48,19 @@ struct HomeContentView: View {
     @State private var showingMLTestAlert = false
     @State private var mlTestMessage = ""
 
+    // NEW upload state
+    @State private var showingUploadAlert = false
+    @State private var uploadMessage = ""
+    @State private var isUploadingFakeData = false
+
+    // repo instance
+    private let repo = MeasurementRepository()
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+
                     // Greeting
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Hi \(auth.displayName.isEmpty ? "there" : auth.displayName),")
@@ -57,7 +69,6 @@ struct HomeContentView: View {
                         Text("how are you feeling today?")
                             .foregroundColor(.gray)
 
-                        // Sync status chip
                         HStack {
                             Image(systemName: env.isCloudSyncOn ? "icloud" : "internaldrive")
                                 .imageScale(.small)
@@ -68,10 +79,8 @@ struct HomeContentView: View {
                         .padding(.vertical, 4)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
-                        .accessibilityLabel(env.isCloudSyncOn ? "Cloud sync enabled" : "Cloud sync disabled")
                     }
 
-               
                     // Log Mood Button
                     NavigationLink(destination: MoodTrackingView()) {
                         HStack {
@@ -104,7 +113,6 @@ struct HomeContentView: View {
                                        value: health.isAuthorized ? "\(Int(health.restingHR)) bpm" : "--",
                                        label: "Resting HR")
                         }
-
                     }
                     .padding(.top, 10)
 
@@ -128,26 +136,27 @@ struct HomeContentView: View {
                     // Quick Access
                     HStack(spacing: 20) {
                         QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
+
                         Button {
-                               runFakeMLTest()
-                           } label: {
-                               QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Test ML")
-                           }
-                           .buttonStyle(.plain)
-                           .alert("PPD Risk Test", isPresented: $showingMLTestAlert) {
-                               Button("OK", role: .cancel) { }
-                           } message: {
-                               Text(mlTestMessage)
-                           }
+                            runFakeMLTest()
+                        } label: {
+                            QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Test ML")
+                        }
+                        .buttonStyle(.plain)
+                        .alert("PPD Risk Test", isPresented: $showingMLTestAlert) {
+                            Button("OK", role: .cancel) { }
+                        } message: {
+                            Text(mlTestMessage)
+                        }
+
                         NavigationLink {
                             InsightsOverviewView()
                         } label: {
                             QuickAccessButton(icon: "chart.bar.xaxis", title: "Insights")
                         }
-                        
                     }
 
-                    // Trackers + Calendars
+                    // Trackers + Calendars (unchanged)
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Trackers")
                             .font(.headline)
@@ -217,18 +226,39 @@ struct HomeContentView: View {
                 .padding()
             }
             .navigationTitle("Home")
+
+            // ALERT for upload result
+            .alert("Fake Data Upload", isPresented: $showingUploadAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(uploadMessage)
+            }
+
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         if !auth.email.isEmpty {
                             Text("Signed in as \(auth.email)")
                         }
-                        Button("Sign out", role: .destructive) { auth.signOut() }
+
+                        // NEW menu action for uploading fake data
+                        Button {
+                            uploadFakeData()
+                        } label: {
+                            Label(isUploadingFakeData ? "Uploading..." : "Upload Fake Data",
+                                  systemImage: "icloud.and.arrow.up")
+                        }
+                        .disabled(isUploadingFakeData)
+
+                        Button("Sign out", role: .destructive) {
+                            auth.signOut()
+                        }
                     } label: {
                         Image(systemName: "gear")
                     }
                 }
             }
+
             .onAppear {
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
@@ -241,10 +271,10 @@ struct HomeContentView: View {
                 #endif
                 Task { await health.authorizeAndRefresh() }
             }
-
         }
-        
     }
+
+    // MARK: - Fake ML Test
     private func runFakeMLTest() {
         Task {
             do {
@@ -257,7 +287,6 @@ struct HomeContentView: View {
                 score = \(score, default: "%.3f")
                 (~\(pct)% risk)
                 """
-
             } catch {
                 mlTestMessage = "Couldn’t run model: \(error.localizedDescription)"
             }
@@ -265,7 +294,60 @@ struct HomeContentView: View {
             showingMLTestAlert = true
         }
     }
+
+    // MARK: - Upload Fake Data (Right now just uploading fake data since we don't have real apple watch data)
+    @MainActor
+    private func uploadFakeData() {
+        guard !auth.uid.isEmpty else {
+            uploadMessage = "No user signed in — can’t upload."
+            showingUploadAlert = true
+            return
+        }
+        guard !isUploadingFakeData else { return }
+        isUploadingFakeData = true
+
+        Task { @MainActor in
+            defer { isUploadingFakeData = false }
+
+            let fake30 = FakeStruct.highRisk30Days()
+            do {
+                let count = try await repo.upsertMany(uid: auth.uid, measurements: fake30)
+                uploadMessage = "Uploaded \(count) fake day-measurements"
+            } catch {
+                let ns = error as NSError
+                if ns.domain == FirestoreErrorDomain,
+                   ns.code == FirestoreErrorCode.resourceExhausted.rawValue {
+                    uploadMessage = """
+                    Upload blocked by Firestore quota (resource exhausted).
+                    This isn’t your code anymore — it’s the project plan limit.
+                    """
+                } else {
+                    uploadMessage = "Upload failed: \(error.localizedDescription)"
+                }
+            }
+
+            showingUploadAlert = true
+        }
+    }
+
+
+
+
+
+    /// async/await wrapper for repo.upsert
+    private func upsertAsync(uid: String, measurement: Measurement) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            repo.upsert(uid: uid, measurement: measurement) { err in
+                if let err = err {
+                    cont.resume(throwing: err)
+                } else {
+                    cont.resume(returning: ())
+                }
+            }
+        }
+    }
 }
+
     
 
 
