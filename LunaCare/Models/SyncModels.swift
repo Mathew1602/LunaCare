@@ -29,7 +29,7 @@ struct SyncMessage: Identifiable {
 
     var moodLog: MoodLog? = nil
     var symptomLog: SymptomLogPayload? = nil
-    var measurement: Measurement? = nil
+    var measurement: Measurement? = nil 
     var insight: Insight? = nil
     var profile: UserProfile? = nil
 

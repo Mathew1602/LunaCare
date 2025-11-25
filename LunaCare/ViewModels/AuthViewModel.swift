@@ -46,6 +46,7 @@ final class AuthViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.firstName = first ?? ""
                     self.lastName = last ?? ""
+                    self.sendProfileToWatch()
                 }
             }
         }
@@ -101,6 +102,7 @@ final class AuthViewModel: ObservableObject {
                                                email: email,
                                                firstName: firstName,
                                                lastName: lastName)
+            self.sendProfileToWatch()
         }
     }
 
@@ -112,6 +114,9 @@ final class AuthViewModel: ObservableObject {
             lastName = ""
             email = ""
             uid = ""
+            
+            let emptyProfile = UserProfile(id: nil, email: nil, firstName: nil, lastName: nil)
+                    WatchConnectivityManager.shared.send(emptyProfile, type: .profile)
         } catch {
             errorMessage = "Could not sign out. Try again."
         }
@@ -135,6 +140,24 @@ final class AuthViewModel: ObservableObject {
         default:                 return ns.localizedDescription
         }
     }
+    
+    private func sendProfileToWatch() {
+        guard !uid.isEmpty else { return }
+
+        let profile = UserProfile(
+            id: uid,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            consent: nil,
+            createdAt: nil,
+            updatedAt: nil
+        )
+
+        WatchConnectivityManager.shared.send(profile, type: .profile)
+        print("Sent profile to watch: \(profile.fullName)")
+    }
+
 }
 
 // MARK: - Preview helper
@@ -150,3 +173,5 @@ extension AuthViewModel {
         return vm
     }
 }
+
+

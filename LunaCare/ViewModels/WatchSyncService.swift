@@ -97,7 +97,9 @@ final class WatchSyncService {
             break
 
         case .profile:
-            break
+            guard let profile = msg.profile else { return }
+            print("Profile received on \(uid.isEmpty ? "watch (offline)" : "watch") : \(profile.fullName)")
+
 
         // MARK: - Mood history request
         case .getMoodRequest:

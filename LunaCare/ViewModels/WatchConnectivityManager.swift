@@ -1,10 +1,3 @@
-//
-//  WatchConnectivityManager.swift
-//  LunaCare
-//
-//  Created by Mathew Boyd on 2025-11-14.
-//
-
 import Foundation
 import WatchConnectivity
 import Combine
@@ -14,12 +7,18 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     static let shared = WatchConnectivityManager()
 
     @Published var lastReceived: SyncMessage? = nil
+    @Published var lastProfile: UserProfile? = nil {
+        didSet { persistProfile(lastProfile) }
+    }
     @Published var errorMessage: String?
 
     private var session: WCSession?
 
+    private let profileCacheKey = "lc_lastProfile_cache"
+
     private override init() {
         super.init()
+        loadCachedProfile()
         startSession()
     }
 
@@ -36,6 +35,11 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         session = WCSession.default
         session?.delegate = self
         session?.activate()
+
+        // If iPhone already set context, grab it now
+        if let context = session?.receivedApplicationContext, !context.isEmpty {
+            handleIncoming(context)
+        }
     }
 
     // MARK: - Sending
@@ -67,13 +71,24 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         print("- Payload: \(string)")
         print("- Reachable: \(session.isReachable)")
 
+        //If sending profile, also have to update application context on iOS
+        #if os(iOS)
+        if type == .profile {
+            do {
+                try session.updateApplicationContext(message)
+                print("Updated application context with profile.")
+            } catch {
+                print("Failed to update application context: \(error)")
+            }
+        }
+        #endif
+
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil) { error in
                 self.errorMessage = "Failed to send message: \(error.localizedDescription)"
                 print(self.errorMessage ?? "")
             }
         } else {
-            print("Device not reachable. Using transferUserInfo()")
             session.transferUserInfo(message)
         }
     }
@@ -82,20 +97,13 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
     private func handleIncoming(_ message: [String: Any]) {
 
-        print("Incoming raw message: \(message)")
-
         guard let typeString = message["type"] as? String,
               let payload = message["payload"] as? String,
               let type = SyncType(rawValue: typeString),
               let data = payload.data(using: .utf8) else {
-
             print("Invalid message format.")
             return
         }
-
-        print("Decoding incoming message:")
-        print("- Type: \(typeString)")
-        print("- Payload JSON: \(payload)")
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -133,6 +141,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         case .profile:
             if let profile = try? decoder.decode(UserProfile.self, from: data) {
                 DispatchQueue.main.async {
+                    self.lastProfile = profile
                     self.lastReceived = SyncMessage(type: type, profile: profile)
                 }
             }
@@ -170,13 +179,15 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     // MARK: - WCSessionDelegate
 
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        print("WATCH didReceive triggered")
         handleIncoming(message)
     }
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
-        print("didReceiveUserInfo triggered")
         handleIncoming(userInfo)
+    }
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        handleIncoming(applicationContext)
     }
 
     func session(_ session: WCSession,
@@ -184,19 +195,29 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
                  error: Error?) {
         if let error = error {
             print("WCSession activation failed: \(error.localizedDescription)")
-        } else {
-            print("WCSession activated with state: \(activationState.rawValue)")
         }
     }
 
     #if os(iOS)
-    func sessionDidBecomeInactive(_ session: WCSession) {
-        print("WCSession didBecomeInactive")
-    }
-
+    func sessionDidBecomeInactive(_ session: WCSession) {}
     func sessionDidDeactivate(_ session: WCSession) {
-        print("WCSession didDeactivate — reactivating")
         WCSession.default.activate()
     }
     #endif
+
+
+    private func persistProfile(_ profile: UserProfile?) {
+        guard let profile else { return }
+        if let data = try? JSONEncoder().encode(profile) {
+            UserDefaults.standard.set(data, forKey: profileCacheKey)
+        }
+    }
+
+    private func loadCachedProfile() {
+        guard let data = UserDefaults.standard.data(forKey: profileCacheKey),
+              let profile = try? JSONDecoder().decode(UserProfile.self, from: data) else {
+            return
+        }
+        lastProfile = profile
+    }
 }

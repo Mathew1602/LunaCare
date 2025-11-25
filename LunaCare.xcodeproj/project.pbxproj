@@ -67,6 +67,8 @@
 			membershipExceptions = (
 				Models/Models.swift,
 				Models/SyncModels.swift,
+				Repositories/AppleWatchDataRepository.swift,
+				Repositories/AppleWatchDataStore.swift,
 				ViewModels/WatchConnectivityManager.swift,
 			);
 			target = E71C14CF2EAA959B0021E34C /* LunaCareWatchOS Watch App */;
@@ -309,10 +311,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = C26735D5VT;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = LunaCareWatchOS;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "LunaCare reads your Apple Health data (steps, heart rate, sleep, activity) to show health metrics and generate personalized wellness insights.”";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Luna Care will update your apple health data from manual input however this manual input is only on IOS APP";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = luna.LunaCare;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -342,10 +346,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = C26735D5VT;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = LunaCareWatchOS;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "LunaCare reads your Apple Health data (steps, heart rate, sleep, activity) to show health metrics and generate personalized wellness insights.”";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Luna Care will update your apple health data from manual input however this manual input is only on IOS APP";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = luna.LunaCare;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -496,9 +502,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = C26735D5VT;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "LunaCare reads your Apple Health data (steps, heart rate, sleep, activity) to show health metrics and generate personalized wellness insights.”";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Luna Care will update apple health data from manual user intput";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -523,9 +531,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = C26735D5VT;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "LunaCare reads your Apple Health data (steps, heart rate, sleep, activity) to show health metrics and generate personalized wellness insights.”";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Luna Care will update apple health data from manual user intput";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
