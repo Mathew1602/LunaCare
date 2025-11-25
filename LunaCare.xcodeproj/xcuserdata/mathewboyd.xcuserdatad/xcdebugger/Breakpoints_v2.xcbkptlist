@@ -34,43 +34,13 @@
             endingLineNumber = "21"
             landmarkName = "init(auth:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "4EA7921D-6511-4EF7-8FBA-D76FF241EA21 - 19d27b65486120db"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "LunaCare.MeasurementsViewModel.__allocating_init(auth: LunaCare.AuthViewModel) -&gt; LunaCare.MeasurementsViewModel"
-                  moduleName = "LunaCare.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/mathewboyd/Documents/School%20LOCAL%20(DON&apos;T%20STORE%20NEW%20FILES)/Degree%20Completion%20Computer%20Sicience/Sheridan%20Fourth%20Semester%20-%20Fall%202025/CapstoneProject/LunaCare/LunaCare/ViewModels/MeasurementsViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "0"
-                  endingLineNumber = "0">
-               </Location>
-               <Location
-                  uuid = "4EA7921D-6511-4EF7-8FBA-D76FF241EA21 - 920e932f900b3bfa"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "LunaCare.MeasurementsViewModel.init(auth: LunaCare.AuthViewModel) -&gt; LunaCare.MeasurementsViewModel"
-                  moduleName = "LunaCare.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/mathewboyd/Documents/School%20LOCAL%20(DON&apos;T%20STORE%20NEW%20FILES)/Degree%20Completion%20Computer%20Sicience/Sheridan%20Fourth%20Semester%20-%20Fall%202025/CapstoneProject/LunaCare/LunaCare/ViewModels/MeasurementsViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "18"
-                  endingLineNumber = "18">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "B829B2FB-33AA-4CB0-BB24-6122BD27967D"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "LunaCare/Repositories/MeasurementRepository.swift"
@@ -86,7 +56,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "40B85A9F-8D66-4B15-9FC8-55D8E9567E10"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "LunaCare/Repositories/MeasurementRepository.swift"
@@ -102,7 +72,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "9B7CAAF7-9BBD-48DE-8C08-928F488069A2"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "LunaCare/Repositories/MeasurementRepository.swift"
@@ -118,7 +88,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "7788F287-653C-42F2-B63F-2015378FB8F8"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "LunaCare/Repositories/MeasurementRepository.swift"
@@ -134,7 +104,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "EA58C245-61CB-4478-9A55-76BD9031A06E"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "LunaCare/Repositories/MeasurementRepository.swift"
@@ -144,6 +114,54 @@
             endingLineNumber = "169"
             landmarkName = "fetchLastDays(uid:lastDays:)"
             landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "6CC7FC98-4A24-43F5-AC69-FC475258895E"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LunaCare/Repositories/MeasurementRepository.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "14"
+            endingLineNumber = "14"
+            landmarkName = "dayFormatter"
+            landmarkType = "24">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "5D96EC2D-CC50-4488-AA5E-5BFC54705AB7"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LunaCare/Repositories/MeasurementRepository.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "103"
+            endingLineNumber = "103"
+            landmarkName = "firestoreData(for:dayStart:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "121DB24E-0652-4306-8084-5571787DE3E4"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "LunaCare/Repositories/MeasurementRepository.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "101"
+            endingLineNumber = "101"
+            landmarkName = "MeasurementRepository"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
