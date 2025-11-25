@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct LunaCareWatchOS_Watch_AppApp: App {
+    @StateObject private var health = AppleWatchDataStore.shared
 
     init() {
         //REQUIRED: activate connectivity with IOS application
@@ -18,7 +19,11 @@ struct LunaCareWatchOS_Watch_AppApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(health)
+                .task { await health.authorizeAndRefresh() }
         }
     }
 }
+
+    
 

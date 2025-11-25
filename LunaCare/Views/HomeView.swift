@@ -14,6 +14,7 @@ struct HomeView: View {
     @EnvironmentObject var auth: AuthViewModel
     @EnvironmentObject var env: AppEnvironment
 
+
     var body: some View {
         TabView {
             HomeContentView()
@@ -39,6 +40,10 @@ struct HomeView: View {
 struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
+    @StateObject private var health = AppleWatchDataStore.shared
+    
+    @State private var showingMLTestAlert = false
+    @State private var mlTestMessage = ""
 
     var body: some View {
         NavigationStack {
@@ -87,10 +92,19 @@ struct HomeContentView: View {
                             .font(.headline)
 
                         HStack(spacing: 20) {
-                            MetricCard(icon: "moon", value: "7 hrs", label: "Sleep")
-                            MetricCard(icon: "waveform.path.ecg", value: "3,231 cal", label: "Activity")
-                            MetricCard(icon: "heart", value: "71", label: "Resting HR")
+                            MetricCard(icon: "moon",
+                                       value: health.isAuthorized ? String(format: "%.1f hrs", health.sleepHours) : "--",
+                                       label: "Sleep")
+
+                            MetricCard(icon: "waveform.path.ecg",
+                                       value: health.isAuthorized ? "\(Int(health.activeEnergyKcal)) cal" : "--",
+                                       label: "Activity")
+
+                            MetricCard(icon: "heart",
+                                       value: health.isAuthorized ? "\(Int(health.restingHR)) bpm" : "--",
+                                       label: "Resting HR")
                         }
+
                     }
                     .padding(.top, 10)
 
@@ -114,11 +128,23 @@ struct HomeContentView: View {
                     // Quick Access
                     HStack(spacing: 20) {
                         QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
+                        Button {
+                               runFakeMLTest()
+                           } label: {
+                               QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Test ML")
+                           }
+                           .buttonStyle(.plain)
+                           .alert("PPD Risk Test", isPresented: $showingMLTestAlert) {
+                               Button("OK", role: .cancel) { }
+                           } message: {
+                               Text(mlTestMessage)
+                           }
                         NavigationLink {
                             InsightsOverviewView()
                         } label: {
                             QuickAccessButton(icon: "chart.bar.xaxis", title: "Insights")
                         }
+                        
                     }
 
                     // Trackers + Calendars
@@ -203,9 +229,45 @@ struct HomeContentView: View {
                     }
                 }
             }
+            .onAppear {
+                #if DEBUG
+                if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+                    health.isAuthorized = true
+                    health.sleepHours = 7.2
+                    health.activeEnergyKcal = 3231
+                    health.restingHR = 71
+                    return
+                }
+                #endif
+                Task { await health.authorizeAndRefresh() }
+            }
+
+        }
+        
+    }
+    private func runFakeMLTest() {
+        Task {
+            do {
+                let fake30 = FakeStruct.highRisk30Days()
+                let score = try PPDRiskModelRunner.shared.predictRisk(from: fake30)
+
+                let pct = Int((score * 100).rounded())
+                mlTestMessage = """
+                Fake 30-day high-risk data result:
+                score = \(score, default: "%.3f")
+                (~\(pct)% risk)
+                """
+
+            } catch {
+                mlTestMessage = "Couldn’t run model: \(error.localizedDescription)"
+            }
+
+            showingMLTestAlert = true
         }
     }
 }
+    
+
 
 #Preview {
     HomeView()

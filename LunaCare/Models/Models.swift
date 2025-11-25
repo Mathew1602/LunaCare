@@ -59,17 +59,6 @@ struct MoodLog: Codable, Identifiable {
     var updatedAt: Date?
 }
 
-struct Measurement: Codable, Identifiable {
-    var id: String?
-    var date: String
-    var hrRest: Double?
-    var steps: Int?
-    var sleepMinutes: Int?
-    var source: String?
-    var updatedAt: Date?
-    var createdAt: Date?
-}
-
 struct Insight: Codable, Identifiable {
     var id: String?
     var kind: String
@@ -99,10 +88,75 @@ struct SymptomLogSummary: Codable, Identifiable, Hashable {
     let rows: [SymptomRow]
 }
 
-// Mood history item (already used for calendar + watch)
 struct CalendarDayLog: Codable, Identifiable, Hashable {
     var id = UUID()
     let mood: Mood
     let note: String?
     let createdAt: Date
+}
+
+struct Measurement: Codable, Identifiable {
+    var id: String? = nil
+    var createdAt: Date = Date()
+
+    // Symptom / mood bases (from logs)
+    var mood1to5: Double?
+    var bleeding1to10: Double?
+    var hairLoss1to10: Double?
+    var appetiteIssue1to10: Double?
+    var sleepTrouble1to10: Double?
+
+    // Activity / movement bases
+    var steps: Int?
+    var distanceWalkedKm: Double?
+    var flightsClimbed: Double?
+    var activeEnergyKcal: Double?
+    var basalEnergyKcal: Double?        // ML base
+    var exerciseMinutes: Double?
+    var standHours: Double?
+    var sunlightHours: Double?          // ML base (manual/other)
+
+    // Heart / cardio bases
+    var avgHeartRateBpm: Double?        // ML base
+    var restingHRBpm: Double?
+    var walkingHeartRateAvgBpm: Double? // ML base
+    var hrvSDNNms: Double?
+    var respiratoryRateBpm: Double?
+    var oxygenSaturationPct: Double?
+    var vo2Max: Double?
+
+    // Sleep bases
+    var sleepHours: Double?
+    var deepSleepHours: Double?         // ML base
+    var remSleepHours: Double?          // ML base
+    var coreSleepHours: Double?         // ML base
+    var sleepEfficiencyPct: Double?     // ML base
+    var wakeAfterSleepOnsetMin: Double? // ML base
+
+
+    var weightKg: Double?
+
+    var source: String? = "watch"
+}
+
+extension Measurement {
+    var date: String {
+        ISO8601DateFormatter().string(from: createdAt)
+    }
+
+    var hrRest: Double? {
+        restingHRBpm
+    }
+
+    var sleepMinutes: Int? {
+        sleepHours.map { Int($0 * 60.0) }
+    }
+}
+
+struct InsightResult {
+    let last7Avg: Double
+    let prev7Avg: Double
+    let delta: Double           
+    let percentChange: Double
+    let direction: String
 }
