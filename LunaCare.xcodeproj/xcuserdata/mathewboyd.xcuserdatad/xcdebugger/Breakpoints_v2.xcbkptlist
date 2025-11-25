@@ -34,6 +34,36 @@
             endingLineNumber = "21"
             landmarkName = "init(auth:)"
             landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "4EA7921D-6511-4EF7-8FBA-D76FF241EA21 - 19d27b65486120db"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "LunaCare.MeasurementsViewModel.__allocating_init(auth: LunaCare.AuthViewModel) -&gt; LunaCare.MeasurementsViewModel"
+                  moduleName = "LunaCare.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/mathewboyd/Documents/School%20LOCAL%20(DON&apos;T%20STORE%20NEW%20FILES)/Degree%20Completion%20Computer%20Sicience/Sheridan%20Fourth%20Semester%20-%20Fall%202025/CapstoneProject/LunaCare/LunaCare/ViewModels/MeasurementsViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "0"
+                  endingLineNumber = "0">
+               </Location>
+               <Location
+                  uuid = "4EA7921D-6511-4EF7-8FBA-D76FF241EA21 - 920e932f900b3bfa"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "LunaCare.MeasurementsViewModel.init(auth: LunaCare.AuthViewModel) -&gt; LunaCare.MeasurementsViewModel"
+                  moduleName = "LunaCare.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/mathewboyd/Documents/School%20LOCAL%20(DON&apos;T%20STORE%20NEW%20FILES)/Degree%20Completion%20Computer%20Sicience/Sheridan%20Fourth%20Semester%20-%20Fall%202025/CapstoneProject/LunaCare/LunaCare/ViewModels/MeasurementsViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "18"
+                  endingLineNumber = "18">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

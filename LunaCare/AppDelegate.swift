@@ -22,7 +22,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             FirebaseApp.configure()
             print("Firebase configured (AppDelegate)")
         }
-
+        
+        //Notifcation permissions
+        UNUserNotificationCenter.current().delegate = NotificationManager.shared
+        NotificationManager.shared.requestAuthorization()
+        
+        
         // Use App Check debug provider only if the module exists and we're in DEBUG.
         #if DEBUG
         #if canImport(FirebaseAppCheck)

@@ -145,6 +145,9 @@ struct SymptomCalendarView: View {
             }
             .navigationTitle("Symptom Calendar")
         }
+        .onDisappear {
+            NotificationManager.shared.scheduleDemo(after: 5)
+        }
     }
 
     // MARK: - Formatters
