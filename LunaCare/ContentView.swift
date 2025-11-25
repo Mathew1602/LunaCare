@@ -13,7 +13,15 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if auth.isAuthenticated {
+            if !auth.didResolveAuthState {
+                // 🔄 Small splash/loading while Firebase auth listener runs
+                VStack {
+                    Spacer()
+                    ProgressView("Loading…")
+                        .progressViewStyle(.circular)
+                    Spacer()
+                }
+            } else if auth.isAuthenticated {
                 HomeView()
             } else {
                 LoginView()
@@ -23,6 +31,7 @@ struct ContentView: View {
         .environmentObject(env)
     }
 }
+
 
 #Preview {
     ContentView()

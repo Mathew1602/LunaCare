@@ -16,6 +16,8 @@ final class AuthViewModel: ObservableObject {
     @Published var lastName: String = ""
     @Published var errorMessage: String = ""
 
+    @Published var didResolveAuthState: Bool = false
+
     var displayName: String {
         let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
         if !full.isEmpty { return full }
@@ -23,8 +25,6 @@ final class AuthViewModel: ObservableObject {
         return email
     }
 
-    /// In the real app you call `AuthViewModel()` (default: listens to Firebase).
-    /// In previews you'll use `AuthViewModel(listenToAuth: false)` via `AuthViewModel.preview`.
     init(listenToAuth: Bool = true) {
         guard listenToAuth else { return }
 
@@ -38,6 +38,7 @@ final class AuthViewModel: ObservableObject {
             guard let uid = user?.uid else {
                 self.firstName = ""
                 self.lastName = ""
+                self.didResolveAuthState = true
                 return
             }
 
@@ -47,6 +48,7 @@ final class AuthViewModel: ObservableObject {
                     self.firstName = first ?? ""
                     self.lastName = last ?? ""
                     self.sendProfileToWatch()
+                    self.didResolveAuthState = true  
                 }
             }
         }
