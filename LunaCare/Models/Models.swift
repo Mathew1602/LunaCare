@@ -49,6 +49,36 @@ struct UserProfile: Codable, Identifiable {
     }
 }
 
+struct InsightResult: Codable {
+    let last7Avg: Double
+    let prev7Avg: Double
+    let delta: Double
+    let percentChange: Double
+    let direction: String
+}
+
+
+
+
+
+
+// MARK: - Weekly Insight (FA3)
+
+struct WeeklyInsight: Identifiable, Codable {
+    var id: String?              // Firebase doc ID OR local UUID
+    var metric: String           // “sleep hours”
+    var text: String             // Full insight text
+    var last7Avg: Double
+    var prev7Avg: Double
+    var delta: Double
+    var percentChange: Double
+    var direction: String
+    var createdAt: Date
+    var localOnly: Bool?         // true if only stored locally
+}
+
+
+
 struct MoodLog: Codable, Identifiable {
     var id: String?
     var mood: Int
@@ -153,10 +183,7 @@ extension Measurement {
     }
 }
 
-struct InsightResult {
-    let last7Avg: Double
-    let prev7Avg: Double
-    let delta: Double           
-    let percentChange: Double
-    let direction: String
-}
+
+
+
+

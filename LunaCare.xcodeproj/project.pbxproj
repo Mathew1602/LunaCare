@@ -309,7 +309,7 @@
 				CODE_SIGN_ENTITLEMENTS = "LunaCareWatchOS Watch App/LunaCareWatchOS Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = C26735D5VT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = LunaCareWatchOS;
@@ -345,7 +345,7 @@
 				CODE_SIGN_ENTITLEMENTS = "LunaCareWatchOS Watch App/LunaCareWatchOS Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = C26735D5VT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = LunaCareWatchOS;
@@ -502,7 +502,7 @@
 				CODE_SIGN_ENTITLEMENTS = LunaCare/LunaCare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = C26735D5VT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LunaCare reads your Apple Health data (steps, heart rate, sleep, activity) to show health metrics and generate personalized wellness insights.”";
@@ -532,7 +532,7 @@
 				CODE_SIGN_ENTITLEMENTS = LunaCare/LunaCare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = C26735D5VT;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "LunaCare reads your Apple Health data (steps, heart rate, sleep, activity) to show health metrics and generate personalized wellness insights.”";

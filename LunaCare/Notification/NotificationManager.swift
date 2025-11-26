@@ -19,6 +19,40 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             print("Notifications granted:", granted)
         }
     }
+    
+    func scheduleHealthAlertsIfNeeded(from alerts: [WeeklyInsight]) {
+        // No alerts → nothing to schedule
+        guard !alerts.isEmpty else { return }
+
+        let center = UNUserNotificationCenter.current()
+
+       
+
+        let content = UNMutableNotificationContent()
+        content.title = "LunaCare Health Alert"
+
+        if alerts.count == 1 {
+            // Use the full insight text for a single alert
+            content.body = alerts[0].text
+        } else {
+            let names = alerts.prefix(2).map { $0.metric }
+            let joined = names.joined(separator: " & ")
+            content.body = "Changes detected in \(joined). Open LunaCare to view your health alerts."
+        }
+
+        content.sound = .default
+
+        // Fire shortly after insights load (3 seconds)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: "health-alert-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+
+        center.add(request, withCompletionHandler: nil)
+    }
 
     // Show banner even when app is in foreground
     func userNotificationCenter(_ center: UNUserNotificationCenter,
