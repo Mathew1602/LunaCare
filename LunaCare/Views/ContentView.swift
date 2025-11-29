@@ -14,7 +14,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if !auth.didResolveAuthState {
-                // 🔄 Small splash/loading while Firebase auth listener runs
+                // Small splash/loading while Firebase auth listener runs
                 VStack {
                     Spacer()
                     ProgressView("Loading…")

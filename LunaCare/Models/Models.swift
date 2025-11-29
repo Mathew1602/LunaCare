@@ -58,12 +58,6 @@ struct InsightResult: Codable {
 }
 
 
-
-
-
-
-// MARK: - Weekly Insight (FA3)
-
 struct WeeklyInsight: Identifiable, Codable {
     var id: String?              // Firebase doc ID OR local UUID
     var metric: String           // “sleep hours”
@@ -141,15 +135,15 @@ struct Measurement: Codable, Identifiable {
     var distanceWalkedKm: Double?
     var flightsClimbed: Double?
     var activeEnergyKcal: Double?
-    var basalEnergyKcal: Double?        // ML base
+    var basalEnergyKcal: Double?
     var exerciseMinutes: Double?
     var standHours: Double?
-    var sunlightHours: Double?          // ML base (manual/other)
+    var sunlightHours: Double?
 
     // Heart / cardio bases
-    var avgHeartRateBpm: Double?        // ML base
+    var avgHeartRateBpm: Double?
     var restingHRBpm: Double?
-    var walkingHeartRateAvgBpm: Double? // ML base
+    var walkingHeartRateAvgBpm: Double?
     var hrvSDNNms: Double?
     var respiratoryRateBpm: Double?
     var oxygenSaturationPct: Double?
@@ -157,11 +151,11 @@ struct Measurement: Codable, Identifiable {
 
     // Sleep bases
     var sleepHours: Double?
-    var deepSleepHours: Double?         // ML base
-    var remSleepHours: Double?          // ML base
-    var coreSleepHours: Double?         // ML base
-    var sleepEfficiencyPct: Double?     // ML base
-    var wakeAfterSleepOnsetMin: Double? // ML base
+    var deepSleepHours: Double?
+    var remSleepHours: Double?
+    var coreSleepHours: Double?
+    var sleepEfficiencyPct: Double?
+    var wakeAfterSleepOnsetMin: Double?
 
 
     var weightKg: Double?

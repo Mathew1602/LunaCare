@@ -8,59 +8,37 @@
 
 
 import Foundation
-import FirebaseFirestore
 
+@MainActor
 final class InsightService {
 
     static let shared = InsightService()
     private init() {}
 
-    /// Load → local first → fallback to fake → compute insights → save → upload if needed
-    func load(uid: String, cloudSyncOn: Bool, completion: @escaping ([WeeklyInsight]) -> Void) {
+    private let repo = MeasurementRepository()
 
-        // Try locally first
-        let local = LocalStorageInsights.shared.load()
-        if !local.isEmpty {
-            completion(local)
-            return
-        }
+    func loadInsights(uid: String) async -> [WeeklyInsight] {
 
-        // Fallback → generate fake measurement data
-        let fake = FakeMeasurementData.generate30Days()
+        guard !uid.isEmpty else { return [] }
 
-        // Run Mathew’s model (weekly insights)
-        let generated = WeeklyInsightService.shared.generateWeeklyInsights(measurements: fake)
+        do {
+            // Load measurements already in Firestore
+            let measurements = try await repo.fetchLastDays(uid: uid, lastDays: 30)
 
-        // Save locally always
-        LocalStorageInsights.shared.save(generated)
-
-        // Upload to cloud only if enabled
-        if cloudSyncOn {
-            for insight in generated {
-                upload(uid: uid, insight: insight)
+            if !measurements.isEmpty {
+                let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: measurements)
+                LocalStorageInsights.shared.save(weekly)
+                return weekly
             }
+
+        } catch {
+            print("⚠️ Insight load failed: \(error)")
         }
 
-        completion(generated)
-    }
-
-    // Upload a single weekly insight
-    private func upload(uid: String, insight: WeeklyInsight) {
-
-        let data: [String: Any] = [
-            "metric": insight.metric,
-            "text": insight.text,
-            "last7Avg": insight.last7Avg,
-            "prev7Avg": insight.prev7Avg,
-            "delta": insight.delta,
-            "percentChange": insight.percentChange,
-            "direction": insight.direction,
-            "createdAt": insight.createdAt
-        ]
-
-        FirestoreManager.shared.add(
-            collectionPath: "users/\(uid)/weekly_insights",
-            data: data
-        )
+        // If nothing in cloud → fallback to Mathew’s dataset
+        let fake = FakeStruct.highRisk30Days()
+        let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: fake)
+        LocalStorageInsights.shared.save(weekly)
+        return weekly
     }
 }

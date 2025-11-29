@@ -5,8 +5,6 @@
 //  Created by Mathew Boyd on 2025-11-24.
 //
 
-// MARK: Struct for InsightResult is in Models Files
-
 struct InsightEngine {
 
     /// Compare last 7 records vs previous 7 records (rolling weeks).
@@ -88,4 +86,3 @@ struct InsightEngine {
 //if let text = InsightEngine.makeText(records: fake30, metric: .sleepEfficiencyPct) {
 //    print(text)
 //}
-

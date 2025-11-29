@@ -55,7 +55,7 @@ struct RecommendationsView: View {
         }
     }
 
-    // MARK: - Header
+  
 
     private var header: some View {
         VStack(spacing: 8) {
@@ -81,7 +81,6 @@ struct RecommendationsView: View {
             }
 
             Button {
-                // Placeholder: mark all recs as done / could log event later
             } label: {
                 Text("Mark as done")
                     .font(.system(size: 16, weight: .semibold))
@@ -193,7 +192,6 @@ struct RecommendationsView: View {
     }
 }
 
-// MARK: - Card view
 
 private struct RecommendationCard: View {
     let item: RecommendationsView.RecommendationItem
@@ -227,7 +225,6 @@ private struct RecommendationCard: View {
     }
 }
 
-// MARK: - Preview
 
 #Preview {
     NavigationStack {
