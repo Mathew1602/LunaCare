@@ -151,6 +151,9 @@ struct HomeContentView: View {
 
                         NavigationLink {
                             InsightsOverviewView()
+                                .environmentObject(auth)
+                                .environmentObject(env)
+                                .environmentObject(InsightsViewModel(auth: auth, env: env))
                         } label: {
                             QuickAccessButton(icon: "chart.bar.xaxis", title: "Insights")
                         }

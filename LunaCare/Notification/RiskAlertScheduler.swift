@@ -27,13 +27,13 @@ final class RiskAlertScheduler {
             return
         }
 
-        // 2. Check if we already notified today
+        // Check if we already notified today
         if let last = UserDefaults.standard.object(forKey: lastAlertKey) as? Date,
            Calendar.current.isDateInToday(last) {
             return   // already notified today -> do nothing
         }
 
-        // 3. Schedule local notification
+        //  Schedule local notification
         let content = UNMutableNotificationContent()
         content.title = "Health Alert"
         content.body  = makeBody(from: highRisk)
