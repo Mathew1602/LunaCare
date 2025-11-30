@@ -17,12 +17,9 @@ enum FSPath {
     static func moodLogs(_ uid: String) -> String { "users/\(uid)/mood_logs" }
     static func DailyRecords(_ uid: String) -> String { "users/\(uid)/DailyRecords" }
     static func measurements(_ uid: String) -> String {"users/\(uid)/measurements"}
-    static func insights(_ uid: String) -> String { "users/\(uid)/insights" }
     static func symptomLogs(_ uid: String) -> String { "users/\(uid)/symptom_logs" }
-    static func weeklyInsights(_ uid: String) -> String {
-        "users/\(uid)/weekly_insights"
-    }
-
-
+    static func insights(_ uid: String) -> String {
+           "users/\(uid)/insights" }
+   
 
 }
