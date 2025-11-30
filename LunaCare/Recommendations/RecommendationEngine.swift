@@ -10,12 +10,14 @@ import Foundation
 
 enum RecommendationEngine {
 
-    struct RecommendationItem: Identifiable {
-        var id = UUID()
+    struct RecommendationItem: Identifiable, Codable {
+        var id: String? // Firestore doc ID
         let title: String
         let subtitle: String
         let reason: String
+        var timestamp: Date = Date()
     }
+
 
     static func build(from insights: [WeeklyInsight]) -> [RecommendationItem] {
         var items: [RecommendationItem] = []
