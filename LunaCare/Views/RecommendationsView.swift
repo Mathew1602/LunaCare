@@ -6,22 +6,17 @@
 //  Created by Fernanda Battig on 2025-11-07.
 //
 
+
 import SwiftUI
 
 struct RecommendationsView: View {
     @EnvironmentObject var auth: AuthViewModel
     @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var vm: InsightsViewModel
 
     @State private var insights: [WeeklyInsight] = []
-    @State private var recs: [RecommendationItem] = []
+    @State private var recs: [RecommendationEngine.RecommendationItem] = []
     @State private var sendDailyReminders = true
-
-    public struct RecommendationItem: Identifiable {
-        let id = UUID()
-        let title: String
-        let subtitle: String
-        let reason: String
-    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -31,7 +26,6 @@ struct RecommendationsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-
                 header
 
                 LazyVGrid(columns: columns, spacing: 16) {
@@ -49,13 +43,13 @@ struct RecommendationsView: View {
         .navigationTitle("Recommendations")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            // Use the same generated fake-weekly insights
-            insights = LocalStorageInsights.shared.load()
-            recs = buildRecommendations(from: insights)
+            // 🔥 Local insights from ViewModel
+            insights = vm.insights
+
+            // 🔥 Build local (NOT cloud synced)
+            recs = RecommendationEngine.build(from: insights)
         }
     }
-
-  
 
     private var header: some View {
         VStack(spacing: 8) {
@@ -72,7 +66,6 @@ struct RecommendationsView: View {
     }
 
     // MARK: - Reminders section
-
     private var remindersSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Toggle(isOn: $sendDailyReminders) {
@@ -81,6 +74,7 @@ struct RecommendationsView: View {
             }
 
             Button {
+                print("Mark as done pressed")
             } label: {
                 Text("Mark as done")
                     .font(.system(size: 16, weight: .semibold))
@@ -99,102 +93,11 @@ struct RecommendationsView: View {
         }
         .padding(.top, 12)
     }
-
-    // MARK: - Recommendation logic
-
-    private func buildRecommendations(from insights: [WeeklyInsight]) -> [RecommendationItem] {
-        var items: [RecommendationItem] = []
-
-        // Helper to find a metric
-        func metric(_ name: String) -> WeeklyInsight? {
-            insights.first { $0.metric.lowercased() == name.lowercased() }
-        }
-
-        let sleepHours       = metric("sleep hours")
-        let sleepEfficiency  = metric("sleep efficiency")
-        let wakeAfter        = metric("wake after sleep onset")
-        let sleepTrouble     = metric("sleep trouble score")
-        let restingHR        = metric("resting heart rate")
-
-        // Sleep routine recommendation
-        if let s = sleepHours {
-            let dir = s.direction
-            let pct = String(format: "%.1f%%", s.percentChange)
-
-            let subtitle = "Maintain a 10–11 PM bedtime and aim for 7–8 hours of sleep."
-            let reason: String
-
-            if dir == "higher" {
-                reason = "Your sleep hours are higher vs last week (\(pct)). Keep this window consistent to stabilize mood and recovery."
-            } else if dir == "lower" {
-                reason = "Your sleep hours dropped (\(pct) vs last week). Try protecting your bedtime window and avoid screens 30–45 minutes before bed."
-            } else {
-                reason = "Your sleep duration is stable week-to-week. A consistent sleep window helps keep hormones and energy regulated."
-            }
-
-            items.append(.init(title: "Sleep Routine",
-                               subtitle: subtitle,
-                               reason: reason))
-        }
-
-        // Breathing / wind-down recommendation (based on wake after sleep onset or sleep trouble)
-        if let trouble = sleepTrouble ?? wakeAfter {
-            let pct = String(format: "%.1f%%", trouble.percentChange)
-            let subtitle = "Try a 5-minute breathing or body-scan before bed."
-
-            let reason: String
-            if trouble.direction == "higher" {
-                reason = "Night-time restlessness increased (\(pct) vs last week). Calming breathing drills can reduce awakenings and help you fall asleep faster."
-            } else {
-                reason = "Night-time restlessness is trending down (\(pct)). Keep using short breathing or relaxation routines to support this progress."
-            }
-
-            items.append(.init(title: "Wind-Down Breathing",
-                               subtitle: subtitle,
-                               reason: reason))
-        }
-
-        // Walking / light activity (resting HR)
-        if let r = restingHR {
-            let pct = String(format: "%.1f%%", r.percentChange)
-            let subtitle = "Add a 10–15 minute easy walk during the afternoon."
-
-            let reason: String
-            if r.direction == "lower" {
-                reason = "Your resting heart rate is lower vs last week (\(pct)), suggesting better recovery. Light daily walks help maintain this trend without over-loading you."
-            } else if r.direction == "higher" {
-                reason = "Resting heart rate is a bit higher (\(pct)). Gentle walks and stress-management can help bring it back down over time."
-            } else {
-                reason = "Resting heart rate is stable week-to-week. Short walks keep circulation and energy up without stressing your system."
-            }
-
-            items.append(.init(title: "Walking",
-                               subtitle: subtitle,
-                               reason: reason))
-        }
-
-        // Hydration – always useful, but tweak copy if sleep efficiency dropped
-        let hydrationSubtitle = "Increase fluids to ~2.0–2.5 L/day and keep a water bottle visible."
-
-        let hydrationReason: String
-        if let eff = sleepEfficiency, eff.direction == "lower" {
-            let pct = String(format: "%.1f%%", eff.percentChange)
-            hydrationReason = "Sleep efficiency dipped (\(pct)). Staying well-hydrated can improve heart rate variability and sleep quality across the week."
-        } else {
-            hydrationReason = "Consistent hydration supports energy, mood, and recovery. Sipping water regularly is easier than drinking large amounts at once."
-        }
-
-        items.append(.init(title: "Hydration",
-                           subtitle: hydrationSubtitle,
-                           reason: hydrationReason))
-
-        return items
-    }
 }
 
-
+// MARK: - Recommendation Card
 private struct RecommendationCard: View {
-    let item: RecommendationsView.RecommendationItem
+    let item: RecommendationEngine.RecommendationItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -225,11 +128,13 @@ private struct RecommendationCard: View {
     }
 }
 
-
+// MARK: - Preview
 #Preview {
     NavigationStack {
         RecommendationsView()
             .environmentObject(AuthViewModel())
             .environmentObject(AppEnvironment.shared)
+            .environmentObject(InsightsViewModel(auth: AuthViewModel(),
+                                                 env: AppEnvironment.shared))
     }
 }
