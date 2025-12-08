@@ -63,7 +63,10 @@ final class LocalMoodStore {
             default: moodEnum = .okay
             }
 
+            let calendarId = log.id ?? UUID().uuidString
+
             return CalendarDayLog(
+                id: calendarId,
                 mood: moodEnum,
                 note: log.notes,
                 createdAt: createdAt

@@ -156,3 +156,4 @@ struct NoteBox: View {
 #Preview {
     MoodTrackingView().environmentObject(AuthViewModel())
 }
+

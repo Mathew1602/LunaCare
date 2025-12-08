@@ -120,18 +120,17 @@ final class MoodCalendarViewModel: ObservableObject {
         do {
             try await repo.updateLog(
                 uid: uid,
-                createdAt: log.createdAt,
+                logId: log.id,
                 newMood: editingMood,
                 newNote: editingNote
             )
 
-            // Reload month to reflect changes
             await load(uid: uid)
-
-            // Keep the selected day as-is
             editingLog = nil
         } catch {
             print("MoodCalendarViewModel.saveEdit error: \(error.localizedDescription)")
         }
     }
+
+
 }

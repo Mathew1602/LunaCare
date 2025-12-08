@@ -113,11 +113,13 @@ struct SymptomLogSummary: Codable, Identifiable, Hashable {
 }
 
 struct CalendarDayLog: Codable, Identifiable, Hashable {
-    var id = UUID()
+    /// Firestore doc ID (same as MoodLog.id)
+    let id: String
     let mood: Mood
     let note: String?
     let createdAt: Date
 }
+
 
 struct Measurement: Codable, Identifiable {
     var id: String? = nil

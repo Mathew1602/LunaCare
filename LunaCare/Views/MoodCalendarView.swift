@@ -4,6 +4,7 @@
 //
 //  Created by Xiaoya Zou on 2025-10-09.
 //  Updated by Mathew to allow editing mood entries via the pencil button.
+//  Updated to use explicit IDs for logs and a Bool-driven sheet so edit always works.
 //
 
 import SwiftUI
@@ -92,14 +93,13 @@ struct MoodCalendarView: View {
                                 }
                                 .padding(.horizontal, 20)
                             } else {
-                                ForEach(logs) { log in
+                                ForEach(logs, id: \.createdAt) { log in
                                     HStack(alignment: .top, spacing: 10) {
                                         // Emoji
                                         Text(log.mood.rawValue)
                                             .font(.title3)
                                             .padding(.top, 2)
 
-                                        // Note + time
                                         VStack(alignment: .leading, spacing: 6) {
                                             Text((log.note ?? "").isEmpty ? "No note" : (log.note ?? ""))
                                                 .foregroundColor(.primary)
@@ -112,7 +112,6 @@ struct MoodCalendarView: View {
 
                                         Spacer()
 
-                                        // Edit icon button
                                         Button {
                                             vm.beginEdit(log: log)
                                         } label: {
@@ -143,7 +142,16 @@ struct MoodCalendarView: View {
             .navigationTitle("Mood Calendar")
         }
         .task { await vm.load(uid: auth.uid) }
-        .sheet(item: $vm.editingLog) { _ in
+        .sheet(
+            isPresented: Binding(
+                get: { vm.editingLog != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        vm.editingLog = nil
+                    }
+                }
+            )
+        ) {
             EditMoodSheet(
                 mood: $vm.editingMood,
                 note: $vm.editingNote,
