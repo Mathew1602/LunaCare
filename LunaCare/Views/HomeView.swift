@@ -281,7 +281,7 @@ struct HomeContentView: View {
     private func runFakeMLTest() {
         Task {
             do {
-                let fake30 = FakeStruct.highRisk30Days()
+                let fake30 = FakeStruct.extremeHighRisk30Days()
                 let score = try PPDRiskModelRunner.shared.predictRisk(from: fake30)
 
                 let pct = Int((score * 100).rounded())
@@ -312,7 +312,7 @@ struct HomeContentView: View {
         Task { @MainActor in
             defer { isUploadingFakeData = false }
 
-            let fake30 = FakeStruct.highRisk30Days()
+            let fake30 = FakeStruct.extremeHighRisk30Days()
             do {
                 let count = try await repo.upsertMany(uid: auth.uid, measurements: fake30)
                 uploadMessage = "Uploaded \(count) fake day-measurements"
@@ -332,9 +332,6 @@ struct HomeContentView: View {
             showingUploadAlert = true
         }
     }
-
-
-
 
 
     /// async/await wrapper for repo.upsert

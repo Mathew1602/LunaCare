@@ -5,7 +5,6 @@
 //  Created by Mathew Boyd on 2025-11-24.
 //
 
-
 import Foundation
 import CoreML
 
@@ -20,6 +19,7 @@ final class PPDFeaturePipeline {
         "hair_loss_1to10_mean","hair_loss_1to10_std","hair_loss_1to10_min","hair_loss_1to10_max","hair_loss_1to10_slope","hair_loss_1to10_last",
         "appetite_issue_1to10_mean","appetite_issue_1to10_std","appetite_issue_1to10_min","appetite_issue_1to10_max","appetite_issue_1to10_slope","appetite_issue_1to10_last",
         "sleep_trouble_1to10_mean","sleep_trouble_1to10_std","sleep_trouble_1to10_min","sleep_trouble_1to10_max","sleep_trouble_1to10_slope","sleep_trouble_1to10_last",
+        "fatigue_1to10_mean","fatigue_1to10_std","fatigue_1to10_min","fatigue_1to10_max","fatigue_1to10_slope","fatigue_1to10_last",
 
         "sleep_hours_mean","sleep_hours_std","sleep_hours_min","sleep_hours_max","sleep_hours_slope","sleep_hours_last",
         "deep_sleep_hours_mean","deep_sleep_hours_std","deep_sleep_hours_min","deep_sleep_hours_max","deep_sleep_hours_slope","deep_sleep_hours_last",
@@ -73,12 +73,11 @@ final class PPDFeaturePipeline {
         return out
     }
 
-    //Turn into MLDictionaryFeatureProvider
+    // Turn into MLDictionaryFeatureProvider
     func makeProvider(from records: [Measurement], missingValue: Double = 0) throws -> MLDictionaryFeatureProvider {
         let dict = makeFeatureVector(from: records, missingValue: missingValue)
         return try MLDictionaryFeatureProvider(dictionary: dict)
     }
-
 
     private func extractBaseNames(from cols: [String]) -> [String] {
         var set: Set<String> = []
@@ -93,7 +92,6 @@ final class PPDFeaturePipeline {
         return Array(set).sorted()
     }
 
-
     private func values(for base: String, from records: [Measurement], missingValue: Double) -> [Double] {
 
         let vals: [Double?] = records.map { m in
@@ -104,6 +102,7 @@ final class PPDFeaturePipeline {
             case "hair_loss_1to10": return m.hairLoss1to10
             case "appetite_issue_1to10": return m.appetiteIssue1to10
             case "sleep_trouble_1to10": return m.sleepTrouble1to10
+            case "fatigue_1to10": return m.fatigue1to10
 
             // sleep
             case "sleep_hours": return m.sleepHours
@@ -140,7 +139,6 @@ final class PPDFeaturePipeline {
         return vals.map { $0 ?? missingValue }
     }
 
-
     private struct Summary {
         let mean: Double
         let std: Double
@@ -161,7 +159,6 @@ final class PPDFeaturePipeline {
         let maxV = xs.max() ?? 0
         let lastV = xs.last ?? 0
 
-        // sample std (ddof=1)
         let varSum = xs.reduce(0) { $0 + pow($1 - mean, 2) }
         let std = xs.count > 1 ? sqrt(varSum / (n - 1)) : 0
 

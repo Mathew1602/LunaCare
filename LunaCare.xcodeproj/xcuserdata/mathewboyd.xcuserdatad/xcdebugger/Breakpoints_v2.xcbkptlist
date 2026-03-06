@@ -16,7 +16,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "28"
             endingLineNumber = "28"
-            landmarkName = "loadInsights()"
+            landmarkName = "init(auth:env:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

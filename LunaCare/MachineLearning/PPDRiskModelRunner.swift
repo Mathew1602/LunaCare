@@ -3,6 +3,7 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2025-11-24.
+//  Updated to include fatigue_1to10
 //
 
 import Foundation
@@ -47,4 +48,3 @@ final class PPDRiskModelRunner {
                       userInfo: [NSLocalizedDescriptionKey: "Model output missing/invalid"])
     }
 }
-

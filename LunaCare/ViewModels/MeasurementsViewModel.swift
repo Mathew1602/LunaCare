@@ -73,7 +73,7 @@ final class MeasurementsViewModel: ObservableObject {
         uploadMessage = nil
         defer { isUploading = false }
 
-        let fake30 = FakeStruct.highRisk30Days()
+        let fake30 = FakeStruct.extremeHighRisk30Days()
 
         do {
             let written = try await repo.upsertMany(uid: uid, measurements: fake30)
