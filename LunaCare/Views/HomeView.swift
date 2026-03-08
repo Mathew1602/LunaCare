@@ -44,6 +44,9 @@ struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
+    private let syncManager = SyncManager.shared
+    @State private var isSyncedToCloud = false
+
     
     @State private var showingMLTestAlert = false
     @State private var mlTestMessage = ""
@@ -70,15 +73,19 @@ struct HomeContentView: View {
                             .foregroundColor(.gray)
 
                         HStack {
-                            Image(systemName: env.isCloudSyncOn ? "icloud" : "internaldrive")
+                            Image(systemName: isSyncedToCloud ? "icloud" : "internaldrive")
                                 .imageScale(.small)
-                            Text(env.isCloudSyncOn ? "Synced to Cloud" : "Local Only")
+                            Text(isSyncedToCloud ? "Synced to Cloud" : "Local Only")
                         }
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
+                        .task {
+                            guard !auth.uid.isEmpty else { return }
+                            isSyncedToCloud = await syncManager.getCloudSyncPreference(uid: auth.uid, env: env)
+                        }
                     }
 
                     // Log Mood Button

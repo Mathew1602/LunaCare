@@ -12,11 +12,13 @@ import Foundation
 final class WatchSyncService {
     static let shared = WatchSyncService()
 
+    
     private var cancellable: AnyCancellable?
     private let moodRepo: MoodLogsRepositoryType
     private let calendarRepo: MoodCalendarRepository
     private let symptomRepo: SymptomCalendarRepository
     private var uidProvider: () -> String = { "" }
+    private var env: AppEnvironment?
     private var useCloudProvider: () -> Bool = { true }
 
     private init(
@@ -38,12 +40,13 @@ final class WatchSyncService {
 
     func configure(
         uidProvider: @escaping () -> String,
-        useCloudProvider: @escaping () -> Bool
+        env: AppEnvironment
     ) {
         self.uidProvider = uidProvider
-        self.useCloudProvider = useCloudProvider
+        self.env = env
+        self.useCloudProvider = { env.isCloudSyncOn }
     }
-
+    
     private func handle(_ msg: SyncMessage) {
         let uid = uidProvider()
         let useCloud = useCloudProvider()
@@ -53,7 +56,7 @@ final class WatchSyncService {
         case .moodLog:
             guard var m = msg.moodLog else { return }
 
-            if uid.isEmpty {
+            if uid.isEmpty || !useCloud {
                 print("No UID. Saving mood locally.")
                 if m.createdAt == nil { m.createdAt = Date() }
                 LocalMoodStore.shared.saveOfflineMood(m)
@@ -73,7 +76,7 @@ final class WatchSyncService {
         case .symptomLog:
             guard let payload = msg.symptomLog else { return }
 
-            if uid.isEmpty {
+            if uid.isEmpty || !useCloud {
                 print("No UID. Saving symptom log locally.")
                 LocalSymptomStore.shared.saveOfflineSymptomLog(payload)
             } else {
