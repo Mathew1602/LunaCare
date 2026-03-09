@@ -14,13 +14,21 @@ struct SettingsView: View {
     @State private var isCloudSyncOn: Bool = false
     @State private var statusText: String = ""
 
+
     var body: some View {
         NavigationStack {
             List {
                 Section(header: Text("Profile")) {
-                    NavigationLink("Account") { Text("Account Details") }
+                    NavigationLink {
+                        AccountPage()
+                            .environmentObject(auth)
+                    } label: {
+                        Text("Account")
+                    }
+                    
                     NavigationLink("Caregiver Links") { Text("Caregiver Links") }
                 }
+                
 
                 Section(header: Text("Privacy & Security")) {
                     NavigationLink("Data Privacy") { Text("Data Privacy Settings") }

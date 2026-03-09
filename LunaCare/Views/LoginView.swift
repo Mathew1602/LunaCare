@@ -46,7 +46,7 @@ struct LoginView: View {
                         .font(.footnote)
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+                    .padding(.horizontal, 40)
                 }
 
                 Button {
