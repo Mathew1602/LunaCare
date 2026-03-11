@@ -197,9 +197,13 @@ struct PasswordResetPage: View {
                                 Image(systemName: "exclamationmark.circle.fill")
                                     .foregroundColor(.red)
                                 
-                                Text(resetError)
-                                    .font(.system(size: 13, weight: .regular))
-                                    .foregroundColor(.red)
+                                if(resetError == "The supplied auth credential is malformed or has expired."){
+                                    Text("You current passowrd is inncorect. Please try again.")
+                                } else {
+                                    Text(resetError)
+                                        .font(.system(size: 13, weight: .regular))
+                                        .foregroundColor(.red)
+                                }
                                 
                                 Spacer()
                             }
