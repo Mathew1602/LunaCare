@@ -20,9 +20,16 @@ final class AppEnvironment: ObservableObject {
     static let shared = AppEnvironment()
 
     @Published var isCloudSyncOn: Bool = false
+    @Published var selectedTheme: AppTheme {
+        didSet {
+            UserDefaults.standard.set(selectedTheme.rawValue, forKey: "appTheme")
+        }
+    }
     @Published var insightsRepo: InsightsRepository?
 
     private init() {
+        let savedTheme = UserDefaults.standard.string(forKey: "appTheme")
+        self.selectedTheme = AppTheme(rawValue: savedTheme ?? "") ?? .system
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
 

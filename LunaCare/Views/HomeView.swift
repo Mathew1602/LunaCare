@@ -44,6 +44,7 @@ struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
+    @Environment(\.scenePhase) private var scenePhase //For changed scene
     private let syncManager = SyncManager.shared
     @State private var isSyncedToCloud = false
 
@@ -280,6 +281,14 @@ struct HomeContentView: View {
                 }
                 #endif
                 Task { await health.authorizeAndRefresh() }
+            }
+            //When the user exits the appliction (Refresh health data so it is new when they open it)
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                if newPhase == .active {
+                    Task {
+                        await health.authorizeAndRefresh()
+                    }
+                }
             }
         }
     }

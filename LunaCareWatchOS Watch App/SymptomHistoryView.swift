@@ -17,7 +17,7 @@ struct SymptomHistoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Symptoms (Last 5 Days)")
+                Text("Symptoms (Last 7 Days)")
                     .font(.headline)
 
                 if isLoading {
@@ -73,8 +73,8 @@ struct SymptomHistoryView: View {
             isLoading = true
 
             let now = Date()
-            let fiveDaysAgo = Calendar.current.date(byAdding: .day, value: -4, to: now) ?? now
-            let from = Calendar.current.startOfDay(for: fiveDaysAgo)
+            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -6, to: now) ?? now
+            let from = Calendar.current.startOfDay(for: sevenDaysAgo)
             let to = now
 
             let request = GetRequest(from: from, to: to)

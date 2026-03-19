@@ -51,7 +51,11 @@ struct SettingsView: View {
 
                 Section(header: Text("App Preferences")) {
                     NavigationLink("Notifications") { Text("Notification Settings") }
-                    NavigationLink("Theme") { Text("Theme Options") }
+                    Picker("Theme", selection: $env.selectedTheme) {
+                         ForEach(AppTheme.allCases, id: \.self) { theme in
+                             Text(theme.rawValue)
+                         }
+                     }
                     NavigationLink("Language") { Text("Language Settings") }
                 }
 
