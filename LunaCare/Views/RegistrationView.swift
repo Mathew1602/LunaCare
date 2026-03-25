@@ -93,11 +93,11 @@ struct RegistrationView: View {
 
                 Spacer()
             }
-            .onChange(of: auth.isAuthenticated) { ok in
+            .onChange(of: auth.isAuthenticated) {_, newValue in
                 isLoading = false
-                if ok { navigateToHome = true }
+                if newValue { navigateToHome = true }
             }
-            .onChange(of: auth.errorMessage) { _ in
+            .onChange(of: auth.errorMessage) { _, newValue in
                 // stop spinner if there was an error during sign up
                 if !auth.errorMessage.isEmpty {
                     isLoading = false

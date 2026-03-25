@@ -35,7 +35,7 @@ struct SettingsView: View {
                     NavigationLink("Data Export") { Text("Data Export Options") }
 
                     Toggle(isOn: $isCloudSyncOn) { Text("Cloud Sync") }
-                        .onChange(of: isCloudSyncOn) { newValue in
+                        .onChange(of: isCloudSyncOn) {_, newValue in
                             let uid = auth.uid
                             guard !uid.isEmpty else { return }
                             SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: newValue, env: env)
