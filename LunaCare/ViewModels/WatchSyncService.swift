@@ -19,14 +19,19 @@ final class WatchSyncService {
     private let symptomRepo: SymptomCalendarRepository
     private var uidProvider: () -> String = { "" }
     private var env: AppEnvironment?
-    private var useCloudProvider: () -> Bool = { true }
+    private var syncManager = SyncManager.shared
+    private var useCloudProvider: Bool {
+        UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
+    }
 
     private init(
         wc: WatchConnectivityManager = .shared,
+        syncManager: SyncManager = .shared,
         moodRepo: MoodLogsRepositoryType = MoodLogsRepository(),
         calendarRepo: MoodCalendarRepository = MoodCalendarRepository(),
         symptomRepo: SymptomCalendarRepository = SymptomCalendarRepository()
     ) {
+        self.syncManager = syncManager
         self.moodRepo = moodRepo
         self.calendarRepo = calendarRepo
         self.symptomRepo = symptomRepo
@@ -37,19 +42,21 @@ final class WatchSyncService {
                 self?.handle(msg)
             }
     }
-
+    
     func configure(
         uidProvider: @escaping () -> String,
         env: AppEnvironment
     ) {
         self.uidProvider = uidProvider
         self.env = env
-        self.useCloudProvider = { env.isCloudSyncOn }
     }
+    
+
     
     private func handle(_ msg: SyncMessage) {
         let uid = uidProvider()
-        let useCloud = useCloudProvider()
+        let useCloud = useCloudProvider
+        
 
         switch msg.type {
 

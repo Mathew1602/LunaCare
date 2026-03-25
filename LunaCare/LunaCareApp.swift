@@ -32,4 +32,3 @@ struct LunaCareApp: App {
         }
     }
 }
-
