@@ -19,7 +19,7 @@ final class AppEnvironment: ObservableObject {
 
     static let shared = AppEnvironment()
 
-    @Published var isCloudSyncOn: Bool = false
+    @Published var isCloudSyncOn: Bool = UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
     @Published var selectedTheme: AppTheme {
         didSet {
             UserDefaults.standard.set(selectedTheme.rawValue, forKey: "appTheme")

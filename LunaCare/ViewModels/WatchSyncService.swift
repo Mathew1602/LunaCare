@@ -10,6 +10,7 @@ import Combine
 import Foundation
 
 final class WatchSyncService {
+    static let shared = WatchSyncService()
 
     
     private var cancellable: AnyCancellable?
@@ -18,20 +19,17 @@ final class WatchSyncService {
     private let symptomRepo: SymptomCalendarRepository
     private var uidProvider: () -> String = { "" }
     private var env: AppEnvironment?
-    private var cloudSync: cloudLocalSync
-
+    private var useCloudProvider: () -> Bool = { true }
 
     private init(
         wc: WatchConnectivityManager = .shared,
         moodRepo: MoodLogsRepositoryType = MoodLogsRepository(),
         calendarRepo: MoodCalendarRepository = MoodCalendarRepository(),
-        symptomRepo: SymptomCalendarRepository = SymptomCalendarRepository(),
-        cloudSync: cloudLocalSync = .shared
+        symptomRepo: SymptomCalendarRepository = SymptomCalendarRepository()
     ) {
         self.moodRepo = moodRepo
         self.calendarRepo = calendarRepo
         self.symptomRepo = symptomRepo
-        self.cloudSync = cloudSync
 
         cancellable = wc.$lastReceived
             .compactMap { $0 }
@@ -40,10 +38,18 @@ final class WatchSyncService {
             }
     }
 
+    func configure(
+        uidProvider: @escaping () -> String,
+        env: AppEnvironment
+    ) {
+        self.uidProvider = uidProvider
+        self.env = env
+        self.useCloudProvider = { env.isCloudSyncOn }
+    }
     
     private func handle(_ msg: SyncMessage) {
         let uid = uidProvider()
-        let useCloud = cloudSync.isUsingCloud()
+        let useCloud = useCloudProvider()
 
         switch msg.type {
 

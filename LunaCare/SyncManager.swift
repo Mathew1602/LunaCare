@@ -15,6 +15,7 @@ final class SyncManager {
 
     func applyCloudSyncPreference(uid: String, isOn: Bool, env: AppEnvironment) {
         env.isCloudSyncOn = isOn
+        UserDefaults.standard.set(isOn, forKey: "cloudSyncEnabled")
         userRepository.setCloudSync(uid: uid, isOn: isOn)
         // In a later iteration, trigger upload/download here if needed.
     }

@@ -27,7 +27,7 @@ struct LunaCareApp: App {
                 .environmentObject(auth)
                 .preferredColorScheme(env.selectedTheme.colorScheme)
                 .onAppear {
-                    cloudLocalSync.shared.configure(uidProvider: { auth.uid }, env: env)
+                    WatchSyncService.shared.configure(uidProvider: { auth.uid }, env: env)
                 }
         }
     }
