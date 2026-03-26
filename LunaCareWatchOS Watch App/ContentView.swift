@@ -49,7 +49,7 @@ struct ContentView: View {
                         MetricView(
                             icon: "moon.fill",
                             label: health.isAuthorized
-                                ? String(format: "%.1f hrs", health.sleepHours)
+                            ? String(format: "%.1f hrs", health.sleepHours)
                                 : "--",
                             detail: "Sleep"
                         )
@@ -86,6 +86,18 @@ struct ContentView: View {
                 }
                 .padding()
             }
+        }
+        .onAppear {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+                health.isAuthorized = true
+                health.sleepHours = 7.2
+                health.activeEnergyKcal = 3231
+                health.restingHR = 71
+                return
+            }
+            #endif
+            Task { await health.authorizeAndRefresh() }
         }
     }
 }

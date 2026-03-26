@@ -8,23 +8,29 @@
 
 import Combine
 import Foundation
+import FirebaseAuth
 
 final class WatchSyncService {
     static let shared = WatchSyncService()
 
+    
     private var cancellable: AnyCancellable?
     private let moodRepo: MoodLogsRepositoryType
     private let calendarRepo: MoodCalendarRepository
     private let symptomRepo: SymptomCalendarRepository
-    private var uidProvider: () -> String = { "" }
-    private var useCloudProvider: () -> Bool = { true }
+    private var syncManager = SyncManager.shared
+    private var useCloudProvider: Bool {
+        UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
+    }
 
     private init(
         wc: WatchConnectivityManager = .shared,
+        syncManager: SyncManager = .shared,
         moodRepo: MoodLogsRepositoryType = MoodLogsRepository(),
         calendarRepo: MoodCalendarRepository = MoodCalendarRepository(),
         symptomRepo: SymptomCalendarRepository = SymptomCalendarRepository()
     ) {
+        self.syncManager = syncManager
         self.moodRepo = moodRepo
         self.calendarRepo = calendarRepo
         self.symptomRepo = symptomRepo
@@ -35,25 +41,18 @@ final class WatchSyncService {
                 self?.handle(msg)
             }
     }
-
-    func configure(
-        uidProvider: @escaping () -> String,
-        useCloudProvider: @escaping () -> Bool
-    ) {
-        self.uidProvider = uidProvider
-        self.useCloudProvider = useCloudProvider
-    }
-
+    
     private func handle(_ msg: SyncMessage) {
-        let uid = uidProvider()
-        let useCloud = useCloudProvider()
+        let uid = Auth.auth().currentUser?.uid ?? ""
+        let useCloud = useCloudProvider
+        
 
         switch msg.type {
 
         case .moodLog:
             guard var m = msg.moodLog else { return }
 
-            if uid.isEmpty {
+            if uid.isEmpty || !useCloud {
                 print("No UID. Saving mood locally.")
                 if m.createdAt == nil { m.createdAt = Date() }
                 LocalMoodStore.shared.saveOfflineMood(m)
@@ -73,7 +72,7 @@ final class WatchSyncService {
         case .symptomLog:
             guard let payload = msg.symptomLog else { return }
 
-            if uid.isEmpty {
+            if uid.isEmpty || !useCloud {
                 print("No UID. Saving symptom log locally.")
                 LocalSymptomStore.shared.saveOfflineSymptomLog(payload)
             } else {

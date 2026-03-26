@@ -18,6 +18,7 @@ struct LunaCareApp: App {
     init() {
         // This activates connectivity to watchOS
         WatchConnectivityManager.shared.activate()
+        _ = WatchSyncService.shared
     }
 
     var body: some Scene {
@@ -25,10 +26,7 @@ struct LunaCareApp: App {
             ContentView()
                 .environmentObject(env)
                 .environmentObject(auth)
-                .onAppear {
-                    WatchSyncService.shared.configure(uidProvider: { auth.uid }, useCloudProvider: {true})
-                }
+                .preferredColorScheme(env.selectedTheme.colorScheme)
         }
     }
 }
-

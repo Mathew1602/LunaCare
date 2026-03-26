@@ -1,8 +1,9 @@
+//
 //  MoodCalendarViewModel.swift
 //  LunaCare
 //
 //  Created by Xiaoya Zou on 2025-11-11.
-//  Updated by Mathew to support editing existing mood logs.
+//  Updated by Mathew to support editing existing mood logs and local storage.
 //
 
 import Foundation
@@ -25,11 +26,13 @@ final class MoodCalendarViewModel: ObservableObject {
 
     private let cal = Calendar.current
     private let repo: MoodCalendarRepository
+    private let localStore = LocalMoodCalendarStore.shared
+    private var syncManager = SyncManager.shared
 
     init(repo: MoodCalendarRepository = MoodCalendarRepository()) {
         self.repo = repo
+        self.syncManager = .shared
     }
-
 
     var monthStart: Date {
         let base = cal.date(byAdding: .month, value: monthOffset, to: Date())!
@@ -59,41 +62,44 @@ final class MoodCalendarViewModel: ObservableObject {
         return arr
     }
 
+    // MARK: - Navigation
 
-    @MainActor
     func setMonth(delta: Int, uid: String) async {
         monthOffset += delta
         await load(uid: uid)
     }
 
-    func load(uid: String) async {
-        guard !uid.isEmpty else { return }
-        await MainActor.run {
-            loading = true
-            errorText = nil
-        }
-        do {
-            let map = try await repo.fetchMonth(uid: uid, monthStart: monthStart)
-            await MainActor.run {
-                self.logsByDay = map
-                self.loading = false
+    // MARK: - Load
 
-                // Ensure a selected day (defaults to today if in this month)
-                if self.selected == nil {
-                    if self.cal.isDate(Date(), equalTo: self.monthStart, toGranularity: .month) {
-                        self.selected = Date()
-                    } else {
-                        self.selected = self.logsByDay.keys.sorted().first
-                    }
-                }
+    func load(uid: String) async {
+        loading = true
+        errorText = nil
+        
+        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)) {
+            logsByDay = localStore.fetchMonth(monthStart: monthStart)
+            print("MoodCalendarViewModel: loaded \(logsByDay.count) days from local store.")
+        } else {
+            do {
+                let map = try await repo.fetchMonth(uid: uid, monthStart: monthStart)
+                logsByDay = map
+            } catch {
+                errorText = "Failed to load: \(error.localizedDescription)"
+                print("MoodCalendarViewModel.load error: \(error.localizedDescription)")
             }
-        } catch {
-            await MainActor.run {
-                self.loading = false
-                self.errorText = "Failed to load: \(error.localizedDescription)"
+        }
+
+        loading = false
+
+        if selected == nil {
+            if cal.isDate(Date(), equalTo: monthStart, toGranularity: .month) {
+                selected = Date()
+            } else {
+                selected = logsByDay.keys.sorted().first
             }
         }
     }
+
+    // MARK: - Helpers
 
     func latestMood(for day: Date?) -> Mood? {
         guard let day else { return nil }
@@ -105,7 +111,7 @@ final class MoodCalendarViewModel: ObservableObject {
         return logsByDay[cal.startOfDay(for: s)] ?? []
     }
 
-
+    // MARK: - Editing
     func beginEdit(log: CalendarDayLog) {
         editingLog = log
         editingMood = log.mood
@@ -117,20 +123,51 @@ final class MoodCalendarViewModel: ObservableObject {
         isSavingEdit = true
         defer { isSavingEdit = false }
 
-        do {
-            try await repo.updateLog(
-                uid: uid,
+        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)) {
+            localStore.updateLog(
                 logId: log.id,
                 newMood: editingMood,
                 newNote: editingNote
             )
-
+            let updatedMoodLog = MoodLog(
+                id: log.id,
+                mood: mapMoodToScore(editingMood),
+                notes: editingNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? nil
+                    : editingNote.trimmingCharacters(in: .whitespacesAndNewlines),
+                tags: ["manual"],
+                source: "manual",
+                createdAt: log.createdAt
+            )
+            LocalMoodStore.shared.saveOfflineMood(updatedMoodLog)
+            print("Mood edit saved locally for log id: \(log.id)")
             await load(uid: uid)
-            editingLog = nil
-        } catch {
-            print("MoodCalendarViewModel.saveEdit error: \(error.localizedDescription)")
+            
+        } else {
+            do {
+                try await repo.updateLog(
+                    uid: uid,
+                    logId: log.id,
+                    newMood: editingMood,
+                    newNote: editingNote
+                )
+                await load(uid: uid)
+            } catch {
+                print("MoodCalendarViewModel.saveEdit error: \(error.localizedDescription)")
+            }
         }
+
+        editingLog = nil
     }
 
-
+    // MARK: - Private
+    private func mapMoodToScore(_ m: Mood) -> Int {
+        switch m {
+        case .ecstatic: return 4
+        case .happy:    return 2
+        case .okay:     return 0
+        case .sad:      return -1
+        case .angry:    return -2
+        }
+    }
 }

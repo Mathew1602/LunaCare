@@ -35,7 +35,9 @@ struct SymptomsTrackingView: View {
                     }
 
                     Button {
-                        vm.save(uid: auth.uid)
+                        Task{
+                           await vm.save(uid: auth.uid)
+                        }
                     } label: {
                         Text("Save Symptoms")
                             .frame(maxWidth: .infinity)

@@ -57,7 +57,6 @@ struct InsightResult: Codable {
     let direction: String
 }
 
-
 struct WeeklyInsight: Identifiable, Codable {
     var id: String?              // Firebase doc ID OR local UUID
     var metric: String           // “sleep hours”
@@ -70,8 +69,6 @@ struct WeeklyInsight: Identifiable, Codable {
     var createdAt: Date
     var localOnly: Bool?         // true if only stored locally
 }
-
-
 
 struct MoodLog: Codable, Identifiable {
     var id: String?
@@ -120,7 +117,6 @@ struct CalendarDayLog: Codable, Identifiable, Hashable {
     let createdAt: Date
 }
 
-
 struct Measurement: Codable, Identifiable {
     var id: String? = nil
     var createdAt: Date = Date()
@@ -131,6 +127,7 @@ struct Measurement: Codable, Identifiable {
     var hairLoss1to10: Double?
     var appetiteIssue1to10: Double?
     var sleepTrouble1to10: Double?
+    var fatigue1to10: Double?   // <-- NEW property added
 
     // Activity / movement bases
     var steps: Int?
@@ -159,7 +156,6 @@ struct Measurement: Codable, Identifiable {
     var sleepEfficiencyPct: Double?
     var wakeAfterSleepOnsetMin: Double?
 
-
     var weightKg: Double?
 
     var source: String? = "watch"
@@ -178,8 +174,3 @@ extension Measurement {
         sleepHours.map { Int($0 * 60.0) }
     }
 }
-
-
-
-
-

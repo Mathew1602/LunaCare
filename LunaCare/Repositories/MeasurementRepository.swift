@@ -138,7 +138,7 @@ final class MeasurementRepository {
         if let v = m.deepSleepHours { data["deepSleepHours"] = v }
         if let v = m.remSleepHours { data["remSleepHours"] = v }
         if let v = m.coreSleepHours { data["coreSleepHours"] = v }
-        if let v = m.sleepEfficiencyPct { data["sleepEfficiencyPct"] = v }
+        if let v = m.sleepEfficiencyPct { data["sleepEfficiencyPct"] = v } 
         if let v = m.wakeAfterSleepOnsetMin { data["wakeAfterSleepOnsetMin"] = v }
 
         // Body

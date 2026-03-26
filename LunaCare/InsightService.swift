@@ -36,7 +36,7 @@ final class InsightService {
         }
 
         // If nothing in cloud → fallback to Mathew’s dataset
-        let fake = FakeStruct.highRisk30Days()
+        let fake = FakeStruct.extremeHighRisk30Days()
         let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: fake)
         LocalStorageInsights.shared.save(weekly)
         return weekly

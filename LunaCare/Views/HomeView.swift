@@ -44,6 +44,10 @@ struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
+    @Environment(\.scenePhase) private var scenePhase //For changed scene
+    private let syncManager = SyncManager.shared
+    @State private var isSyncedToCloud = false
+
     
     @State private var showingMLTestAlert = false
     @State private var mlTestMessage = ""
@@ -70,15 +74,19 @@ struct HomeContentView: View {
                             .foregroundColor(.gray)
 
                         HStack {
-                            Image(systemName: env.isCloudSyncOn ? "icloud" : "internaldrive")
+                            Image(systemName: isSyncedToCloud ? "icloud" : "internaldrive")
                                 .imageScale(.small)
-                            Text(env.isCloudSyncOn ? "Synced to Cloud" : "Local Only")
+                            Text(isSyncedToCloud ? "Synced to Cloud" : "Local Only")
                         }
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
+                        .task {
+                            guard !auth.uid.isEmpty else { return }
+                            isSyncedToCloud = await syncManager.getCloudSyncPreference(uid: auth.uid, env: env)
+                        }
                     }
 
                     // Log Mood Button
@@ -274,6 +282,14 @@ struct HomeContentView: View {
                 #endif
                 Task { await health.authorizeAndRefresh() }
             }
+            //When the user exits the appliction (Refresh health data so it is new when they open it)
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                if newPhase == .active {
+                    Task {
+                        await health.authorizeAndRefresh()
+                    }
+                }
+            }
         }
     }
 
@@ -281,7 +297,7 @@ struct HomeContentView: View {
     private func runFakeMLTest() {
         Task {
             do {
-                let fake30 = FakeStruct.highRisk30Days()
+                let fake30 = FakeStruct.extremeHighRisk30Days()
                 let score = try PPDRiskModelRunner.shared.predictRisk(from: fake30)
 
                 let pct = Int((score * 100).rounded())
@@ -312,7 +328,7 @@ struct HomeContentView: View {
         Task { @MainActor in
             defer { isUploadingFakeData = false }
 
-            let fake30 = FakeStruct.highRisk30Days()
+            let fake30 = FakeStruct.extremeHighRisk30Days()
             do {
                 let count = try await repo.upsertMany(uid: auth.uid, measurements: fake30)
                 uploadMessage = "Uploaded \(count) fake day-measurements"
@@ -332,9 +348,6 @@ struct HomeContentView: View {
             showingUploadAlert = true
         }
     }
-
-
-
 
 
     /// async/await wrapper for repo.upsert

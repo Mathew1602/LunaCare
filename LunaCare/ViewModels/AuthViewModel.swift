@@ -159,6 +159,18 @@ final class AuthViewModel: ObservableObject {
         WatchConnectivityManager.shared.send(profile, type: .profile)
         print("Sent profile to watch: \(profile.fullName)")
     }
+    
+    func refreshProfile() {
+        guard !uid.isEmpty else { return }
+        
+        UserRepository().fetchUserProfile(uid: uid) { first, last in
+            DispatchQueue.main.async {
+                self.firstName = first ?? ""
+                self.lastName = last ?? ""
+                self.sendProfileToWatch()
+            }
+        }
+    }
 
 }
 

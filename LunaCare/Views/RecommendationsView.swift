@@ -43,10 +43,7 @@ struct RecommendationsView: View {
         .navigationTitle("Recommendations")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            // 🔥 Local insights from ViewModel
             insights = vm.insights
-
-            // 🔥 Build local (NOT cloud synced)
             recs = RecommendationEngine.build(from: insights)
         }
     }

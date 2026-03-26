@@ -16,7 +16,7 @@ struct MoodCalendarView: View {
     private let cols = Array(repeating: GridItem(.flexible()), count: 7)
     // private let noteTint = Color(red: 139/255, green: 146/255, blue: 250/255)
     private let noteTint = Color(.systemIndigo)
-    private let tileBG   = Color(red: 249/255, green: 248/255, blue: 255/255)
+    private let tileBG = Color(.secondarySystemBackground)
 
     var body: some View {
         NavigationStack {

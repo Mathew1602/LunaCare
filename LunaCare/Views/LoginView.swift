@@ -46,7 +46,7 @@ struct LoginView: View {
                         .font(.footnote)
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+                    .padding(.horizontal, 40)
                 }
 
                 Button {
@@ -66,11 +66,11 @@ struct LoginView: View {
                     .padding(.horizontal, 40)
                 }
                 .disabled(isLoading)
-                .onChange(of: auth.isAuthenticated) { ok in
+                .onChange(of: auth.isAuthenticated) {_, newValue in
                     isLoading = false
-                    if ok { navigateToHome = true }
+                    if newValue { navigateToHome = true }
                 }
-                .onChange(of: auth.errorMessage) { _ in
+                .onChange(of: auth.errorMessage) { _, newValue in
                     if !auth.errorMessage.isEmpty {
                         isLoading = false
                     }
