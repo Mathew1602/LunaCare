@@ -3,14 +3,13 @@
 //  LunaCare
 //
 //  Created by Xiaoya Zou on 2025-10-09.
-//  Updated by Mathew to show per-time symptom logs for a selected day.
+//  Updated by Mathew to show per-time symptom logs for a selected day and support local storage.
 //
 
 import Foundation
 
 @MainActor
 final class SymptomCalendarViewModel: ObservableObject {
-
 
     @Published var monthOffset: Int = 0
     @Published var selected: Date? = nil
@@ -23,14 +22,17 @@ final class SymptomCalendarViewModel: ObservableObject {
     @Published var loadingMonth: Bool = false
     @Published var loadingSelected: Bool = false
 
-
     private let cal = Calendar.current
     private let repo: SymptomCalendarRepository
+    private let localStore = LocalSymptomCalendarStore.shared
+    private var syncManager = SyncManager.shared
 
     init(repo: SymptomCalendarRepository = SymptomCalendarRepository()) {
         self.repo = repo
+        self.syncManager = .shared
     }
 
+    // MARK: - Computed
 
     var monthStart: Date {
         let base = cal.date(byAdding: .month, value: monthOffset, to: Date())!
@@ -51,7 +53,7 @@ final class SymptomCalendarViewModel: ObservableObject {
 
     var daysGrid: [Date?] {
         let firstWeekday = cal.component(.weekday, from: monthStart)
-        let leading = (firstWeekday + 6) % 7      // shift so week starts on current locale’s first weekday
+        let leading = (firstWeekday + 6) % 7
         let days = cal.range(of: .day, in: .month, for: monthStart)!.count
 
         var arr = Array<Date?>(repeating: nil, count: leading)
@@ -60,7 +62,6 @@ final class SymptomCalendarViewModel: ObservableObject {
         }
         return arr
     }
-
 
     func hasSymptoms(on day: Date?) -> Bool {
         guard let d = day else { return false }
@@ -74,40 +75,39 @@ final class SymptomCalendarViewModel: ObservableObject {
     }
 
     var selectedTitle: String {
-        guard let s = selected else {
-            return "Select a day"
-        }
+        guard let s = selected else { return "Select a day" }
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .none
         return f.string(from: s)
     }
 
+    // MARK: - Load
 
     func loadMonth(for uid: String) async {
-        guard !uid.isEmpty else { return }
-
         loadingMonth = true
         defer { loadingMonth = false }
 
-        do {
-            let days = try await repo.fetchMonth(uid: uid, monthStart: monthStart)
-            daysWithSymptoms = days
-
-            // If nothing is selected yet, select today if it's in this month, otherwise first day with symptoms
-            if selected == nil {
-                if cal.isDate(Date(), equalTo: monthStart, toGranularity: .month) {
-                    selected = Date()
-                } else if let anyDay = days.first {
-                    selected = anyDay
-                }
+        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)){
+            daysWithSymptoms = localStore.fetchMonth(monthStart: monthStart)
+            print("SymptomCalendarViewModel: loaded \(daysWithSymptoms.count) days from local store.")
+        } else {
+            do {
+                let days = try await repo.fetchMonth(uid: uid, monthStart: monthStart)
+                daysWithSymptoms = days
+            } catch {
+                print("SymptomCalendarViewModel.loadMonth error: \(error.localizedDescription)")
             }
-
-        } catch {
-            print("SymptomCalendarViewModel.loadMonth error: \(error.localizedDescription)")
         }
 
-        // Refresh details for selected day if any
+        if selected == nil {
+            if cal.isDate(Date(), equalTo: monthStart, toGranularity: .month) {
+                selected = Date()
+            } else if let anyDay = daysWithSymptoms.first {
+                selected = anyDay
+            }
+        }
+
         if let sel = selected {
             await select(day: sel, uid: uid)
         }
@@ -118,9 +118,9 @@ final class SymptomCalendarViewModel: ObservableObject {
         await loadMonth(for: uid)
     }
 
-    func select(day: Date, uid: String) async {
-        guard !uid.isEmpty else { return }
+    // MARK: - Selection
 
+    func select(day: Date, uid: String) async {
         selected = day
         loadingSelected = true
         defer { loadingSelected = false }
@@ -131,12 +131,17 @@ final class SymptomCalendarViewModel: ObservableObject {
             return
         }
 
-        do {
-            let logs = try await repo.fetchRange(uid: uid, from: start, to: end)
-            selectedEntries = logs.sorted { $0.createdAt > $1.createdAt }
-        } catch {
-            print("SymptomCalendarViewModel.select error: \(error.localizedDescription)")
-            selectedEntries = []
+        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)){
+            selectedEntries = localStore.fetchRange(from: start, to: end)
+            print("SymptomCalendarViewModel: loaded \(selectedEntries.count) entries locally for \(day).")
+        } else {
+            do {
+                let logs = try await repo.fetchRange(uid: uid, from: start, to: end)
+                selectedEntries = logs.sorted { $0.createdAt > $1.createdAt }
+            } catch {
+                print("SymptomCalendarViewModel.select error: \(error.localizedDescription)")
+                selectedEntries = []
+            }
         }
     }
 }

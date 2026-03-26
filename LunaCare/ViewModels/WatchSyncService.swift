@@ -8,6 +8,7 @@
 
 import Combine
 import Foundation
+import FirebaseAuth
 
 final class WatchSyncService {
     static let shared = WatchSyncService()
@@ -17,8 +18,6 @@ final class WatchSyncService {
     private let moodRepo: MoodLogsRepositoryType
     private let calendarRepo: MoodCalendarRepository
     private let symptomRepo: SymptomCalendarRepository
-    private var uidProvider: () -> String = { "" }
-    private var env: AppEnvironment?
     private var syncManager = SyncManager.shared
     private var useCloudProvider: Bool {
         UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
@@ -43,18 +42,8 @@ final class WatchSyncService {
             }
     }
     
-    func configure(
-        uidProvider: @escaping () -> String,
-        env: AppEnvironment
-    ) {
-        self.uidProvider = uidProvider
-        self.env = env
-    }
-    
-
-    
     private func handle(_ msg: SyncMessage) {
-        let uid = uidProvider()
+        let uid = Auth.auth().currentUser?.uid ?? ""
         let useCloud = useCloudProvider
         
 

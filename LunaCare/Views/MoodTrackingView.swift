@@ -41,10 +41,10 @@ struct MoodTrackingView: View {
                 NoteBox(note: $vm.note, focused: _noteFocused, borderColor: noteBorder)
 
                 // Save button
-                // Save button
-                // Save button
                 Button {
-                    vm.save(uid: auth.uid)
+                    Task{
+                        await vm.save(uid: auth.uid)
+                    }
                 } label: {
                     HStack {
                         if vm.loading {
