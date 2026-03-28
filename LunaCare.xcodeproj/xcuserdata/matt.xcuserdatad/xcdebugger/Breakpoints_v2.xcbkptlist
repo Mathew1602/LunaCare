@@ -72,7 +72,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "A6DBCED3-FFD3-4241-A433-F4C3F013AFDD"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "LunaCare/Views/MoodCalendarView.swift"
@@ -82,36 +82,6 @@
             endingLineNumber = "159"
             landmarkName = "body"
             landmarkType = "24">
-            <Locations>
-               <Location
-                  uuid = "A6DBCED3-FFD3-4241-A433-F4C3F013AFDD - 5a639649801a28b1"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #5 () -&gt; LunaCare.EditMoodSheet in LunaCare.MoodCalendarView.body.getter : some"
-                  moduleName = "LunaCare.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/matt/Documents/School%20LOCAL%20(DON&apos;T%20STORE%20NEW%20FILES)/Degree%20Completion%20Computer%20Sicience/Sheridan%20College%20FINAL%20SEMSTER%20-%20Fall%202026/Capstone/LunaCareLatest/LunaCare/LunaCare/Views/MoodCalendarView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "159"
-                  endingLineNumber = "159">
-               </Location>
-               <Location
-                  uuid = "A6DBCED3-FFD3-4241-A433-F4C3F013AFDD - 28e190ebe5ca4b84"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 () -&gt; () in closure #5 () -&gt; LunaCare.EditMoodSheet in LunaCare.MoodCalendarView.body.getter : some"
-                  moduleName = "LunaCare.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/matt/Documents/School%20LOCAL%20(DON&apos;T%20STORE%20NEW%20FILES)/Degree%20Completion%20Computer%20Sicience/Sheridan%20College%20FINAL%20SEMSTER%20-%20Fall%202026/Capstone/LunaCareLatest/LunaCare/LunaCare/Views/MoodCalendarView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "160"
-                  endingLineNumber = "160">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

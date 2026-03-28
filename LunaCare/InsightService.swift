@@ -39,7 +39,7 @@ final class InsightService {
             }
 
         } catch {
-            print("⚠️ Insight load failed: \(error)")
+            print("Insight load failed: \(error)")
         }
 
         // Cloud returned nothing → try local cache, then fake data

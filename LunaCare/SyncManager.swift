@@ -14,14 +14,12 @@ final class SyncManager {
     private init() {}
 
     func applyCloudSyncPreference(uid: String, isOn: Bool, env: AppEnvironment) {
-        if uid.isEmpty  {
-            return
-        }else {
-            env.isCloudSyncOn = isOn
-            UserDefaults.standard.set(isOn, forKey: "cloudSyncEnabled")
-            userRepository.setCloudSync(uid: uid, isOn: isOn)
-            // In a later iteration, trigger upload/download here if needed.
-        }
+        env.isCloudSyncOn = isOn
+        UserDefaults.standard.set(isOn, forKey: "cloudSyncEnabled")
+
+        // Only write to Firestore when there is a real signed-in user.
+        guard !uid.isEmpty else { return }
+        userRepository.setCloudSync(uid: uid, isOn: isOn)
     }
     
     func getCloudSyncPreference(uid: String, env: AppEnvironment) async -> Bool {

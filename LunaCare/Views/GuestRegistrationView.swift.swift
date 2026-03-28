@@ -107,11 +107,8 @@ struct GuestRegistrationView: View {
             }
             .onAppear {
                 if auth.hasLocalProfile {
-                    // A local profile already exists — restore it immediately
-                    // so the user doesn't have to re-enter their name.
-                    auth.resumeLocalSession()
                     syncManager.applyCloudSyncPreference(uid: "", isOn: false, env: env)
-                    // ContentView observes auth.noAccount and switches to HomeView.
+                    auth.resumeLocalSession()
                 }
             }
         }
