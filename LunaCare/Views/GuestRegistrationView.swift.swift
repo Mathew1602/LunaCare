@@ -49,17 +49,20 @@ struct GuestRegistrationView: View {
                 .cornerRadius(10)
                 .padding(.horizontal, 40)
 
-                VStack(spacing: 15) {
-                    TextField("First Name", text: $firstName)
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.words)
+                // Only show the name fields when there is no saved local profile.
+                if !auth.hasLocalProfile {
+                    VStack(spacing: 15) {
+                        TextField("First Name", text: $firstName)
+                            .textFieldStyle(.roundedBorder)
+                            .autocapitalization(.words)
 
-                    TextField("Last Name", text: $lastName)
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.words)
+                        TextField("Last Name", text: $lastName)
+                            .textFieldStyle(.roundedBorder)
+                            .autocapitalization(.words)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 20)
                 }
-                .padding(.horizontal, 40)
-                .padding(.top, 20)
 
                 if !localError.isEmpty {
                     Text(localError)
@@ -78,7 +81,7 @@ struct GuestRegistrationView: View {
                     localError = ""
                     auth.signInAsGuest(firstName: firstName, lastName: lastName)
                     syncManager.applyCloudSyncPreference(uid: "", isOn: false, env: env)
-                    
+
                     // ContentView reacts to auth.noAccount becoming true
                 } label: {
                     Text("Continue Locally")
@@ -91,7 +94,6 @@ struct GuestRegistrationView: View {
                         .padding(.horizontal, 40)
                 }
 
-               
                 Button {
                     dismiss()
                 } label: {
@@ -102,6 +104,15 @@ struct GuestRegistrationView: View {
                 }
 
                 Spacer()
+            }
+            .onAppear {
+                if auth.hasLocalProfile {
+                    // A local profile already exists — restore it immediately
+                    // so the user doesn't have to re-enter their name.
+                    auth.resumeLocalSession()
+                    syncManager.applyCloudSyncPreference(uid: "", isOn: false, env: env)
+                    // ContentView observes auth.noAccount and switches to HomeView.
+                }
             }
         }
     }

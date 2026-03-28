@@ -175,16 +175,32 @@ final class AuthViewModel: ObservableObject {
     }
 
     private func clearGuestSession() {
-        UserDefaults.standard.removeObject(forKey: GuestKeys.firstName)
-        UserDefaults.standard.removeObject(forKey: GuestKeys.lastName)
+        // Only clear the active-session flag; keep firstName/lastName so the
+        // user can re-enter local mode without re-typing their name.
         UserDefaults.standard.set(false, forKey: GuestKeys.noAccount)
 
         DispatchQueue.main.async {
-            self.noAccount  = false
-            self.firstName  = ""
-            self.lastName   = ""
+            self.noAccount    = false
+            self.firstName    = ""
+            self.lastName     = ""
             self.errorMessage = ""
         }
+    }
+
+    // MARK: - Local profile helpers
+
+    /// True when a name was saved from a previous local session.
+    var hasLocalProfile: Bool {
+        let saved = UserDefaults.standard.string(forKey: GuestKeys.firstName) ?? ""
+        return !saved.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Re-enters local mode using the previously saved name (no form needed).
+    func resumeLocalSession() {
+        let first = UserDefaults.standard.string(forKey: GuestKeys.firstName) ?? ""
+        let last  = UserDefaults.standard.string(forKey: GuestKeys.lastName)  ?? ""
+        guard !first.isEmpty else { return }
+        signInAsGuest(firstName: first, lastName: last)
     }
 
     // MARK: - Helpers
