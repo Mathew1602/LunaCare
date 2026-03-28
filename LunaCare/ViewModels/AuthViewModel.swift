@@ -114,6 +114,11 @@ final class AuthViewModel: ObservableObject {
             }
             guard let user = result?.user else { return }
 
+            // Clear any stale guest session data from UserDefaults (no-op if not a guest).
+            UserDefaults.standard.removeObject(forKey: GuestKeys.firstName)
+            UserDefaults.standard.removeObject(forKey: GuestKeys.lastName)
+            UserDefaults.standard.set(false, forKey: GuestKeys.noAccount)
+
             self.uid       = user.uid
             self.email     = email
             self.firstName = firstName

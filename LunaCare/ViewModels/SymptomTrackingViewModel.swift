@@ -35,7 +35,7 @@ final class SymptomTrackingViewModel: ObservableObject {
             (!syncManager.getCloudSyncPreference(
                 uid: uid,
                 env: AppEnvironment.shared
-            ) || !uid.isEmpty)
+            ) || uid.isEmpty)
         {
             let values = Dictionary(
                 uniqueKeysWithValues: symptoms.map { ($0.name, Int($0.value)) }

@@ -41,8 +41,12 @@ struct SettingsView: View {
                         }
 
                         NavigationLink {
-                            RegistrationView()
-                                .environmentObject(auth)
+                            RegistrationView(
+                                firstName: auth.firstName,
+                                lastName: auth.lastName,
+                                isFromSettings: true
+                            )
+                            .environmentObject(auth)
                         } label: {
                             Label("Create an Account", systemImage: "person.badge.plus")
                                 .foregroundColor(Color(.systemIndigo))

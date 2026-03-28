@@ -10,9 +10,10 @@ import SwiftUI
 
 struct RegistrationView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
 
-    @State private var firstName       = ""
-    @State private var lastName        = ""
+    @State private var firstName: String
+    @State private var lastName: String
     @State private var username        = ""
     @State private var password        = ""
     @State private var confirmPassword = ""
@@ -21,85 +22,100 @@ struct RegistrationView: View {
     @State private var localError = ""
     @State private var isLoading  = false
 
+    /// When `true` the view was pushed from Settings (inside an existing HomeView).
+    /// On successful sign-up it dismisses rather than pushing another HomeView.
+    private let isFromSettings: Bool
+
+    init(firstName: String = "", lastName: String = "", isFromSettings: Bool = false) {
+        self._firstName    = State(initialValue: firstName)
+        self._lastName     = State(initialValue: lastName)
+        self.isFromSettings = isFromSettings
+    }
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Spacer()
+        VStack(spacing: 20) {
+            Spacer()
 
-                Text("Registration:")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                    .foregroundColor(Color(.systemIndigo))
+            Text("Registration:")
+                .font(.title)
+                .fontWeight(.semibold)
+                .foregroundColor(Color(.systemIndigo))
 
-                VStack(spacing: 15) {
-                    TextField("First Name", text: $firstName)
-                        .textFieldStyle(.roundedBorder)
-                    TextField("Last Name", text: $lastName)
-                        .textFieldStyle(.roundedBorder)
-                    TextField("User Name (email)", text: $username)
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.none)
-                        .keyboardType(.emailAddress)
-                    SecureField("Password", text: $password)
-                        .textFieldStyle(.roundedBorder)
-                    SecureField("Password Confirmation", text: $confirmPassword)
-                        .textFieldStyle(.roundedBorder)
-                }
-                .padding(.horizontal, 40)
-                .padding(.top, 40)
+            VStack(spacing: 15) {
+                TextField("First Name", text: $firstName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("Last Name", text: $lastName)
+                    .textFieldStyle(.roundedBorder)
+                TextField("User Name (email)", text: $username)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.none)
+                    .keyboardType(.emailAddress)
+                SecureField("Password", text: $password)
+                    .textFieldStyle(.roundedBorder)
+                SecureField("Password Confirmation", text: $confirmPassword)
+                    .textFieldStyle(.roundedBorder)
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 40)
 
-                if !localError.isEmpty || !auth.errorMessage.isEmpty {
-                    Text(localError.isEmpty ? auth.errorMessage : localError)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-
-                Button {
-                    guard !firstName.isEmpty, !lastName.isEmpty else {
-                        localError = "Please enter your first and last name."
-                        return
-                    }
-                    guard !username.isEmpty, !password.isEmpty else {
-                        localError = "Please fill in email and password."
-                        return
-                    }
-                    guard password == confirmPassword else {
-                        localError = "Passwords do not match."
-                        return
-                    }
-                    isLoading  = true
-                    localError = ""
-                    auth.signUp(email: username,
-                                password: password,
-                                firstName: firstName,
-                                lastName: lastName)
-                } label: {
-                    HStack {
-                        if isLoading { ProgressView().tint(.white) }
-                        Text(isLoading ? "Registering…" : "Register")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .padding()
-                    .background(Color(.systemIndigo))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+            if !localError.isEmpty || !auth.errorMessage.isEmpty {
+                Text(localError.isEmpty ? auth.errorMessage : localError)
+                    .font(.footnote)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
-                }
-                .disabled(isLoading)
-                .navigationDestination(isPresented: $navigateToHome) { HomeView() }
+            }
 
-                Spacer()
+            Button {
+                guard !firstName.isEmpty, !lastName.isEmpty else {
+                    localError = "Please enter your first and last name."
+                    return
+                }
+                guard !username.isEmpty, !password.isEmpty else {
+                    localError = "Please fill in email and password."
+                    return
+                }
+                guard password == confirmPassword else {
+                    localError = "Passwords do not match."
+                    return
+                }
+                isLoading  = true
+                localError = ""
+                auth.signUp(email: username,
+                            password: password,
+                            firstName: firstName,
+                            lastName: lastName)
+            } label: {
+                HStack {
+                    if isLoading { ProgressView().tint(.white) }
+                    Text(isLoading ? "Registering…" : "Register")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                }
+                .padding()
+                .background(Color(.systemIndigo))
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .padding(.horizontal, 40)
             }
-            .onChange(of: auth.isAuthenticated) { _, newValue in
-                isLoading = false
-                if newValue { navigateToHome = true }
+            .disabled(isLoading)
+            .navigationDestination(isPresented: $navigateToHome) { HomeView() }
+
+            Spacer()
+        }
+        .onChange(of: auth.isAuthenticated) { _, newValue in
+            isLoading = false
+            if newValue {
+                if isFromSettings {
+                    // Already inside HomeView — just pop back to Settings.
+                    dismiss()
+                } else {
+                    navigateToHome = true
+                }
             }
-            .onChange(of: auth.errorMessage) { _, _ in
-                if !auth.errorMessage.isEmpty { isLoading = false }
-            }
+        }
+        .onChange(of: auth.errorMessage) { _, _ in
+            if !auth.errorMessage.isEmpty { isLoading = false }
         }
     }
 }
