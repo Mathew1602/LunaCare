@@ -20,7 +20,9 @@ final class WatchSyncService {
     private let symptomRepo: SymptomCalendarRepository
     private var syncManager = SyncManager.shared
     private var useCloudProvider: Bool {
-        UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
+        // Always read the authoritative in-memory value so a sign-in/sign-out
+        // is reflected immediately without waiting for a UserDefaults write.
+        AppEnvironment.shared.isCloudSyncOn
     }
 
     private init(

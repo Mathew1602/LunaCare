@@ -29,11 +29,6 @@ final class MoodTrackingViewModel: ObservableObject {
     func save(uid: String) async {
         await print(syncManager.getCloudSyncPreference(uid: uid, env: .shared))
 
-        guard !uid.isEmpty else {
-            backendStatus = "Not signed in; saved locally only."
-            resetUI()
-            return
-        }
         guard let moodEnum = selectedMood else {
             backendStatus = "Please select a mood."
             return
