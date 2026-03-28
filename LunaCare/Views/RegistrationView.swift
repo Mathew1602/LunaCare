@@ -11,15 +11,15 @@ import SwiftUI
 struct RegistrationView: View {
     @EnvironmentObject var auth: AuthViewModel
 
-    @State private var firstName = ""
-    @State private var lastName = ""
-    @State private var username = ""
-    @State private var password = ""
+    @State private var firstName       = ""
+    @State private var lastName        = ""
+    @State private var username        = ""
+    @State private var password        = ""
     @State private var confirmPassword = ""
-    @State private var navigateToHome = false
+    @State private var navigateToHome  = false
 
     @State private var localError = ""
-    @State private var isLoading = false
+    @State private var isLoading  = false
 
     var body: some View {
         NavigationStack {
@@ -69,7 +69,7 @@ struct RegistrationView: View {
                         localError = "Passwords do not match."
                         return
                     }
-                    isLoading = true
+                    isLoading  = true
                     localError = ""
                     auth.signUp(email: username,
                                 password: password,
@@ -93,15 +93,12 @@ struct RegistrationView: View {
 
                 Spacer()
             }
-            .onChange(of: auth.isAuthenticated) {_, newValue in
+            .onChange(of: auth.isAuthenticated) { _, newValue in
                 isLoading = false
                 if newValue { navigateToHome = true }
             }
-            .onChange(of: auth.errorMessage) { _, newValue in
-                // stop spinner if there was an error during sign up
-                if !auth.errorMessage.isEmpty {
-                    isLoading = false
-                }
+            .onChange(of: auth.errorMessage) { _, _ in
+                if !auth.errorMessage.isEmpty { isLoading = false }
             }
         }
     }

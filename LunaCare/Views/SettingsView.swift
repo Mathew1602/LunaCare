@@ -9,59 +9,109 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var auth: AuthViewModel
-    @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var env:  AppEnvironment
 
     @State private var isCloudSyncOn: Bool = false
-    @State private var statusText: String = ""
-
+    @State private var statusText: String  = ""
+    private var isGuest: Bool { auth.noAccount }
 
     var body: some View {
         NavigationStack {
             List {
                 Section(header: Text("Profile")) {
-                    NavigationLink {
-                        AccountPage()
-                            .environmentObject(auth)
-                    } label: {
-                        Text("Account")
-                    }
-                    
-                    NavigationLink("Caregiver Links") { Text("Caregiver Links") }
-                }
-                
-
-                Section(header: Text("Privacy & Security")) {
-                    NavigationLink("Data Privacy") { Text("Data Privacy Settings") }
-                    NavigationLink("Data Export") { Text("Data Export Options") }
-
-                    Toggle(isOn: $isCloudSyncOn) { Text("Cloud Sync") }
-                        .onChange(of: isCloudSyncOn) {_, newValue in
-                            let uid = auth.uid
-                            guard !uid.isEmpty else { return }
-                            SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: newValue, env: env)
-                            statusText = newValue ? "Synced to Cloud" : "Local Only"
+                    if !isGuest {
+                        NavigationLink {
+                            AccountPage()
+                                .environmentObject(auth)
+                        } label: {
+                            Text("Account")
+                        }
+                        NavigationLink("Caregiver Links") { Text("Caregiver Links") }
+                    } else {
+                        // Guest: show name, prompt to create account
+                        HStack {
+                            Image(systemName: "person.crop.circle")
+                                .foregroundColor(.secondary)
+                            Text(auth.displayName.isEmpty ? "Guest" : auth.displayName)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Text("Local only")
+                                .font(.caption)
+                                .foregroundColor(.orange)
                         }
 
-                    if !statusText.isEmpty {
-                        Text(statusText)
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
+                        NavigationLink {
+                            RegistrationView()
+                                .environmentObject(auth)
+                        } label: {
+                            Label("Create an Account", systemImage: "person.badge.plus")
+                                .foregroundColor(Color(.systemIndigo))
+                        }
                     }
                 }
 
+                // ── Privacy & Security ────────────────────────────────────
+                Section(header: Text("Privacy & Security")) {
+                    if !isGuest {
+                        NavigationLink("Data Privacy") { Text("Data Privacy Settings") }
+                        NavigationLink("Data Export")  { Text("Data Export Options")  }
+                    }
+
+                    // Cloud Sync — disabled for guests
+                    if isGuest {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("Cloud Sync")
+                                Spacer()
+                                Toggle("", isOn: .constant(false))
+                                    .disabled(true)
+                                    .labelsHidden()
+                            }
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.icloud")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                Text("Create an account to sync with cloud")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    } else {
+                        Toggle(isOn: $isCloudSyncOn) { Text("Cloud Sync") }
+                            .onChange(of: isCloudSyncOn) { _, newValue in
+                                let uid = auth.uid
+                                guard !uid.isEmpty else { return }
+                                SyncManager.shared.applyCloudSyncPreference(uid: uid,
+                                                                            isOn: newValue,
+                                                                            env: env)
+                                statusText = newValue ? "Synced to Cloud" : "Local Only"
+                            }
+
+                        if !statusText.isEmpty {
+                            Text(statusText)
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
+                // ── App Preferences ───────────────────────────────────────
                 Section(header: Text("App Preferences")) {
                     NavigationLink("Notifications") { Text("Notification Settings") }
                     Picker("Theme", selection: $env.selectedTheme) {
-                         ForEach(AppTheme.allCases, id: \.self) { theme in
-                             Text(theme.rawValue)
-                         }
-                     }
+                        ForEach(AppTheme.allCases, id: \.self) { theme in
+                            Text(theme.rawValue)
+                        }
+                    }
                     NavigationLink("Language") { Text("Language Settings") }
                 }
 
+                // ── Account ───────────────────────────────────────────────
                 Section {
                     if !auth.displayName.isEmpty {
-                        Text("Signed in as \(auth.displayName)")
+                        Text(isGuest
+                             ? "Browsing as \(auth.displayName) (local only)"
+                             : "Signed in as \(auth.displayName)")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     } else if !auth.email.isEmpty {
@@ -69,16 +119,24 @@ struct SettingsView: View {
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
-                    Button("Sign Out", role: .destructive) { auth.signOut() }
+
+                    Button(isGuest ? "Exit Guest Mode" : "Sign Out",
+                           role: .destructive) {
+                        auth.signOut()
+                    }
                 }
             }
             .navigationTitle("Settings")
             .listStyle(.insetGrouped)
             .onAppear {
+                guard !isGuest else {
+                    statusText = "Local Only"
+                    return
+                }
                 let uid = auth.uid
                 guard !uid.isEmpty else { return }
                 UserRepository().fetchCloudSync(uid: uid) { cloudOn in
-                    isCloudSyncOn = cloudOn
+                    isCloudSyncOn   = cloudOn
                     env.isCloudSyncOn = cloudOn
                     statusText = cloudOn ? "Synced to Cloud" : "Local Only"
                 }
@@ -90,5 +148,11 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .environmentObject(AuthViewModel())
+        .environmentObject(AppEnvironment.shared)
+}
+
+#Preview("Guest mode") {
+    SettingsView()
+        .environmentObject(AuthViewModel.previewGuest)
         .environmentObject(AppEnvironment.shared)
 }

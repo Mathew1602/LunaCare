@@ -317,18 +317,23 @@ struct HomeContentView: View {
     // MARK: - Upload Fake Data (Right now just uploading fake data since we don't have real apple watch data)
     @MainActor
     private func uploadFakeData() {
+        guard !isUploadingFakeData else { return }
+
+        let fake30 = FakeStruct.extremeHighRisk30Days()
+
+        // Guest / local-only mode
         guard !auth.uid.isEmpty else {
-            uploadMessage = "No user signed in — can’t upload."
+            LocalMeasurementStore.shared.saveMany(fake30)
+            uploadMessage = "Saved \(fake30.count) fake measurements locally"
             showingUploadAlert = true
             return
         }
-        guard !isUploadingFakeData else { return }
+
         isUploadingFakeData = true
 
         Task { @MainActor in
             defer { isUploadingFakeData = false }
 
-            let fake30 = FakeStruct.extremeHighRisk30Days()
             do {
                 let count = try await repo.upsertMany(uid: auth.uid, measurements: fake30)
                 uploadMessage = "Uploaded \(count) fake day-measurements"
@@ -338,7 +343,7 @@ struct HomeContentView: View {
                    ns.code == FirestoreErrorCode.resourceExhausted.rawValue {
                     uploadMessage = """
                     Upload blocked by Firestore quota (resource exhausted).
-                    This isn’t your code anymore — it’s the project plan limit.
+                    This isn't your code anymore — it's the project plan limit.
                     """
                 } else {
                     uploadMessage = "Upload failed: \(error.localizedDescription)"
@@ -346,20 +351,6 @@ struct HomeContentView: View {
             }
 
             showingUploadAlert = true
-        }
-    }
-
-
-    /// async/await wrapper for repo.upsert
-    private func upsertAsync(uid: String, measurement: Measurement) async throws {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            repo.upsert(uid: uid, measurement: measurement) { err in
-                if let err = err {
-                    cont.resume(throwing: err)
-                } else {
-                    cont.resume(returning: ())
-                }
-            }
         }
     }
 }

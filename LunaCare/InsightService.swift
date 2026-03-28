@@ -19,10 +19,17 @@ final class InsightService {
 
     func loadInsights(uid: String) async -> [WeeklyInsight] {
 
-        guard !uid.isEmpty else { return [] }
+        // Guest / local-only mode: load measurements from local store
+        if uid.isEmpty {
+            let measurements = LocalMeasurementStore.shared.fetchLastDays(30)
+            let source = measurements.isEmpty ? FakeStruct.extremeHighRisk30Days() : measurements
+            let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: source)
+            LocalStorageInsights.shared.save(weekly)
+            return weekly
+        }
 
         do {
-            // Load measurements already in Firestore
+            // Load measurements from Firestore
             let measurements = try await repo.fetchLastDays(uid: uid, lastDays: 30)
 
             if !measurements.isEmpty {
@@ -35,7 +42,10 @@ final class InsightService {
             print("⚠️ Insight load failed: \(error)")
         }
 
-        // If nothing in cloud → fallback to Mathew’s dataset
+        // Cloud returned nothing → try local cache, then fake data
+        let cached = LocalStorageInsights.shared.load()
+        if !cached.isEmpty { return cached }
+
         let fake = FakeStruct.extremeHighRisk30Days()
         let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: fake)
         LocalStorageInsights.shared.save(weekly)

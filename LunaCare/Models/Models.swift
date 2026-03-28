@@ -36,6 +36,7 @@ struct UserProfile: Codable, Identifiable {
     var consent: [String: Bool]?
     var createdAt: Date?
     var updatedAt: Date?
+    var noAccount: Bool?
 
     var fullName: String {
         let f = (firstName ?? "").trimmingCharacters(in: .whitespaces)
