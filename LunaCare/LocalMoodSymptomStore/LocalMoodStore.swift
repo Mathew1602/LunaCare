@@ -15,12 +15,21 @@ final class LocalMoodStore {
 
     func saveOfflineMood(_ log: MoodLog) {
         var existing = loadOfflineMoods()
-
         var normalized = log
         if normalized.createdAt == nil {
             normalized.createdAt = Date()
         }
+        // Assign an ID if missing so future edits can match by ID
+        if normalized.id == nil {
+            normalized.id = UUID().uuidString
+        }
 
+        // Remove by ID first; fall back to createdAt to catch
+        // legacy entries that were stored without an ID.
+        existing.removeAll {
+            ($0.id != nil && $0.id == normalized.id) ||
+            ($0.createdAt == normalized.createdAt)
+        }
         existing.append(normalized)
 
         if let data = try? JSONEncoder().encode(existing) {
@@ -39,7 +48,7 @@ final class LocalMoodStore {
     func clearOfflineMoods() {
         UserDefaults.standard.removeObject(forKey: key)
     }
-    
+
     /// Returns CalendarDayLog objects between the given dates, newest first.
     func offlineMoodHistory(from: Date, to: Date) -> [CalendarDayLog] {
         let logs = loadOfflineMoods()
@@ -63,6 +72,8 @@ final class LocalMoodStore {
             default: moodEnum = .okay
             }
 
+            // Use stored ID — it is now always guaranteed to exist
+            // because saveOfflineMood assigns one when missing.
             let calendarId = log.id ?? UUID().uuidString
 
             return CalendarDayLog(

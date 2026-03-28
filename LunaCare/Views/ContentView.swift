@@ -8,21 +8,24 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var env: AppEnvironment
+    @EnvironmentObject var env:  AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
 
     var body: some View {
         Group {
             if !auth.didResolveAuthState {
-                // Small splash/loading while Firebase auth listener runs
+                // Splash while Firebase auth listener (or local check) resolves
                 VStack {
                     Spacer()
                     ProgressView("Loading…")
                         .progressViewStyle(.circular)
                     Spacer()
                 }
-            } else if auth.isAuthenticated {
+
+            } else if auth.isAuthenticated || auth.noAccount {
+                // Both full accounts AND guest/local-only users land here
                 HomeView()
+
             } else {
                 LoginView()
             }
@@ -32,10 +35,8 @@ struct ContentView: View {
     }
 }
 
-
 #Preview {
     ContentView()
         .environmentObject(AppEnvironment.shared)
         .environmentObject(AuthViewModel())
 }
-

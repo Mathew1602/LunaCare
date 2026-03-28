@@ -36,9 +36,26 @@ final class AppEnvironment: ObservableObject {
             if let user = user {
                 print("Firebase user active. UID: \(user.uid)")
                 self.configureRepositories(uid: user.uid)
+
+                // Immediately load the user's saved cloud-sync preference so
+                // all components (including WatchSyncService) use the correct
+                // value without waiting for SettingsView to appear.
+                UserRepository().fetchCloudSync(uid: user.uid) { cloudOn in
+                    DispatchQueue.main.async {
+                        self.isCloudSyncOn = cloudOn
+                        UserDefaults.standard.set(cloudOn, forKey: "cloudSyncEnabled")
+                    }
+                }
             } else {
-                print(" Firebase user signed out")
+                print("Firebase user signed out")
                 self.insightsRepo = nil
+
+                // Reset to local-only so a subsequent guest session doesn't
+                // inherit a stale cloud-sync preference.
+                DispatchQueue.main.async {
+                    self.isCloudSyncOn = false
+                    UserDefaults.standard.set(false, forKey: "cloudSyncEnabled")
+                }
             }
         }
     }

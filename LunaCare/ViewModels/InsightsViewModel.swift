@@ -33,30 +33,23 @@ final class InsightsViewModel: ObservableObject {
     // MARK: - LOAD INSIGHTS
 
     func loadInsights() async {
-        guard !auth.uid.isEmpty else {
-            errorMessage = "User not signed in."
-            return
-        }
-
         isLoading = true
         errorMessage = nil
 
-        // 🧠 Local ML-based insights generation
         let weekly = await service.loadInsights(uid: auth.uid)
 
-        // 🔥 Save to Firestore if cloud sync ON
-        if env.isCloudSyncOn {
+        // Save to Firestore only if authenticated and cloud sync is on
+        if !auth.uid.isEmpty && env.isCloudSyncOn {
             weekly.forEach { insight in
                 env.insightsRepo?.saveInsight(insight)
             }
         }
 
-        // 🔄 Always reflect latest UI state
-        Task { @MainActor in
-            self.insights = weekly
-            self.isLoading = false
-        }
+        insights = weekly
+        isLoading = false
     }
+
+    var isGuestMode: Bool { auth.uid.isEmpty }
 
     // MARK: - Alerts
     var alertInsights: [WeeklyInsight] {

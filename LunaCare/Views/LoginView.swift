@@ -11,11 +11,12 @@ import SwiftUI
 struct LoginView: View {
     @EnvironmentObject var auth: AuthViewModel
 
-    @State private var username = ""
-    @State private var password = ""
-    @State private var navigateToHome = false
+    @State private var username          = ""
+    @State private var password          = ""
+    @State private var navigateToHome    = false
     @State private var navigateToRegister = false
-    @State private var isLoading = false
+    @State private var navigateToGuest   = false
+    @State private var isLoading         = false
 
     var body: some View {
         NavigationStack {
@@ -46,7 +47,7 @@ struct LoginView: View {
                         .font(.footnote)
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
+                        .padding(.horizontal, 40)
                 }
 
                 Button {
@@ -66,21 +67,20 @@ struct LoginView: View {
                     .padding(.horizontal, 40)
                 }
                 .disabled(isLoading)
-                .onChange(of: auth.isAuthenticated) {_, newValue in
+                .onChange(of: auth.isAuthenticated) { _, newValue in
                     isLoading = false
                     if newValue { navigateToHome = true }
                 }
-                .onChange(of: auth.errorMessage) { _, newValue in
-                    if !auth.errorMessage.isEmpty {
-                        isLoading = false
-                    }
+                .onChange(of: auth.errorMessage) { _, _ in
+                    if !auth.errorMessage.isEmpty { isLoading = false }
                 }
                 .navigationDestination(isPresented: $navigateToHome) { HomeView() }
-
-                Button { /* Google login placeholder */ } label: {
+                Button {
+                    navigateToGuest = true
+                } label: {
                     HStack {
-                        Image(systemName: "globe")
-                        Text("Log in with Google")
+                        Image(systemName: "person.crop.circle.badge.questionmark")
+                        Text("Continue without an account")
                             .fontWeight(.medium)
                     }
                     .frame(maxWidth: .infinity)
@@ -89,6 +89,10 @@ struct LoginView: View {
                     .cornerRadius(10)
                     .padding(.horizontal, 40)
                 }
+                .navigationDestination(isPresented: $navigateToGuest) {
+                    GuestRegistrationView()
+                }
+
 
                 Button { navigateToRegister = true } label: {
                     Text("Create Account")

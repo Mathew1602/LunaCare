@@ -139,7 +139,6 @@ struct SymptomCalendarView: View {
                 // load current month when the view appears
                 .task {
                     let uid = auth.uid
-                    guard !uid.isEmpty else { return }
                     await vm.loadMonth(for: uid)
                 }
             }

@@ -74,9 +74,10 @@ struct InsightsOverviewView: View {
                         .padding(.top, 20)
 
                 } else if vm.insights.isEmpty {
-                    Text("No insights yet — enable Cloud Sync in Settings.")
+                    Text("No insights yet. Log some mood and symptoms to start seeing patterns.")
                         .font(.callout)
                         .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                         .padding(.top, 20)
 
                 } else {
@@ -124,6 +125,16 @@ struct InsightsOverviewView: View {
             Text("Based on recent Apple Health trends.")
                 .font(.footnote)
                 .foregroundColor(.secondary)
+
+            if vm.isGuestMode {
+                Label("Local data only", systemImage: "internaldrive")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(.systemGray6))
+                    .clipShape(Capsule())
+            }
         }
         .padding(.top, 12)
     }

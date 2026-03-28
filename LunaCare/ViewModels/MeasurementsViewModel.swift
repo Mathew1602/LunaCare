@@ -23,13 +23,15 @@ final class MeasurementsViewModel: ObservableObject {
     }
     
     func upsert(_ m: Measurement) {
-        let uid = auth.uid
-        guard !uid.isEmpty else {
-            errorMessage = "No user signed in."
+        // Guest / local-only mode
+        guard !auth.uid.isEmpty else {
+            LocalMeasurementStore.shared.save(m)
+            lastDays = LocalMeasurementStore.shared.fetchLastDays()
+            latest   = LocalMeasurementStore.shared.fetchLatest()
             return
         }
-        
-        repo.upsert(uid: uid, measurement: m) { [weak self] err in
+
+        repo.upsert(uid: auth.uid, measurement: m) { [weak self] err in
             if let err = err {
                 DispatchQueue.main.async {
                     self?.errorMessage = err.localizedDescription
@@ -39,17 +41,19 @@ final class MeasurementsViewModel: ObservableObject {
     }
     
     func loadLastDays(_ days: Int = 30) async {
-        let uid = auth.uid
-        guard !uid.isEmpty else {
-            errorMessage = "No user signed in."
+        // Guest / local-only mode
+        guard !auth.uid.isEmpty else {
+            let records = LocalMeasurementStore.shared.fetchLastDays(days)
+            lastDays = records
+            latest   = records.last
             return
         }
-        
+
         isLoading = true
         defer { isLoading = false }
         
         do {
-            let records = try await repo.fetchLastDays(uid: uid, lastDays: days)
+            let records = try await repo.fetchLastDays(uid: auth.uid, lastDays: days)
             lastDays = records
             latest = records.last
         } catch {
@@ -62,9 +66,12 @@ final class MeasurementsViewModel: ObservableObject {
     @Published var isUploading = false
 
     func uploadTestData() async {
-        let uid = auth.uid
-        guard !uid.isEmpty else {
-            errorMessage = "No user signed in."
+        let fake30 = FakeStruct.extremeHighRisk30Days()
+
+        // Guest / local-only mode
+        guard !auth.uid.isEmpty else {
+            LocalMeasurementStore.shared.saveMany(fake30)
+            uploadMessage = "Saved \(fake30.count) fake measurements locally"
             return
         }
 
@@ -73,10 +80,8 @@ final class MeasurementsViewModel: ObservableObject {
         uploadMessage = nil
         defer { isUploading = false }
 
-        let fake30 = FakeStruct.extremeHighRisk30Days()
-
         do {
-            let written = try await repo.upsertMany(uid: uid, measurements: fake30)
+            let written = try await repo.upsertMany(uid: auth.uid, measurements: fake30)
             uploadMessage = "Uploaded \(written) fake day-measurements"
         } catch {
             errorMessage = "Upload failed: \(error.localizedDescription)"
