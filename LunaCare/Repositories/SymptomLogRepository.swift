@@ -14,6 +14,26 @@ final class SymptomLogRepository {
     func create(
         uid: String,
         payload: SymptomLogPayload,
+        createdAt: Date,
+        completion: ((Error?) -> Void)? = nil
+    ) {
+        var data: [String: Any] = [
+            "values": payload.values,
+            "createdAt": createdAt,
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+        if let n = payload.notes, !n.isEmpty  { data["notes"] = n }
+        if let t = payload.tags,  !t.isEmpty  { data["tags"] = t }
+        if let s = payload.source, !s.isEmpty { data["source"] = s }
+
+        FirestoreManager.shared.add(collectionPath: FSPath.symptomLogs(uid), data: data) { _, err in
+            completion?(err)
+        }
+    }
+
+    func create(
+        uid: String,
+        payload: SymptomLogPayload,
         completion: ((Error?) -> Void)? = nil
     ) {
         var data: [String: Any] = [

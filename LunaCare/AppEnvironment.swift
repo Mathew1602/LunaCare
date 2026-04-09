@@ -20,6 +20,8 @@ final class AppEnvironment: ObservableObject {
     static let shared = AppEnvironment()
 
     @Published var isCloudSyncOn: Bool = UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
+    @Published var isSyncing: Bool = false
+    @Published var syncProgress: Double = 0.0
     @Published var selectedTheme: AppTheme {
         didSet {
             UserDefaults.standard.set(selectedTheme.rawValue, forKey: "appTheme")
@@ -51,10 +53,11 @@ final class AppEnvironment: ObservableObject {
                 self.insightsRepo = nil
 
                 // Reset to local-only so a subsequent guest session doesn't
-                // inherit a stale cloud-sync preference.
+                // inherit a stale cloud-sync preference or sync high-water mark.
                 DispatchQueue.main.async {
                     self.isCloudSyncOn = false
                     UserDefaults.standard.set(false, forKey: "cloudSyncEnabled")
+                    UserDefaults.standard.removeObject(forKey: "lastCloudSyncDate")
                 }
             }
         }
