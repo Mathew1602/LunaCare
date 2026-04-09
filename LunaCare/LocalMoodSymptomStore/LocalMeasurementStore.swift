@@ -65,9 +65,7 @@ final class LocalMeasurementStore {
             .sorted { $0.date < $1.date }
     }
 
-    // MARK: - Private
-
-    private func loadAll() -> [Measurement] {
+    func loadAll() -> [Measurement] {
         guard
             let data = UserDefaults.standard.data(forKey: key),
             let measurements = try? JSONDecoder().decode([Measurement].self, from: data)
@@ -75,7 +73,7 @@ final class LocalMeasurementStore {
         return measurements
     }
 
-    private func persist(_ measurements: [Measurement]) {
+    func persist(_ measurements: [Measurement]) {
         if let data = try? JSONEncoder().encode(measurements) {
             UserDefaults.standard.set(data, forKey: key)
         }

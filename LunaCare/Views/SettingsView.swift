@@ -13,6 +13,7 @@ struct SettingsView: View {
 
     @State private var isCloudSyncOn: Bool = false
     @State private var statusText: String  = ""
+    @State private var showSyncConfirmAlert = false
     private var isGuest: Bool { auth.noAccount }
 
     var body: some View {
@@ -81,17 +82,44 @@ struct SettingsView: View {
                             }
                         }
                     } else {
-                        Toggle(isOn: $isCloudSyncOn) { Text("Cloud Sync") }
-                            .onChange(of: isCloudSyncOn) { _, newValue in
+                        Toggle(isOn: Binding(
+                            get: { isCloudSyncOn },
+                            set: { newValue in
+                                if newValue {
+                                    showSyncConfirmAlert = true
+                                } else {
+                                    isCloudSyncOn = false
+                                    let uid = auth.uid
+                                    guard !uid.isEmpty else { return }
+                                    SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
+                                    statusText = "Local Only"
+                                }
+                            }
+                        )) { Text("Cloud Sync") }
+                        .disabled(env.isSyncing)
+                        .alert("Sync to Cloud?", isPresented: $showSyncConfirmAlert) {
+                            Button("Sync to Cloud") {
+                                isCloudSyncOn = true
                                 let uid = auth.uid
                                 guard !uid.isEmpty else { return }
-                                SyncManager.shared.applyCloudSyncPreference(uid: uid,
-                                                                            isOn: newValue,
-                                                                            env: env)
-                                statusText = newValue ? "Synced to Cloud" : "Local Only"
+                                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: true, env: env)
+                                statusText = "Syncing..."
                             }
+                            Button("Cancel", role: .cancel) { }
+                        } message: {
+                            Text("Your data is currently stored locally. Are you sure you want to sync it to the cloud?")
+                        }
 
-                        if !statusText.isEmpty {
+                        if env.isSyncing {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ProgressView(value: env.syncProgress)
+                                    .progressViewStyle(.linear)
+                                Text("Uploading your data…")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else if !statusText.isEmpty {
                             Text(statusText)
                                 .font(.footnote)
                                 .foregroundColor(.secondary)
@@ -132,6 +160,11 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .listStyle(.insetGrouped)
+            .onChange(of: env.isSyncing) { _, syncing in
+                if !syncing && isCloudSyncOn {
+                    statusText = "Synced to Cloud"
+                }
+            }
             .onAppear {
                 guard !isGuest else {
                     statusText = "Local Only"
