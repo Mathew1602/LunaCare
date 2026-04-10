@@ -24,11 +24,12 @@ final class LocalMoodStore {
             normalized.id = UUID().uuidString
         }
 
-        // Remove by ID first; fall back to createdAt to catch
-        // legacy entries that were stored without an ID.
+        // Remove by ID, or by createdAt within 1 second (handles Firestore timestamp
+        // rounding where cloud and local entries for the same log have slightly
+        // different timestamps and would otherwise both survive deduplication).
         existing.removeAll {
             ($0.id != nil && $0.id == normalized.id) ||
-            ($0.createdAt == normalized.createdAt)
+            (abs(($0.createdAt ?? .distantPast).timeIntervalSince(normalized.createdAt ?? .distantFuture)) < 1)
         }
         existing.append(normalized)
 

@@ -32,6 +32,16 @@ final class LocalSymptomStore {
         return logs
     }
 
+    /// Save a pre-built log (preserves its original createdAt). Deduplicates by createdAt within 1 second.
+    func save(_ log: LocalSymptomLog) {
+        var existing = loadOfflineSymptomLogs()
+        existing.removeAll { abs($0.createdAt.timeIntervalSince(log.createdAt)) < 1 }
+        existing.append(log)
+        if let data = try? JSONEncoder().encode(existing) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
     func clearOfflineSymptomLogs() {
         UserDefaults.standard.removeObject(forKey: key)
     }

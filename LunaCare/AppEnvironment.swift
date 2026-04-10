@@ -22,6 +22,7 @@ final class AppEnvironment: ObservableObject {
     @Published var isCloudSyncOn: Bool = UserDefaults.standard.bool(forKey: "cloudSyncEnabled")
     @Published var isSyncing: Bool = false
     @Published var syncProgress: Double = 0.0
+    @Published var syncHasData: Bool = true
     @Published var selectedTheme: AppTheme {
         didSet {
             UserDefaults.standard.set(selectedTheme.rawValue, forKey: "appTheme")

@@ -23,6 +23,20 @@ final class LocalMoodCalendarStore {
         persist(existing)
     }
 
+    /// Bulk-save cloud logs, deduplicating by createdAt (within 1 second)
+    /// so that re-downloading doesn't create duplicates even when IDs differ.
+    func saveMany(_ logs: [CalendarDayLog]) {
+        var existing = loadAll()
+        for log in logs {
+            existing.removeAll {
+                $0.id == log.id ||
+                abs($0.createdAt.timeIntervalSince(log.createdAt)) < 1
+            }
+            existing.append(log)
+        }
+        persist(existing)
+    }
+
     func updateLog(logId: String, newMood: Mood, newNote: String) {
         var existing = loadAll()
         guard let idx = existing.firstIndex(where: { $0.id == logId }) else { return }
