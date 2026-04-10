@@ -13,7 +13,9 @@ struct SettingsView: View {
 
     @State private var isCloudSyncOn: Bool = false
     @State private var statusText: String  = ""
-    @State private var showSyncConfirmAlert = false
+    @State private var showSyncConfirmAlert      = false
+    @State private var showCloudToLocalAlert     = false
+    @State private var isSyncingDown: Bool       = false
     private var isGuest: Bool { auth.noAccount }
 
     var body: some View {
@@ -88,15 +90,12 @@ struct SettingsView: View {
                                 if newValue {
                                     showSyncConfirmAlert = true
                                 } else {
-                                    isCloudSyncOn = false
-                                    let uid = auth.uid
-                                    guard !uid.isEmpty else { return }
-                                    SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
-                                    statusText = "Local Only"
+                                    showCloudToLocalAlert = true
                                 }
                             }
                         )) { Text("Cloud Sync") }
                         .disabled(env.isSyncing)
+                        // Local → Cloud
                         .alert("Sync to Cloud?", isPresented: $showSyncConfirmAlert) {
                             Button("Sync to Cloud") {
                                 isCloudSyncOn = true
@@ -109,12 +108,52 @@ struct SettingsView: View {
                         } message: {
                             Text("Your data is currently stored locally. Are you sure you want to sync it to the cloud?")
                         }
+                        // Cloud → Local
+                        .alert("Download Cloud Data?", isPresented: $showCloudToLocalAlert) {
+                            Button("Download to Device") {
+                                isCloudSyncOn = false
+                                let uid = auth.uid
+                                guard !uid.isEmpty else { return }
+                                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
+                                isSyncingDown = true
+                                statusText = "Downloading..."
+                                Task {
+                                    await MainActor.run {
+                                        env.syncHasData = false
+                                        env.isSyncing = true
+                                        env.syncProgress = 0.0
+                                    }
+                                    await SyncManager.shared.syncCloudToLocal(uid: uid) { progress in
+                                        Task { @MainActor in
+                                            env.syncHasData = true
+                                            env.syncProgress = progress
+                                        }
+                                    }
+                                    await MainActor.run {
+                                        env.isSyncing = false
+                                        env.syncProgress = 1.0
+                                        isSyncingDown = false
+                                        statusText = "Local Only"
+                                    }
+                                }
+                            }
+                            Button("Turn Off Only") {
+                                isCloudSyncOn = false
+                                let uid = auth.uid
+                                guard !uid.isEmpty else { return }
+                                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
+                                statusText = "Local Only"
+                            }
+                            Button("Cancel", role: .cancel) { }
+                        } message: {
+                            Text("Would you like to download your cloud data to this device before turning off cloud sync?")
+                        }
 
-                        if env.isSyncing {
+                        if env.syncHasData && env.isSyncing {
                             VStack(alignment: .leading, spacing: 4) {
                                 ProgressView(value: env.syncProgress)
                                     .progressViewStyle(.linear)
-                                Text("Uploading your data…")
+                                Text(isSyncingDown ? "Downloading your data…" : "Uploading your data…")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
