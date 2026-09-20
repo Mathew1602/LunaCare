@@ -7,7 +7,6 @@
 
 import Foundation
 
-
 final class SyncManager {
     static let shared = SyncManager()
     let userRepository      = UserRepository()
@@ -52,15 +51,8 @@ final class SyncManager {
         }
     }
 
-    func getCloudSyncPreference(uid: String, env: AppEnvironment) async -> Bool {
-        if uid.isEmpty {
-            return env.isCloudSyncOn
-        }
-        return await withCheckedContinuation { continuation in
-            userRepository.fetchCloudSync(uid: uid) { result in
-                continuation.resume(returning: result)
-            }
-        }
+    var isCloudSyncOn: Bool {
+        AppEnvironment.shared.isCloudSyncOn
     }
 
     // MARK: - Sync
@@ -87,8 +79,7 @@ final class SyncManager {
 
         let localAll = LocalMeasurementStore.shared.loadAll()
 
-        // Nothing to sync — local and cloud are already in sync
-        guard !moods.isEmpty || !symptoms.isEmpty else { return false }
+        guard !moods.isEmpty || !symptoms.isEmpty || !localAll.isEmpty else { return false }
 
         let measurePhases = localAll.isEmpty ? 0 : 1
         let totalPhases = Double(moods.count + symptoms.count + measurePhases)
@@ -113,13 +104,6 @@ final class SyncManager {
             reportProgress()
         }
 
-        let dayFmt: DateFormatter = {
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = "yyyy-MM-dd"
-            return f
-        }()
-
         if !localAll.isEmpty {
             let sorted = localAll.sorted { $0.createdAt < $1.createdAt }
             let rangeStart = Calendar.current.startOfDay(for: sorted.first!.createdAt)
@@ -127,9 +111,9 @@ final class SyncManager {
             do {
                 let cloudDates = Set(
                     try await measureRepo.fetchRange(uid: uid, from: rangeStart, to: rangeEnd)
-                        .map { dayFmt.string(from: $0.createdAt) }
+                        .map(\.dayKey)
                 )
-                let missing = localAll.filter { !cloudDates.contains(dayFmt.string(from: $0.createdAt)) }
+                let missing = localAll.filter { !cloudDates.contains($0.dayKey) }
                 if !missing.isEmpty {
                     _ = try await measureRepo.upsertMany(uid: uid, measurements: missing)
                 }
@@ -201,7 +185,7 @@ final class SyncManager {
             for log in cloudMoods {
                 let moodLog = MoodLog(
                     id: log.id,
-                    mood: moodScore(from: log.mood),
+                    mood: log.mood.score,
                     notes: log.note,
                     tags: nil,
                     source: "cloud",
@@ -232,16 +216,6 @@ final class SyncManager {
         }
 
         return !encounteredError
-    }
-
-    private func moodScore(from mood: Mood) -> Int {
-        switch mood {
-        case .ecstatic: return 4
-        case .happy:    return 2
-        case .okay:     return 0
-        case .sad:      return -1
-        case .angry:    return -2
-        }
     }
 
     // MARK: - Private Bridges

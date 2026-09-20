@@ -19,11 +19,7 @@ final class WatchSyncService {
     private let calendarRepo: MoodCalendarRepository
     private let symptomRepo: SymptomCalendarRepository
     private var syncManager = SyncManager.shared
-    private var useCloudProvider: Bool {
-        // Always read the authoritative in-memory value so a sign-in/sign-out
-        // is reflected immediately without waiting for a UserDefaults write.
-        AppEnvironment.shared.isCloudSyncOn
-    }
+    private var useCloudProvider: Bool { syncManager.isCloudSyncOn }
 
     private init(
         wc: WatchConnectivityManager = .shared,

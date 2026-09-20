@@ -27,16 +27,14 @@ final class MoodTrackingViewModel: ObservableObject {
     }
 
     func save(uid: String) async {
-        await print(syncManager.getCloudSyncPreference(uid: uid, env: .shared))
-
         guard let moodEnum = selectedMood else {
             backendStatus = "Please select a mood."
             return
         }
 
-        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)) {
+        if !syncManager.isCloudSyncOn {
             let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-            let moodScore = mapMoodToScore(moodEnum)
+            let moodScore = moodEnum.score
 
             let localLog = MoodLog(
                 mood: moodScore,
@@ -56,11 +54,10 @@ final class MoodTrackingViewModel: ObservableObject {
             LocalMoodCalendarStore.shared.save(calendarLog)
             backendStatus = "Mood saved locally."
             resetUI()
-
         } else {
             loading = true
             let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-            let moodScore = mapMoodToScore(moodEnum)
+            let moodScore = moodEnum.score
 
             repo.createMoodLog(
                 uid: uid,
@@ -88,15 +85,5 @@ final class MoodTrackingViewModel: ObservableObject {
         note = ""
         createdAt = Date()
         showSavedAlert = true
-    }
-
-    private func mapMoodToScore(_ m: Mood) -> Int {
-        switch m {
-        case .ecstatic: return 4
-        case .happy: return 2
-        case .okay: return 0
-        case .sad: return -1
-        case .angry: return -2
-        }
     }
 }

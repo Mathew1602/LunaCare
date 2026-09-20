@@ -63,23 +63,13 @@ final class LocalMoodStore {
                 return nil
             }
 
-            let moodEnum: Mood
-            switch log.mood {
-            case 4:  moodEnum = .ecstatic
-            case 2:  moodEnum = .happy
-            case 0:  moodEnum = .okay
-            case -1: moodEnum = .sad
-            case -2: moodEnum = .angry
-            default: moodEnum = .okay
-            }
-
             // Use stored ID — it is now always guaranteed to exist
             // because saveOfflineMood assigns one when missing.
             let calendarId = log.id ?? UUID().uuidString
 
             return CalendarDayLog(
                 id: calendarId,
-                mood: moodEnum,
+                mood: Mood(score: log.mood),
                 note: log.notes,
                 createdAt: createdAt
             )

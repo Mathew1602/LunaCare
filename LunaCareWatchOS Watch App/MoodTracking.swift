@@ -5,7 +5,6 @@
 //  Created by Mathew Boyd on 2025-10-16.
 //
 
-
 import SwiftUI
 import WatchKit
 
@@ -98,7 +97,7 @@ struct MoodTracking: View {
     private func sendMoodToPhone(_ mood: Mood) {
         let moodLog = MoodLog(
             id: nil,
-            mood: mapMoodToScore(mood),
+            mood: mood.score,
             notes: note.isEmpty ? nil : note,
             tags: ["watch"],
             source: "watch",
@@ -107,16 +106,6 @@ struct MoodTracking: View {
         )
 
         WatchConnectivityManager.shared.send(moodLog, type: .moodLog)
-    }
-
-    private func mapMoodToScore(_ mood: Mood) -> Int {
-        switch mood {
-        case .ecstatic: return 4
-        case .happy:    return 2
-        case .okay:     return 0
-        case .sad:      return -1
-        case .angry:    return -2
-        }
     }
 }
 

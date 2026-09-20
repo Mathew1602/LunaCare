@@ -75,7 +75,7 @@ final class MoodCalendarViewModel: ObservableObject {
         loading = true
         errorText = nil
         
-        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)) {
+        if !syncManager.isCloudSyncOn {
             logsByDay = localStore.fetchMonth(monthStart: monthStart)
             print("MoodCalendarViewModel: loaded \(logsByDay.count) days from local store.")
         } else {
@@ -123,7 +123,7 @@ final class MoodCalendarViewModel: ObservableObject {
         isSavingEdit = true
         defer { isSavingEdit = false }
 
-        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)) {
+        if !syncManager.isCloudSyncOn {
             localStore.updateLog(
                 logId: log.id,
                 newMood: editingMood,
@@ -131,7 +131,7 @@ final class MoodCalendarViewModel: ObservableObject {
             )
             let updatedMoodLog = MoodLog(
                 id: log.id,
-                mood: mapMoodToScore(editingMood),
+                mood: editingMood.score,
                 notes: editingNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     ? nil
                     : editingNote.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -158,16 +158,5 @@ final class MoodCalendarViewModel: ObservableObject {
         }
 
         editingLog = nil
-    }
-
-    // MARK: - Private
-    private func mapMoodToScore(_ m: Mood) -> Int {
-        switch m {
-        case .ecstatic: return 4
-        case .happy:    return 2
-        case .okay:     return 0
-        case .sad:      return -1
-        case .angry:    return -2
-        }
     }
 }

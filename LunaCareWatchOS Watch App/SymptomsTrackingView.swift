@@ -9,27 +9,22 @@ import SwiftUI
 import WatchKit
 
 struct SymptomsTrackingView: View {
-    @State private var fatigue: Double = 0
-    @State private var bleeding: Double = 0
-    @State private var hairLoss: Double = 0
-    @State private var appetite: Double = 0
-    @State private var sleepTrouble: Double = 0
+    private let symptomNames = ["Fatigue", "Bleeding", "Hair Loss", "Appetite", "Sleep Trouble"]
 
-    @State private var showingSavedAlert = false   // 👈 new
+    @State private var levels: [String: SymptomLevel] = [:]
+    @State private var showingSavedAlert = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 Text("Symptoms Tracking")
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
 
-                SymptomSlider(title: "Fatigue", value: $fatigue)
-                SymptomSlider(title: "Bleeding", value: $bleeding)
-                SymptomSlider(title: "Hair Loss", value: $hairLoss)
-                SymptomSlider(title: "Appetite", value: $appetite)
-                SymptomSlider(title: "Sleep Trouble", value: $sleepTrouble)
+                ForEach(symptomNames, id: \.self) { name in
+                    SymptomLevelRow(title: name, level: binding(for: name))
+                }
 
                 Button(action: {
                     sendSymptomLog()
@@ -57,14 +52,17 @@ struct SymptomsTrackingView: View {
                })
     }
 
+    private func binding(for name: String) -> Binding<SymptomLevel?> {
+        Binding(
+            get: { levels[name] },
+            set: { levels[name] = $0 }
+        )
+    }
+
     private func sendSymptomLog() {
-        let values: [String: Int] = [
-            "Fatigue": Int(fatigue),
-            "Bleeding": Int(bleeding),
-            "Hair Loss": Int(hairLoss),
-            "Appetite": Int(appetite),
-            "Sleep Trouble": Int(sleepTrouble)
-        ]
+        let values = Dictionary(
+            uniqueKeysWithValues: symptomNames.map { ($0, levels[$0]?.rawValue ?? 0) }
+        )
 
         let payload = SymptomLogPayload(
             values: values,
@@ -75,30 +73,52 @@ struct SymptomsTrackingView: View {
 
         WatchConnectivityManager.shared.send(payload, type: .symptomLog)
 
-        // Haptic + alert
         WKInterfaceDevice.current().play(.success)
         showingSavedAlert = true
 
-        // Reset sliders
-        fatigue = 0
-        bleeding = 0
-        hairLoss = 0
-        appetite = 0
-        sleepTrouble = 0
+        levels.removeAll()
     }
 }
 
-struct SymptomSlider: View {
+struct SymptomLevelRow: View {
     let title: String
-    @Binding var value: Double
+    @Binding var level: SymptomLevel?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.body)
                 .fontWeight(.semibold)
 
-            Slider(value: $value, in: 0...10, step: 1)
+            HStack(spacing: 6) {
+                ForEach(SymptomLevel.allCases) { option in
+                    Button {
+                        level = (level == option) ? nil : option
+                        WKInterfaceDevice.current().play(.click)
+                    } label: {
+                        Text(option.label)
+                            .font(.caption)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(level == option
+                                  ? Color.accentColor.opacity(0.4)
+                                  : Color.white.opacity(0.12))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.accentColor,
+                                    lineWidth: level == option ? 1.5 : 0)
+                    )
+                    .accessibilityLabel("\(title), \(option.label)")
+                    .accessibilityAddTraits(level == option ? [.isButton, .isSelected] : [.isButton])
+                }
+            }
         }
         .padding(.horizontal)
     }

@@ -9,17 +9,10 @@ import SwiftUI
 struct SymptomEntry: Identifiable, Hashable {
     let id = UUID()
     let name: String
-    var value: Double  // 0...10
-}
 
-fileprivate func severityText(_ value: Double) -> String {
-    switch Int(value) {
-    case 0: return "None"
-    case 1...3: return "Mild"
-    case 4...6: return "Moderate"
-    case 7...8: return "High"
-    default: return "Severe"
-    }
+    var level: SymptomLevel? = nil
+
+    var value: Double { Double(level?.rawValue ?? 0) }
 }
 
 struct SymptomsTrackingView: View {
@@ -28,7 +21,6 @@ struct SymptomsTrackingView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
                 VStack(spacing: 16) {
                     ForEach($vm.symptoms) { $symptom in
                         SymptomCard(symptom: $symptom)
@@ -52,9 +44,8 @@ struct SymptomsTrackingView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal)
                     }
-                }
-                .padding(.vertical, 8)
             }
+             .padding(.vertical, 8)
             .navigationTitle("Symptoms Tracking")
         }
         .alert("Your symptoms have been saved", isPresented: $vm.showSavedAlert) {
@@ -76,32 +67,21 @@ fileprivate struct SymptomCard: View {
                 Text(symptom.name)
                     .font(.headline)
                 Spacer()
-                Text("\(Int(symptom.value))/10")
+                Text(symptom.level?.label ?? "Not reported")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Slider(value: $symptom.value, in: 0...10, step: 1)
-                HStack {
-                    Text("0")
-                    Spacer()
-                    Text("2")
-                    Spacer()
-                    Text("4")
-                    Spacer()
-                    Text("6")
-                    Spacer()
-                    Text("8")
-                    Spacer()
-                    Text("10")
+            HStack(spacing: 10) {
+                ForEach(SymptomLevel.allCases) { level in
+                    SymptomLevelButton(
+                        level: level,
+                        isSelected: symptom.level == level
+                    ) {
+                        symptom.level = (symptom.level == level) ? nil : level
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    }
                 }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-                Text(severityText(symptom.value))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .padding()
@@ -110,6 +90,36 @@ fileprivate struct SymptomCard: View {
                 .fill(Color(.secondarySystemBackground))
         )
         .padding(.horizontal)
+    }
+}
+
+fileprivate struct SymptomLevelButton: View {
+    let level: SymptomLevel
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(level.label)
+                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(isSelected
+                              ? Color(.systemIndigo).opacity(0.2)
+                              : Color(.tertiarySystemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(isSelected ? Color(.systemIndigo) : Color(.separator),
+                                lineWidth: isSelected ? 2 : 1)
+                )
+                .foregroundStyle(isSelected ? Color(.systemIndigo) : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(level.label)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : [.isButton])
     }
 }
 

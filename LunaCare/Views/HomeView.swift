@@ -85,7 +85,7 @@ struct HomeContentView: View {
                         .cornerRadius(8)
                         .task {
                             guard !auth.uid.isEmpty else { return }
-                            isSyncedToCloud = await syncManager.getCloudSyncPreference(uid: auth.uid, env: env)
+                            isSyncedToCloud = syncManager.isCloudSyncOn
                         }
                     }
 

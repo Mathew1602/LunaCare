@@ -5,8 +5,6 @@
 //  Created by Fernanda Battig on 2025-11-07.
 //
 
-
-
 import Foundation
 
 @MainActor
@@ -22,8 +20,9 @@ final class InsightService {
         // Guest / local-only mode: load measurements from local store
         if uid.isEmpty {
             let measurements = LocalMeasurementStore.shared.fetchLastDays(30)
-            let source = measurements.isEmpty ? FakeStruct.extremeHighRisk30Days() : measurements
-            let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: source)
+            guard !measurements.isEmpty else { return [] }
+
+            let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: measurements)
             LocalStorageInsights.shared.save(weekly)
             return weekly
         }
@@ -31,24 +30,15 @@ final class InsightService {
         do {
             // Load measurements from Firestore
             let measurements = try await repo.fetchLastDays(uid: uid, lastDays: 30)
+            guard !measurements.isEmpty else { return [] }
 
-            if !measurements.isEmpty {
-                let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: measurements)
-                LocalStorageInsights.shared.save(weekly)
-                return weekly
-            }
+            let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: measurements)
+            LocalStorageInsights.shared.save(weekly)
+            return weekly
 
         } catch {
             print("Insight load failed: \(error)")
+            return LocalStorageInsights.shared.load()
         }
-
-        // Cloud returned nothing → try local cache, then fake data
-        let cached = LocalStorageInsights.shared.load()
-        if !cached.isEmpty { return cached }
-
-        let fake = FakeStruct.extremeHighRisk30Days()
-        let weekly = WeeklyInsightService.shared.generateWeeklyInsights(measurements: fake)
-        LocalStorageInsights.shared.save(weekly)
-        return weekly
     }
 }

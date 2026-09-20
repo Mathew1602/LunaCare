@@ -22,21 +22,16 @@ final class SymptomTrackingViewModel: ObservableObject {
         self.repo = repo
         syncManager = .shared
         self.symptoms = [
-            .init(name: "Fatigue", value: 0),
-            .init(name: "Bleeding", value: 0),
-            .init(name: "Hair Loss", value: 0),
-            .init(name: "Appetite", value: 0),
-            .init(name: "Sleep Trouble", value: 0),
+            .init(name: "Fatigue"),
+            .init(name: "Bleeding"),
+            .init(name: "Hair Loss"),
+            .init(name: "Appetite"),
+            .init(name: "Sleep Trouble"),
         ]
     }
 
     func save(uid: String) async {
-        if await
-            (!syncManager.getCloudSyncPreference(
-                uid: uid,
-                env: AppEnvironment.shared
-            ) || uid.isEmpty)
-        {
+        if !syncManager.isCloudSyncOn || uid.isEmpty {
             let values = Dictionary(
                 uniqueKeysWithValues: symptoms.map { ($0.name, Int($0.value)) }
             )
