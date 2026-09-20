@@ -88,7 +88,7 @@ final class SymptomCalendarViewModel: ObservableObject {
         loadingMonth = true
         defer { loadingMonth = false }
 
-        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)){
+        if !syncManager.isCloudSyncOn {
             daysWithSymptoms = localStore.fetchMonth(monthStart: monthStart)
             print("SymptomCalendarViewModel: loaded \(daysWithSymptoms.count) days from local store.")
         } else {
@@ -131,7 +131,7 @@ final class SymptomCalendarViewModel: ObservableObject {
             return
         }
 
-        if await (!syncManager.getCloudSyncPreference(uid: uid, env: AppEnvironment.shared)){
+        if !syncManager.isCloudSyncOn {
             selectedEntries = localStore.fetchRange(from: start, to: end)
             print("SymptomCalendarViewModel: loaded \(selectedEntries.count) entries locally for \(day).")
         } else {

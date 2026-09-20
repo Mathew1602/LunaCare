@@ -10,20 +10,6 @@ import FirebaseFirestore
 
 final class MeasurementRepository {
 
-    // Formatter for YYYY-MM-DD doc IDs
-    private static let dayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone.current
-        f.dateFormat = "yyyy-MM-dd"
-        return f
-    }()
-
-    private func dayId(for date: Date) -> String {
-        Self.dayFormatter.string(from: date)
-    }
-
     // MARK: - Public
 
     /// Upload many measurements in batches.
@@ -64,12 +50,11 @@ final class MeasurementRepository {
 
             for m in chunk {
                 let dayStart = cal.startOfDay(for: m.createdAt)
-                let docId = m.id ?? dayId(for: dayStart)
+                let docId = m.id ?? m.dayKey
                 let docRef = colRef.document(docId)
 
                 let data = firestoreData(for: m, dayStart: dayStart)
 
-                // overwrite whole doc for that day
                 batch.setData(data, forDocument: docRef, merge: true)
             }
 
@@ -82,7 +67,6 @@ final class MeasurementRepository {
     }
 
     /// Upsert **one daily rollup** measurement.
-    /// Always overwrites that day’s doc.
     func upsert(uid: String, measurement: Measurement, completion: ((Error?) -> Void)? = nil) {
 
         let cal = Calendar.current
@@ -90,10 +74,9 @@ final class MeasurementRepository {
 
         let data = firestoreData(for: measurement, dayStart: dayStart)
 
-        let docId = measurement.id ?? dayId(for: dayStart)
+        let docId = measurement.id ?? measurement.dayKey
         let path = FSPath.measurements(uid) + "/\(docId)"
 
-        // overwrite = merge false
         FirestoreManager.shared.write(path: path, data: data, merge: true, completion: completion)
     }
 
@@ -147,7 +130,6 @@ final class MeasurementRepository {
         return data
     }
 
-
     func fetchRange(
         uid: String,
         from: Date,
@@ -178,7 +160,6 @@ final class MeasurementRepository {
 
         return try await fetchRange(uid: uid, from: from, to: to)
     }
-
 
     private static func decodeMeasurement(_ doc: QueryDocumentSnapshot) -> Measurement? {
         let d = doc.data()
@@ -246,5 +227,4 @@ final class MeasurementRepository {
         )
     }
 }
-
 

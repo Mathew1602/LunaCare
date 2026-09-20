@@ -37,7 +37,7 @@ final class MoodCalendarRepository {
             // Use Firestore document ID as the CalendarDayLog.id
             let item = CalendarDayLog(
                 id: doc.documentID,
-                mood: mapScoreToMood(score),
+                mood: Mood(score: score),
                 note: note,
                 createdAt: created
             )
@@ -65,7 +65,7 @@ final class MoodCalendarRepository {
 
             return CalendarDayLog(
                 id: doc.documentID,
-                mood: mapScoreToMood(score),
+                mood: Mood(score: score),
                 note: data["notes"] as? String,
                 createdAt: ts.dateValue()
             )
@@ -84,7 +84,7 @@ final class MoodCalendarRepository {
             .document(logId)
 
         var data: [String: Any] = [
-            "mood": mapMoodToScore(newMood),
+            "mood": newMood.score,
             "updatedAt": FieldValue.serverTimestamp()
         ]
 
@@ -96,26 +96,5 @@ final class MoodCalendarRepository {
         }
 
         try await ref.updateData(data)
-    }
-
-    private func mapScoreToMood(_ s: Int) -> Mood {
-        switch s {
-        case 4:  return .ecstatic
-        case 2:  return .happy
-        case 0:  return .okay
-        case -1: return .sad
-        case -2: return .angry
-        default: return .okay
-        }
-    }
-
-    private func mapMoodToScore(_ mood: Mood) -> Int {
-        switch mood {
-        case .ecstatic: return 4
-        case .happy:    return 2
-        case .okay:     return 0
-        case .sad:      return -1
-        case .angry:    return -2
-        }
     }
 }

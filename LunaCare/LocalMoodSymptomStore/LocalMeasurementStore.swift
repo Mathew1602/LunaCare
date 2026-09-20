@@ -14,18 +14,11 @@ final class LocalMeasurementStore {
     private let key = "offline_measurements"
     private let cal = Calendar.current
 
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.locale = Locale(identifier: "en_US_POSIX")
-        return f
-    }()
-
     // MARK: - Write
 
     func save(_ measurement: Measurement) {
         var existing = loadAll()
-        existing.removeAll { $0.date == measurement.date }
+        existing.removeAll { $0.dayKey == measurement.dayKey }
         existing.append(measurement)
         persist(existing)
     }
@@ -33,7 +26,7 @@ final class LocalMeasurementStore {
     func saveMany(_ measurements: [Measurement]) {
         var existing = loadAll()
         for m in measurements {
-            existing.removeAll { $0.date == m.date }
+            existing.removeAll { $0.dayKey == m.dayKey }
             existing.append(m)
         }
         persist(existing)
@@ -46,23 +39,22 @@ final class LocalMeasurementStore {
     // MARK: - Read
 
     func fetchLastDays(_ days: Int = 30) -> [Measurement] {
-        let cutoff = cal.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        let cutoffStr = dateFormatter.string(from: cutoff)
+        let cutoff = cal.startOfDay(for: cal.date(byAdding: .day, value: -days, to: Date()) ?? Date())
         return loadAll()
-            .filter { $0.date >= cutoffStr }
-            .sorted { $0.date < $1.date }
+            .filter { $0.createdAt >= cutoff }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     func fetchLatest() -> Measurement? {
-        loadAll().sorted { $0.date < $1.date }.last
+        loadAll().sorted { $0.createdAt < $1.createdAt }.last
     }
 
     func fetchRange(from: Date, to: Date) -> [Measurement] {
-        let fromStr = dateFormatter.string(from: from)
-        let toStr = dateFormatter.string(from: to)
+        let start = cal.startOfDay(for: from)
+        let end = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: to)) ?? to
         return loadAll()
-            .filter { $0.date >= fromStr && $0.date <= toStr }
-            .sorted { $0.date < $1.date }
+            .filter { $0.createdAt >= start && $0.createdAt < end }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     func loadAll() -> [Measurement] {

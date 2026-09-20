@@ -26,6 +26,27 @@ enum Mood: String, CaseIterable, Identifiable, Codable {
         case .angry:    return "Angry"
         }
     }
+
+    var score: Int {
+        switch self {
+        case .ecstatic: return 4
+        case .happy:    return 2
+        case .okay:     return 0
+        case .sad:      return -1
+        case .angry:    return -2
+        }
+    }
+
+    init(score: Int) {
+        switch score {
+        case 4:  self = .ecstatic
+        case 2:  self = .happy
+        case 0:  self = .okay
+        case -1: self = .sad
+        case -2: self = .angry
+        default: self = .okay
+        }
+    }
 }
 
 struct UserProfile: Codable, Identifiable {
@@ -46,7 +67,7 @@ struct UserProfile: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, email, firstName, lastName, consent, createdAt, updatedAt
+        case id, email, firstName, lastName, consent, createdAt, updatedAt, noAccount
     }
 }
 
@@ -94,6 +115,22 @@ struct SymptomRow: Identifiable, Codable, Hashable {
     var id = UUID()
     let name: String
     let value: Int
+}
+
+enum SymptomLevel: Int, CaseIterable, Identifiable, Codable {
+    case low    = 2
+    case medium = 6
+    case high   = 9
+
+    var id: Int { rawValue }
+
+    var label: String {
+        switch self {
+        case .low:    return "Low"
+        case .medium: return "Medium"
+        case .high:   return "High"
+        }
+    }
 }
 
 struct SymptomLogPayload: Codable {
@@ -163,6 +200,19 @@ struct Measurement: Codable, Identifiable {
 }
 
 extension Measurement {
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    var dayKey: String {
+        Self.dayFormatter.string(from: createdAt)
+    }
+
     var date: String {
         ISO8601DateFormatter().string(from: createdAt)
     }
