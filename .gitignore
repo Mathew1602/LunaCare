@@ -1,2 +1,7 @@
 .DS_Store
 info.plist
+
+# Xcode per-user state (window layout, breakpoints, scheme order).
+# Churns on every Xcode launch and blocks pulls. Never belongs in git.
+xcuserdata/
+*.xcuserstate
