@@ -47,6 +47,8 @@ struct HomeContentView: View {
     @Environment(\.scenePhase) private var scenePhase //For changed scene
     private let syncManager = SyncManager.shared
     @State private var isSyncedToCloud = false
+    @StateObject private var metricsStore = HomeMetricsStore.shared
+    @State private var showEditMetrics = false
 
     
     @State private var showingMLTestAlert = false
@@ -108,18 +110,12 @@ struct HomeContentView: View {
                         Text("Key Health Metrics")
                             .font(.headline)
 
-                        HStack(spacing: 20) {
-                            MetricCard(icon: "moon",
-                                       value: health.isAuthorized ? String(format: "%.1f hrs", health.sleepHours) : "--",
-                                       label: "Sleep")
-
-                            MetricCard(icon: "waveform.path.ecg",
-                                       value: health.isAuthorized ? "\(Int(health.activeEnergyKcal)) cal" : "--",
-                                       label: "Activity")
-
-                            MetricCard(icon: "heart",
-                                       value: health.isAuthorized ? "\(Int(health.restingHR)) bpm" : "--",
-                                       label: "Resting HR")
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 3), spacing: 20) {
+                            ForEach(metricsStore.selected) { metric in
+                                MetricCard(icon: metric.icon,
+                                           value: health.isAuthorized ? metric.formattedValue(from: health.latestMeasurement) : "--",
+                                           label: metric.title)
+                            }
                         }
                     }
                     .padding(.top, 10)
@@ -248,6 +244,12 @@ struct HomeContentView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
+                        Button {
+                            showEditMetrics = true
+                        } label: {
+                            Label("Edit Health Metrics", systemImage: "slider.horizontal.3")
+                        }
+
                         if !auth.email.isEmpty {
                             Text("Signed in as \(auth.email)")
                         }
@@ -277,10 +279,25 @@ struct HomeContentView: View {
                     health.sleepHours = 7.2
                     health.activeEnergyKcal = 3231
                     health.restingHR = 71
+                    health.latestMeasurement = Measurement(steps: 8432,
+                                                           activeEnergyKcal: 3231,
+                                                           restingHRBpm: 71,
+                                                           hrvSDNNms: 48,
+                                                           sleepHours: 7.2,
+                                                           deepSleepHours: 1.3)
                     return
                 }
                 #endif
                 Task { await health.authorizeAndRefresh() }
+            }
+            .sheet(isPresented: $showEditMetrics) {
+                EditHealthMetricsView(store: metricsStore, uid: auth.uid)
+            }
+            .task(id: auth.uid) {
+                metricsStore.load(uid: auth.uid)
+            }
+            .onChange(of: env.isCloudSyncOn) { _, on in
+                if on { metricsStore.load(uid: auth.uid) }
             }
             //When the user exits the appliction (Refresh health data so it is new when they open it)
             .onChange(of: scenePhase) { oldPhase, newPhase in
