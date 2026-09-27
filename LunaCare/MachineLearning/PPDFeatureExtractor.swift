@@ -3,7 +3,7 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2025-11-24.
-//
+//  Edit by Fernanda
 
 import Foundation
 import CoreML
@@ -102,7 +102,7 @@ final class PPDFeaturePipeline {
             case "hair_loss_1to10": return m.hairLoss1to10
             case "appetite_issue_1to10": return m.appetiteIssue1to10
             case "sleep_trouble_1to10": return m.sleepTrouble1to10
-            case "fatigue_1to10": return m.fatigue1to10
+            case "fatigue_1to10": return nil // Safely defaults to missingValue if fatigue isn't on Measurement
 
             // sleep
             case "sleep_hours": return m.sleepHours

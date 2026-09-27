@@ -7,8 +7,90 @@
 
 import Foundation
 import FirebaseFirestore
+import HealthKit
 
 final class MeasurementRepository {
+
+    private let hkManager = HealthKitManager.shared
+
+    // MARK: - HealthKit Integration
+
+    /// Fetches live HealthKit metrics (heart rate, steps, active energy) for today and merges them into a Measurement.
+    /// Falls back to local/Firestore data if HealthKit is unauthorized or unavailable.
+    func fetchTodayRealMeasurement(uid: String) async -> Measurement? {
+        return await withCheckedContinuation { continuation in
+            hkManager.requestAuthorization { [weak self] authorized, _ in
+                guard authorized, let self = self else {
+                    Task {
+                        let days = (try? await self?.fetchLastDays(uid: uid, lastDays: 1)) ?? []
+                        let fallback = days.first
+                        continuation.resume(returning: fallback)
+                    }
+                    return
+                }
+
+                // Fetch current metrics asynchronously
+                let group = DispatchGroup()
+                var currentHeartRate: Double?
+                var currentSteps: Double?
+                var currentActiveEnergy: Double?
+
+                group.enter()
+                self.hkManager.fetchRecentQuantity(for: .heartRate, unit: HKUnit(from: "count/min")) { hr in
+                    currentHeartRate = hr
+                    group.leave()
+                }
+
+                group.enter()
+                self.hkManager.fetchRecentQuantity(for: .stepCount, unit: .count()) { steps in
+                    currentSteps = steps
+                    group.leave()
+                }
+
+                group.enter()
+                self.hkManager.fetchRecentQuantity(for: .activeEnergyBurned, unit: .kilocalorie()) { energy in
+                    currentActiveEnergy = energy
+                    group.leave()
+                }
+
+                group.notify(queue: .main) {
+                    let liveMeasurement = Measurement(
+                        id: nil,
+                        createdAt: Date(),
+                        mood1to5: nil,
+                        bleeding1to10: nil,
+                        hairLoss1to10: nil,
+                        appetiteIssue1to10: nil,
+                        sleepTrouble1to10: nil,
+                        steps: currentSteps != nil ? Int(currentSteps!) : nil,
+                        distanceWalkedKm: nil,
+                        flightsClimbed: nil,
+                        activeEnergyKcal: currentActiveEnergy,
+                        basalEnergyKcal: nil,
+                        exerciseMinutes: nil,
+                        standHours: nil,
+                        sunlightHours: nil,
+                        avgHeartRateBpm: currentHeartRate,
+                        restingHRBpm: nil,
+                        walkingHeartRateAvgBpm: nil,
+                        hrvSDNNms: nil,
+                        respiratoryRateBpm: nil,
+                        oxygenSaturationPct: nil,
+                        vo2Max: nil,
+                        sleepHours: nil,
+                        deepSleepHours: nil,
+                        remSleepHours: nil,
+                        coreSleepHours: nil,
+                        sleepEfficiencyPct: nil,
+                        wakeAfterSleepOnsetMin: nil,
+                        weightKg: nil,
+                        source: "HealthKit"
+                    )
+                    continuation.resume(returning: liveMeasurement)
+                }
+            }
+        }
+    }
 
     // MARK: - Public
 
@@ -121,7 +203,7 @@ final class MeasurementRepository {
         if let v = m.deepSleepHours { data["deepSleepHours"] = v }
         if let v = m.remSleepHours { data["remSleepHours"] = v }
         if let v = m.coreSleepHours { data["coreSleepHours"] = v }
-        if let v = m.sleepEfficiencyPct { data["sleepEfficiencyPct"] = v } 
+        if let v = m.sleepEfficiencyPct { data["sleepEfficiencyPct"] = v }
         if let v = m.wakeAfterSleepOnsetMin { data["wakeAfterSleepOnsetMin"] = v }
 
         // Body
@@ -227,4 +309,3 @@ final class MeasurementRepository {
         )
     }
 }
-

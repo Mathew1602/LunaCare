@@ -5,6 +5,9 @@
 //  Created by Mathew Boyd on 2025-11-24.
 //
 
+
+import Foundation
+
 struct InsightEngine {
 
     /// Compare last 7 records vs previous 7 records (rolling weeks).
@@ -49,7 +52,7 @@ struct InsightEngine {
         )
     }
 
-    /// This will return a user-facing sentence
+    /// Generates a human-readable insight sentence comparing rolling 7-day windows.
     static func makeText(records: [Measurement], metric: InsightMetric) -> String? {
         guard let r = compareLast7vsPrev7(records: records, metric: metric) else { return nil }
 
@@ -67,22 +70,3 @@ struct InsightEngine {
         )
     }
 }
-
-// MARK: Example running the InsightEngine code below
-
-//let fake30 = FakeStruct.highRisk30Days()
-//
-
-//if let text = InsightEngine.makeText(records: fake30, metric: .restingHR) {
-//    print(text)
-//}
-//
-
-//if let text = InsightEngine.makeText(records: fake30, metric: .sleepHours) {
-//    print(text)
-//}
-//
-
-//if let text = InsightEngine.makeText(records: fake30, metric: .sleepEfficiencyPct) {
-//    print(text)
-//}
