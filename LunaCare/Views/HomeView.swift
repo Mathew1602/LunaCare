@@ -45,8 +45,7 @@ struct HomeContentView: View {
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
     @Environment(\.scenePhase) private var scenePhase //For changed scene
-    private let syncManager = SyncManager.shared
-    @State private var isSyncedToCloud = false
+    private var isSyncedToCloud: Bool { !auth.uid.isEmpty && env.isCloudSyncOn }
     @StateObject private var metricsStore = HomeMetricsStore.shared
     @State private var showEditMetrics = false
 
@@ -85,10 +84,6 @@ struct HomeContentView: View {
                         .padding(.vertical, 4)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
-                        .task {
-                            guard !auth.uid.isEmpty else { return }
-                            isSyncedToCloud = syncManager.isCloudSyncOn
-                        }
                     }
 
                     // Log Mood Button
@@ -288,7 +283,7 @@ struct HomeContentView: View {
                     return
                 }
                 #endif
-                Task { await health.authorizeAndRefresh() }
+                Task { await refreshHealth() }
             }
             .sheet(isPresented: $showEditMetrics) {
                 EditHealthMetricsView(store: metricsStore, uid: auth.uid)
@@ -297,17 +292,25 @@ struct HomeContentView: View {
                 metricsStore.load(uid: auth.uid)
             }
             .onChange(of: env.isCloudSyncOn) { _, on in
-                if on { metricsStore.load(uid: auth.uid) }
+                if on {
+                    metricsStore.load(uid: auth.uid)
+                    Task { await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid) }
+                }
             }
             //When the user exits the appliction (Refresh health data so it is new when they open it)
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
                     Task {
-                        await health.authorizeAndRefresh()
+                        await refreshHealth()
                     }
                 }
             }
         }
+    }
+
+    private func refreshHealth() async {
+        await health.authorizeAndRefresh()
+        await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid)
     }
 
     // MARK: - Fake ML Test

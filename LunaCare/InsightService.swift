@@ -18,7 +18,7 @@ final class InsightService {
     func loadInsights(uid: String) async -> [WeeklyInsight] {
 
         // Guest / local-only mode: load measurements from local store
-        if uid.isEmpty {
+        if uid.isEmpty || !SyncManager.shared.isCloudSyncOn {
             let measurements = LocalMeasurementStore.shared.fetchLastDays(30)
             guard !measurements.isEmpty else { return [] }
 
