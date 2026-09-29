@@ -61,7 +61,11 @@ struct SettingsView: View {
                 Section(header: Text("Privacy & Security")) {
                     if !isGuest {
                         NavigationLink("Data Privacy") { Text("Data Privacy Settings") }
-                        NavigationLink("Data Export")  { Text("Data Export Options")  }
+                    }
+                    NavigationLink("Data Export") {
+                        DataExportView()
+                            .environmentObject(auth)
+                            .environmentObject(env)
                     }
 
                     // Cloud Sync — disabled for guests
