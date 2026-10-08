@@ -63,7 +63,11 @@ struct SettingsView: View {
                 // ── Privacy & Security ────────────────────────────────────
                 Section(header: Text("Privacy & Security")) {
                     if !isGuest {
-                        NavigationLink("Data Privacy") { Text("Data Privacy Settings") }
+                        NavigationLink("Data Privacy") {
+                            DataPrivacyView()
+                                .environmentObject(auth)
+                                .environmentObject(env)
+                        }
                     }
                     NavigationLink("Data Export") {
                         DataExportView()

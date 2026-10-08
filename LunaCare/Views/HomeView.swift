@@ -48,6 +48,7 @@ struct HomeContentView: View {
     private var isSyncedToCloud: Bool { !auth.uid.isEmpty && env.isCloudSyncOn }
     @StateObject private var metricsStore = HomeMetricsStore.shared
     @State private var showEditMetrics = false
+    @State private var storedMeasurements: [Measurement] = []
 
     
     @State private var showingMLTestAlert = false
@@ -108,7 +109,7 @@ struct HomeContentView: View {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 3), spacing: 20) {
                             ForEach(metricsStore.selected) { metric in
                                 MetricCard(icon: metric.icon,
-                                           value: health.isAuthorized ? metric.formattedValue(from: health.latestMeasurement) : "--",
+                                           value: displayValue(for: metric),
                                            label: metric.title)
                             }
                         }
@@ -281,8 +282,10 @@ struct HomeContentView: View {
             }
             .task(id: auth.uid) {
                 metricsStore.load(uid: auth.uid)
+                await loadStoredMeasurements()
             }
             .onChange(of: env.isCloudSyncOn) { _, on in
+                Task { await loadStoredMeasurements() }
                 if on {
                     metricsStore.load(uid: auth.uid)
                     Task { await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid) }
@@ -302,12 +305,43 @@ struct HomeContentView: View {
     private func refreshHealth() async {
         await health.authorizeAndRefresh()
         await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid)
+        await loadStoredMeasurements()
+    }
+
+    // MARK: - Stored measurement fallback (when HealthKit has no value)
+    private func displayValue(for metric: HealthMetric) -> String {
+        if health.isAuthorized {
+            let live = metric.formattedValue(from: health.latestMeasurement)
+            if live != "--" { return live }
+        }
+        for record in storedMeasurements.reversed() {
+            let stored = metric.formattedValue(from: record)
+            if stored != "--" { return stored }
+        }
+        return "--"
+    }
+
+    private func loadStoredMeasurements() async {
+        if isSyncedToCloud {
+            storedMeasurements = (try? await repo.fetchLastDays(uid: auth.uid, lastDays: 14)) ?? []
+        } else {
+            let today = Date()
+            let from = Calendar.current.date(byAdding: .day, value: -13, to: today) ?? today
+            storedMeasurements = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
+        }
     }
 
     // MARK: - ML Test (last 30 days)
     private func runMLTest() {
         Task {
             do {
+                if !auth.uid.isEmpty,
+                   try await !PrivacyRepository().fetchConsent(uid: auth.uid).riskInsights {
+                    mlTestMessage = "Risk insights are turned off in Data Privacy."
+                    showingMLTestAlert = true
+                    return
+                }
+
                 let records: [Measurement]
                 if isSyncedToCloud {
                     records = try await repo.fetchLastDays(uid: auth.uid, lastDays: 30)
@@ -337,7 +371,7 @@ struct HomeContentView: View {
     }
 
     // MARK: - Upload Fake Data
-    // Kept for later use: uploads FakeStruct.extremeHighRisk30Days() to Firestore. Not wired to the UI.
+    // depricated method use: uploads FakeStruct.extremeHighRisk30Days() to Firestore. Not wired to the UI.
     @MainActor
     private func uploadFakeData() {
         guard !isUploadingFakeData else { return }

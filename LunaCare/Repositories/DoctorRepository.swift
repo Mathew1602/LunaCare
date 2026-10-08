@@ -12,8 +12,9 @@ final class DoctorRepository {
 
     private let db = Firestore.firestore()
 
-    func fetchDoctors(uid: String) async throws -> [Doctor] {
-        try await fetchDoctors(uid: uid, field: "patientIds").filter(\.isAuthorized)
+    func fetchDoctors(uid: String, includeUnauthorized: Bool = false) async throws -> [Doctor] {
+        let doctors = try await fetchDoctors(uid: uid, field: "patientIds")
+        return includeUnauthorized ? doctors : doctors.filter(\.isAuthorized)
     }
 
     func fetchPendingDoctors(uid: String) async throws -> [Doctor] {
@@ -40,6 +41,17 @@ final class DoctorRepository {
         ], forDocument: db.collection(FSPath.doctors).document(doctorId))
         batch.setData([
             "pendingDoctorIds": FieldValue.arrayRemove([doctorId])
+        ], forDocument: db.document(FSPath.user(uid)), merge: true)
+        try await batch.commit()
+    }
+
+    func revoke(uid: String, doctorId: String) async throws {
+        let batch = db.batch()
+        batch.updateData([
+            "patientIds": FieldValue.arrayRemove([uid])
+        ], forDocument: db.collection(FSPath.doctors).document(doctorId))
+        batch.setData([
+            "doctorIds": FieldValue.arrayRemove([doctorId])
         ], forDocument: db.document(FSPath.user(uid)), merge: true)
         try await batch.commit()
     }
