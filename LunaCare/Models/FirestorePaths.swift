@@ -20,6 +20,8 @@ enum FSPath {
     static func symptomLogs(_ uid: String) -> String { "users/\(uid)/symptom_logs" }
     static func insights(_ uid: String) -> String {
            "users/\(uid)/insights" }
-   
+    static let doctors = "doctors"
+    static func doctorComments(_ uid: String) -> String { "users/\(uid)/doctor_comments" }
+
 
 }

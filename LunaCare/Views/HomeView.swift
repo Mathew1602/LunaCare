@@ -53,7 +53,7 @@ struct HomeContentView: View {
     @State private var showingMLTestAlert = false
     @State private var mlTestMessage = ""
 
-    // NEW upload state
+    // Kept for later use with uploadFakeData(), not wired to the UI.
     @State private var showingUploadAlert = false
     @State private var uploadMessage = ""
     @State private var isUploadingFakeData = false
@@ -137,7 +137,7 @@ struct HomeContentView: View {
                         QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
 
                         Button {
-                            runFakeMLTest()
+                            runMLTest()
                         } label: {
                             QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Test ML")
                         }
@@ -249,15 +249,6 @@ struct HomeContentView: View {
                             Text("Signed in as \(auth.email)")
                         }
 
-                        // NEW menu action for uploading fake data
-                        Button {
-                            uploadFakeData()
-                        } label: {
-                            Label(isUploadingFakeData ? "Uploading..." : "Upload Fake Data",
-                                  systemImage: "icloud.and.arrow.up")
-                        }
-                        .disabled(isUploadingFakeData)
-
                         Button("Sign out", role: .destructive) {
                             auth.signOut()
                         }
@@ -313,19 +304,30 @@ struct HomeContentView: View {
         await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid)
     }
 
-    // MARK: - Fake ML Test
-    private func runFakeMLTest() {
+    // MARK: - ML Test (last 30 days)
+    private func runMLTest() {
         Task {
             do {
-                let fake30 = FakeStruct.extremeHighRisk30Days()
-                let score = try PPDRiskModelRunner.shared.predictRisk(from: fake30)
+                let records: [Measurement]
+                if isSyncedToCloud {
+                    records = try await repo.fetchLastDays(uid: auth.uid, lastDays: 30)
+                } else {
+                    let today = Date()
+                    let from = Calendar.current.date(byAdding: .day, value: -29, to: today) ?? today
+                    records = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
+                }
 
-                let pct = Int((score * 100).rounded())
-                mlTestMessage = """
-                Fake 30-day high-risk data result:
-                score = \(score, default: "%.3f")
-                (~\(pct)% risk)
-                """
+                if records.isEmpty {
+                    mlTestMessage = "No measurements in the last 30 days. Log data or sync your watch first."
+                } else {
+                    let score = try PPDRiskModelRunner.shared.predictRisk(from: records)
+                    let pct = Int((score * 100).rounded())
+                    mlTestMessage = """
+                    Last 30 days (\(records.count) days of data)
+                    score = \(score, default: "%.3f")
+                    (~\(pct)% risk)
+                    """
+                }
             } catch {
                 mlTestMessage = "Couldn’t run model: \(error.localizedDescription)"
             }
@@ -334,7 +336,8 @@ struct HomeContentView: View {
         }
     }
 
-    // MARK: - Upload Fake Data (Right now just uploading fake data since we don't have real apple watch data)
+    // MARK: - Upload Fake Data
+    // Kept for later use: uploads FakeStruct.extremeHighRisk30Days() to Firestore. Not wired to the UI.
     @MainActor
     private func uploadFakeData() {
         guard !isUploadingFakeData else { return }
