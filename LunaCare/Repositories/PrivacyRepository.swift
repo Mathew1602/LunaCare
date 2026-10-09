@@ -21,8 +21,8 @@ enum ConsentKey: String {
 
 final class PrivacyRepository {
 
-    static let countedCollections = ["mood_logs", "symptom_logs", "measurements", "insights", "doctor_comments"]
-    private static let deletableCollections = ["measurements", "mood_logs", "symptom_logs", "insights", "DailyRecords", "doctor_comments"]
+    static let countedCollections = ["mood_logs", "symptom_logs", "measurements", "insights", "doctor_notes"]
+    private static let deletableCollections = ["measurements", "mood_logs", "symptom_logs", "insights", "DailyRecords", "doctor_notes"]
 
     private let db = Firestore.firestore()
     private let doctorRepo = DoctorRepository()

@@ -56,9 +56,9 @@ final class DoctorRepository {
         try await batch.commit()
     }
 
-    func fetchComments(uid: String) async throws -> [DoctorComment] {
+    func fetchNotes(uid: String) async throws -> [DoctorNote] {
         let snapshot = try await db
-            .collection(FSPath.doctorComments(uid))
+            .collection(FSPath.doctorNotes(uid))
             .order(by: "createdAt", descending: true)
             .getDocuments()
 
@@ -66,7 +66,7 @@ final class DoctorRepository {
             let data = doc.data()
             guard let text = data["text"] as? String,
                   let ts = data["createdAt"] as? Timestamp else { return nil }
-            return DoctorComment(
+            return DoctorNote(
                 id: doc.documentID,
                 doctorId: data["doctorId"] as? String ?? "",
                 doctorName: data["doctorName"] as? String ?? "",

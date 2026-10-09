@@ -5,7 +5,7 @@
 #    python seed_patients.py
 #
 # Creates 13 demo patients (10 typical, 3 high-risk), 4 doctors, links patients <-> doctors,
-# fills missing days of health data for every existing account, and writes doctor comments.
+# fills missing days of health data for every existing account, and writes doctor notes.
 # Never deletes or overwrites existing health logs.
 
 import argparse
@@ -21,7 +21,7 @@ from zoneinfo import ZoneInfo
 import firebase_admin
 from firebase_admin import auth, credentials, firestore
 
-PROJECT_ID = "lunacare-d181e"
+PROJECT_ID = "newlunacare"
 PASSWORD = "1234567"
 
 START = date(2026, 9, 1)
@@ -101,7 +101,7 @@ def parse_args():
 
 def init_firebase(key_path):
     if not key_path and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-        local_keys = sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "*firebase-adminsdk*.json")))
+        local_keys = sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{PROJECT_ID}-firebase-adminsdk*.json")))
         key_path = local_keys[0] if local_keys else None
     key_path = key_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if not key_path or not os.path.isfile(key_path):
@@ -450,7 +450,7 @@ def write_links_and_comments(db, uid, doctor_ids, comments, dry_run):
         batch.set(db.collection("doctors").document(doctor_id),
                   {"patientIds": firestore.ArrayUnion([uid])}, merge=True)
     for doc_id, data in comments:
-        batch.set(user_ref.collection("doctor_comments").document(doc_id), data)
+        batch.set(user_ref.collection("doctor_notes").document(doc_id), data)
     batch.commit()
     print(f"    Linked doctors {doctor_ids}, wrote {len(comments)} comments")
 

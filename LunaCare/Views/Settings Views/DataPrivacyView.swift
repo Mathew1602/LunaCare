@@ -20,7 +20,7 @@ private let storedCategories: [StoredDataCategory] = [
     .init(id: "symptoms", title: "Symptom Logs", detail: "Fatigue, bleeding, hair loss, appetite and sleep trouble.", icon: "cross.case", collection: "symptom_logs"),
     .init(id: "measurements", title: "Health Measurements", detail: "Sleep, heart, activity and weight from HealthKit and Apple Watch.", icon: "heart.text.square", collection: "measurements"),
     .init(id: "insights", title: "Insights", detail: "Weekly trend summaries generated from your data.", icon: "chart.bar.xaxis", collection: "insights"),
-    .init(id: "comments", title: "Doctor Comments", detail: "Notes your approved doctors left on your stats.", icon: "text.bubble", collection: "doctor_comments"),
+    .init(id: "notes", title: "Doctor Notes", detail: "Notes your approved doctors left on your stats.", icon: "text.bubble", collection: "doctor_notes"),
     .init(id: "profile", title: "Profile", detail: "Your name and email address.", icon: "person.crop.circle", collection: nil),
 ]
 
@@ -292,7 +292,7 @@ private struct DeleteAccountSheet: View {
                 Section {
                     Text("This permanently deletes your account and everything stored with it:")
                     Label("All mood logs, symptom logs and health measurements", systemImage: "trash")
-                    Label("Insights and doctor comments", systemImage: "trash")
+                    Label("Insights and doctor notes", systemImage: "trash")
                     Label("Access for all your doctors", systemImage: "person.crop.circle.badge.xmark")
                     Label("Data saved on this device", systemImage: "iphone")
                     Text("This can't be undone.").bold().foregroundColor(.red)

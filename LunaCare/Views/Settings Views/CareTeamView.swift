@@ -8,7 +8,7 @@
 import SwiftUI
 
 private enum CareTeamTab: Hashable {
-    case approved, pending, comments
+    case approved, pending, notes
 }
 
 struct CareTeamView: View {
@@ -34,7 +34,7 @@ struct CareTeamView: View {
                     switch tab {
                     case .approved: doctorsSection
                     case .pending: pendingSection
-                    case .comments: commentsSection
+                    case .notes: notesSection
                     }
                 }
             }
@@ -68,7 +68,7 @@ struct CareTeamView: View {
         Picker("Section", selection: $tab) {
             Text("Approved").tag(CareTeamTab.approved)
             Text(vm.pendingDoctors.isEmpty ? "Pending" : "Pending (\(vm.pendingDoctors.count))").tag(CareTeamTab.pending)
-            Text("Comments").tag(CareTeamTab.comments)
+            Text("Notes").tag(CareTeamTab.notes)
         }
         .pickerStyle(.segmented)
     }
@@ -143,16 +143,16 @@ struct CareTeamView: View {
         }
     }
 
-    private var commentsSection: some View {
+    private var notesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("Doctor Comments", count: vm.comments.count)
-            if vm.comments.isEmpty {
+            sectionTitle("Doctor Notes", count: vm.notes.count)
+            if vm.notes.isEmpty {
                 messageCard(icon: "text.bubble",
-                            title: "No comments yet",
+                            title: "No notes yet",
                             detail: "Notes your doctors leave on your stats will show up here.")
             } else {
                 metricFilter
-                ForEach(vm.filteredComments) { DoctorCommentCard(comment: $0) }
+                ForEach(vm.filteredNotes) { DoctorNoteCard(note: $0) }
             }
         }
     }
@@ -161,8 +161,8 @@ struct CareTeamView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 filterChip(title: "All", metric: nil)
-                ForEach(vm.commentMetrics, id: \.self) { metric in
-                    let sample = vm.comments.first { $0.metric == metric }
+                ForEach(vm.noteMetrics, id: \.self) { metric in
+                    let sample = vm.notes.first { $0.metric == metric }
                     filterChip(title: sample?.metricTitle ?? metric, metric: metric)
                 }
             }
@@ -322,26 +322,26 @@ private struct DoctorInfoRow: View {
     }
 }
 
-private struct DoctorCommentCard: View {
-    let comment: DoctorComment
+private struct DoctorNoteCard: View {
+    let note: DoctorNote
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label(comment.metricTitle, systemImage: comment.metricIcon)
+                Label(note.metricTitle, systemImage: note.metricIcon)
                     .font(.subheadline.bold())
                     .foregroundColor(Color(.systemIndigo))
                 Spacer()
-                Text(comment.createdAt, format: .dateTime.month(.abbreviated).day())
+                Text(note.createdAt, format: .dateTime.month(.abbreviated).day())
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            Text(comment.text)
+            Text(note.text)
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
                 Image(systemName: "stethoscope")
-                Text(comment.doctorName)
+                Text(note.doctorName)
             }
             .font(.caption)
             .foregroundColor(.secondary)

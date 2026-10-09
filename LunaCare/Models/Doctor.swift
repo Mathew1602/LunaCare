@@ -23,7 +23,7 @@ struct Doctor: Identifiable, Hashable {
     var displayName: String { "Dr. \(firstName) \(lastName)" }
 }
 
-struct DoctorComment: Identifiable, Hashable {
+struct DoctorNote: Identifiable, Hashable {
     let id: String
     let doctorId: String
     let doctorName: String

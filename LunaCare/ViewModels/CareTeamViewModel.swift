@@ -12,7 +12,7 @@ final class CareTeamViewModel: ObservableObject {
 
     @Published var doctors: [Doctor] = []
     @Published var pendingDoctors: [Doctor] = []
-    @Published var comments: [DoctorComment] = []
+    @Published var notes: [DoctorNote] = []
     @Published var selectedMetric: String? = nil
     @Published var isLoading = false
     @Published var errorMessage: String? = nil
@@ -21,14 +21,14 @@ final class CareTeamViewModel: ObservableObject {
 
     private let repo = DoctorRepository()
 
-    var commentMetrics: [String] {
+    var noteMetrics: [String] {
         var seen = Set<String>()
-        return comments.map(\.metric).filter { seen.insert($0).inserted }
+        return notes.map(\.metric).filter { seen.insert($0).inserted }
     }
 
-    var filteredComments: [DoctorComment] {
-        guard let selectedMetric else { return comments }
-        return comments.filter { $0.metric == selectedMetric }
+    var filteredNotes: [DoctorNote] {
+        guard let selectedMetric else { return notes }
+        return notes.filter { $0.metric == selectedMetric }
     }
 
     func load(uid: String) async {
@@ -39,10 +39,10 @@ final class CareTeamViewModel: ObservableObject {
         do {
             async let doctors = repo.fetchDoctors(uid: uid)
             async let pending = repo.fetchPendingDoctors(uid: uid)
-            async let comments = repo.fetchComments(uid: uid)
+            async let notes = repo.fetchNotes(uid: uid)
             self.doctors = try await doctors
             self.pendingDoctors = try await pending
-            self.comments = try await comments
+            self.notes = try await notes
         } catch {
             errorMessage = error.localizedDescription
         }
