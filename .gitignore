@@ -5,3 +5,8 @@ info.plist
 # Churns on every Xcode launch and blocks pulls. Never belongs in git.
 xcuserdata/
 *.xcuserstate
+
+# Firebase service account keys (seed scripts)
+seed_bob_key*.json
+serviceAccountKey*.json
+*firebase-adminsdk*.json
