@@ -12,11 +12,12 @@ import FirebaseFirestore
 struct ConsentSettings: Equatable {
     var shareWithDoctors = true
     var riskInsights = true
+    var contributeToModel = false
     var updatedAt: Date? = nil
 }
 
 enum ConsentKey: String {
-    case shareWithDoctors, riskInsights
+    case shareWithDoctors, riskInsights, contributeToModel
 }
 
 final class PrivacyRepository {
@@ -50,15 +51,38 @@ final class PrivacyRepository {
         return ConsentSettings(
             shareWithDoctors: consent[ConsentKey.shareWithDoctors.rawValue] ?? true,
             riskInsights: consent[ConsentKey.riskInsights.rawValue] ?? true,
+            contributeToModel: consent[ConsentKey.contributeToModel.rawValue] ?? false,
             updatedAt: (data["consentUpdatedAt"] as? Timestamp)?.dateValue()
         )
     }
 
     func setConsent(uid: String, key: ConsentKey, value: Bool) async throws {
-        try await db.document(FSPath.user(uid)).setData([
+        var data: [String: Any] = [
             "consent": [key.rawValue: value],
             "consentUpdatedAt": FieldValue.serverTimestamp()
-        ], merge: true)
+        ]
+
+        if key == .contributeToModel && value {
+            let existing = try await db.document(FSPath.user(uid)).getDocument().data()?["flPseudoId"] as? String
+            if existing == nil { data["flPseudoId"] = UUID().uuidString }
+        }
+
+        // Consent off first: the rules then reject any upload still in flight, so nothing reappears after the delete.
+        try await db.document(FSPath.user(uid)).setData(data, merge: true)
+
+        if key == .contributeToModel {
+            if value {
+                Task { await FLContributionService.shared.uploadIfDue(force: true) }
+            } else {
+                // Consent is already off, so don't roll the toggle back: the build_training_sample
+                // function also deletes fl_contributions server-side on opt-out.
+                do {
+                    try await FLContributionService.shared.deleteAll(uid: uid)
+                } catch {
+                    print("[FL] client delete failed, server cleanup will remove it: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     func deleteAccount(password: String) async throws {
@@ -86,6 +110,9 @@ final class PrivacyRepository {
         for doctor in try await doctorRepo.fetchPendingDoctors(uid: uid) {
             try await doctorRepo.decline(uid: uid, doctorId: doctor.id)
         }
+
+        // Non-fatal: deleting users/{uid} below also makes the function remove fl_contributions.
+        try? await FLContributionService.shared.deleteAll(uid: uid)
 
         let userRef = db.document(FSPath.user(uid))
         for name in Self.deletableCollections {

@@ -61,6 +61,7 @@ final class DataPrivacyViewModel: ObservableObject {
         switch key {
         case .shareWithDoctors: consent.shareWithDoctors = value
         case .riskInsights: consent.riskInsights = value
+        case .contributeToModel: consent.contributeToModel = value
         }
         do {
             try await privacyRepo.setConsent(uid: uid, key: key, value: value)
