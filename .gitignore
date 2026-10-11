@@ -10,3 +10,17 @@ xcuserdata/
 seed_bob_key*.json
 serviceAccountKey*.json
 *firebase-adminsdk*.json
+
+# Federated learning (Python venv, caches, local env, firebase CLI state)
+federated-learning/functions-ml/venv/
+federated-learning/**/__pycache__/
+*.local
+federated-learning/.firebase/
+federated-learning/**/*.parquet
+federated-learning/**/*.pkl
+federated-learning/**/*.mlmodel
+federated-learning/**/*.mlpackage
+federated-learning/**/node_modules/
+federated-learning/**/.pytest_cache/
+firebase-debug.log
+firestore-debug.log

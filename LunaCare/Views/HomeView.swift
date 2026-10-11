@@ -342,25 +342,20 @@ struct HomeContentView: View {
                     return
                 }
 
-                let records: [Measurement]
-                if isSyncedToCloud {
-                    records = try await repo.fetchLastDays(uid: auth.uid, lastDays: 30)
-                } else {
-                    let today = Date()
-                    let from = Calendar.current.date(byAdding: .day, value: -29, to: today) ?? today
-                    records = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
-                }
+                let records = try await PPDWindowLoader().load(uid: auth.uid, fromCloud: isSyncedToCloud)
 
                 if records.isEmpty {
                     mlTestMessage = "No measurements in the last 30 days. Log data or sync your watch first."
-                } else {
-                    let score = try PPDRiskModelRunner.shared.predictRisk(from: records)
+                } else if let runner = PPDRiskModelRunner.shared {
+                    let score = try runner.predictRisk(from: records)
                     let pct = Int((score * 100).rounded())
                     mlTestMessage = """
                     Last 30 days (\(records.count) days of data)
                     score = \(score, default: "%.3f")
                     (~\(pct)% risk)
                     """
+                } else {
+                    mlTestMessage = "Model unavailable"
                 }
             } catch {
                 mlTestMessage = "Couldn’t run model: \(error.localizedDescription)"

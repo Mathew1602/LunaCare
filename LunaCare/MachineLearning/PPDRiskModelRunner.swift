@@ -11,28 +11,54 @@ import CoreML
 
 final class PPDRiskModelRunner {
 
-    static let shared = PPDRiskModelRunner()
+    enum RunnerError: LocalizedError {
+        case modelNotFound
+        case invalidOutput
 
-    private let model: MLModel
-    private let featureExtractor = PPDFeaturePipeline()
-
-    private init() {
-        guard let url = Bundle.main.url(forResource: "PPDRiskModel", withExtension: "mlmodelc") else {
-            fatalError("PPDRiskModel.mlmodelc not found in app bundle.")
-        }
-
-        do {
-            model = try MLModel(contentsOf: url)
-        } catch {
-            fatalError("Failed to load PPDRiskModel: \(error)")
+        var errorDescription: String? {
+            switch self {
+            case .modelNotFound: return "Model unavailable"
+            case .invalidOutput: return "Model output missing/invalid"
+            }
         }
     }
 
-    func predictRisk(from records: [LunaCare.Measurement]) throws -> Double {
+    static let bundledModelURL = Bundle.main.url(forResource: "PPDRiskModel", withExtension: "mlmodelc")
 
-        let features = featureExtractor.makeFeatureVector(from: records)
+    /// Downloaded model (ModelUpdateService) if present and loadable, else the bundled one.
+    static let shared: PPDRiskModelRunner? = {
+        if let url = ModelUpdateService.installedModelURL(),
+           let runner = try? PPDRiskModelRunner(modelURL: url) {
+            return runner
+        }
+        ModelUpdateService.resetToBundled()
+        return try? PPDRiskModelRunner()
+    }()
+
+    static let outputName = "ppd_risk_score_0to1"
+
+    private var model: MLModel
+    private let lock = NSLock()
+    private let featureExtractor = PPDFeaturePipeline()
+
+    init(modelURL: URL? = PPDRiskModelRunner.bundledModelURL) throws {
+        guard let modelURL else { throw RunnerError.modelNotFound }
+        model = try MLModel(contentsOf: modelURL)
+    }
+
+    func reload(from modelURL: URL) throws {
+        let newModel = try MLModel(contentsOf: modelURL)
+        lock.withLock { model = newModel }
+    }
+
+    func predictRisk(from records: [LunaCare.Measurement], windowEnd: Date = Date()) throws -> Double {
+        try predictRisk(features: featureExtractor.makeFeatureVector(from: records, windowEnd: windowEnd))
+    }
+
+    func predictRisk(features: [String: MLFeatureValue]) throws -> Double {
+        let current = lock.withLock { model }
         let provider = try MLDictionaryFeatureProvider(dictionary: features)
-        let output = try model.prediction(from: provider)
+        let output = try current.prediction(from: provider)
 
         if let score = output.featureValue(for: "ppd_risk_score_0to1")?.doubleValue,
            score.isFinite,

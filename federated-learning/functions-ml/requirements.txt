@@ -1,0 +1,10 @@
+firebase-functions==0.5.0
+firebase-admin==6.*
+xgboost-cpu==3.2.0; sys_platform == "linux"
+xgboost==3.2.0; sys_platform == "darwin"
+coremltools==9.0
+scikit-learn==1.6.1
+pandas==2.2.*
+numpy==2.1.*
+pyarrow==26.0.0
+joblib==1.6.0

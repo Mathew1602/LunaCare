@@ -178,6 +178,7 @@ final class MeasurementRepository {
         if let v = m.hairLoss1to10 { data["hairLoss1to10"] = v }
         if let v = m.appetiteIssue1to10 { data["appetiteIssue1to10"] = v }
         if let v = m.sleepTrouble1to10 { data["sleepTrouble1to10"] = v }
+        if let v = m.fatigue1to10 { data["fatigue1to10"] = v }
 
         // Activity
         if let v = m.steps { data["steps"] = v }
@@ -279,6 +280,7 @@ final class MeasurementRepository {
             hairLoss1to10: dblVal("hairLoss1to10"),
             appetiteIssue1to10: dblVal("appetiteIssue1to10"),
             sleepTrouble1to10: dblVal("sleepTrouble1to10"),
+            fatigue1to10: dblVal("fatigue1to10"),
 
             steps: intVal("steps"),
             distanceWalkedKm: dblVal("distanceWalkedKm"),
