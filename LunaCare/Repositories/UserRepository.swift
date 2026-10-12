@@ -82,7 +82,25 @@ final class UserRepository {
                                       data: data,
                                       merge: true)
     }
-    
+
+    // MARK: - Home Metrics
+
+    func fetchHomeMetrics(uid: String, completion: @escaping ([String]?) -> Void) {
+        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data in
+            completion(data?["homeMetrics"] as? [String])
+        }
+    }
+
+    func setHomeMetrics(uid: String, metrics: [HealthMetric]) {
+        let data: [String: Any] = [
+            "homeMetrics": metrics.map(\.rawValue),
+            "updatedAt": Date()
+        ]
+        FirestoreManager.shared.write(path: FSPath.userMeta(uid),
+                                      data: data,
+                                      merge: true)
+    }
+
     func resetPassword(email: String,
                       currentPassword: String,
                       newPassword: String,

@@ -82,14 +82,27 @@ final class AppleWatchDataRepository {
 
     /// Returns DailyRecord for each day ending today, oldest -> newest.
     func fetchDailyMeasurements(lastDays: Int = 30) async -> [Measurement] {
+        let cal = Calendar.current
+        let todayStart = cal.startOfDay(for: Date())
+        let from = cal.date(byAdding: .day, value: -(lastDays - 1), to: todayStart)!
+        return await fetchDailyMeasurements(from: from, to: todayStart)
+    }
+
+    func fetchDailyMeasurements(
+        from: Date,
+        to: Date,
+        onProgress: ((Double) -> Void)? = nil
+    ) async -> [Measurement] {
          let cal = Calendar.current
-         let todayStart = cal.startOfDay(for: Date())
+         let firstDay = cal.startOfDay(for: from)
+         let lastDay = cal.startOfDay(for: to)
+         let totalDays = max((cal.dateComponents([.day], from: firstDay, to: lastDay).day ?? 0) + 1, 0)
 
          var days: [Measurement] = []
-         days.reserveCapacity(lastDays)
+         days.reserveCapacity(totalDays)
 
-         for offset in stride(from: lastDays - 1, through: 0, by: -1) {
-             let start = cal.date(byAdding: .day, value: -offset, to: todayStart)!
+         for index in 0..<totalDays {
+             let start = cal.date(byAdding: .day, value: index, to: firstDay)!
              let end = cal.date(byAdding: .day, value: 1, to: start)!
 
              async let steps = dailySum(.stepCount, start, end, .count())
@@ -158,10 +171,36 @@ final class AppleWatchDataRepository {
              )
 
              days.append(measurement)
+             onProgress?(Double(index + 1) / Double(totalDays))
          }
 
          return days
      }
+
+    func earliestSampleDate() async -> Date? {
+        var types: [HKSampleType] = []
+        if let steps = HKQuantityType.quantityType(forIdentifier: .stepCount) { types.append(steps) }
+        if let hr = HKQuantityType.quantityType(forIdentifier: .heartRate) { types.append(hr) }
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.append(sleep) }
+
+        var earliest: Date?
+        for type in types {
+            let date: Date? = await withCheckedContinuation { cont in
+                let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+                let q = HKSampleQuery(sampleType: type,
+                                      predicate: nil,
+                                      limit: 1,
+                                      sortDescriptors: [sort]) { _, samples, _ in
+                    cont.resume(returning: samples?.first?.startDate)
+                }
+                self.healthStore.execute(q)
+            }
+            if let date, date < (earliest ?? .distantFuture) {
+                earliest = date
+            }
+        }
+        return earliest
+    }
 
 
     private struct SleepMetrics {

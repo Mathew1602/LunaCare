@@ -29,7 +29,10 @@ struct SettingsView: View {
                         } label: {
                             Text("Account")
                         }
-                        NavigationLink("Caregiver Links") { Text("Caregiver Links") }
+                        NavigationLink("My Care Team") {
+                            CareTeamView()
+                                .environmentObject(auth)
+                        }
                     } else {
                         // Guest: show name, prompt to create account
                         HStack {
@@ -60,8 +63,16 @@ struct SettingsView: View {
                 // ── Privacy & Security ────────────────────────────────────
                 Section(header: Text("Privacy & Security")) {
                     if !isGuest {
-                        NavigationLink("Data Privacy") { Text("Data Privacy Settings") }
-                        NavigationLink("Data Export")  { Text("Data Export Options")  }
+                        NavigationLink("Data Privacy") {
+                            DataPrivacyView()
+                                .environmentObject(auth)
+                                .environmentObject(env)
+                        }
+                    }
+                    NavigationLink("Data Export") {
+                        DataExportView()
+                            .environmentObject(auth)
+                            .environmentObject(env)
                     }
 
                     // Cloud Sync — disabled for guests

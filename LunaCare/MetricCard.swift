@@ -18,9 +18,13 @@ struct MetricCard: View {
                 .font(.title2)
             Text(value)
                 .fontWeight(.semibold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text(label)
                 .font(.caption)
                 .foregroundColor(.gray)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
         .padding()

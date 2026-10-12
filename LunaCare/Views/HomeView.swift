@@ -45,14 +45,16 @@ struct HomeContentView: View {
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
     @Environment(\.scenePhase) private var scenePhase //For changed scene
-    private let syncManager = SyncManager.shared
-    @State private var isSyncedToCloud = false
+    private var isSyncedToCloud: Bool { !auth.uid.isEmpty && env.isCloudSyncOn }
+    @StateObject private var metricsStore = HomeMetricsStore.shared
+    @State private var showEditMetrics = false
+    @State private var storedMeasurements: [Measurement] = []
 
     
     @State private var showingMLTestAlert = false
     @State private var mlTestMessage = ""
 
-    // NEW upload state
+    // Kept for later use with uploadFakeData(), not wired to the UI.
     @State private var showingUploadAlert = false
     @State private var uploadMessage = ""
     @State private var isUploadingFakeData = false
@@ -83,10 +85,6 @@ struct HomeContentView: View {
                         .padding(.vertical, 4)
                         .background(Color(.systemGray6))
                         .cornerRadius(8)
-                        .task {
-                            guard !auth.uid.isEmpty else { return }
-                            isSyncedToCloud = syncManager.isCloudSyncOn
-                        }
                     }
 
                     // Log Mood Button
@@ -108,18 +106,12 @@ struct HomeContentView: View {
                         Text("Key Health Metrics")
                             .font(.headline)
 
-                        HStack(spacing: 20) {
-                            MetricCard(icon: "moon",
-                                       value: health.isAuthorized ? String(format: "%.1f hrs", health.sleepHours) : "--",
-                                       label: "Sleep")
-
-                            MetricCard(icon: "waveform.path.ecg",
-                                       value: health.isAuthorized ? "\(Int(health.activeEnergyKcal)) cal" : "--",
-                                       label: "Activity")
-
-                            MetricCard(icon: "heart",
-                                       value: health.isAuthorized ? "\(Int(health.restingHR)) bpm" : "--",
-                                       label: "Resting HR")
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 20), count: 3), spacing: 20) {
+                            ForEach(metricsStore.selected) { metric in
+                                MetricCard(icon: metric.icon,
+                                           value: displayValue(for: metric),
+                                           label: metric.title)
+                            }
                         }
                     }
                     .padding(.top, 10)
@@ -146,7 +138,7 @@ struct HomeContentView: View {
                         QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
 
                         Button {
-                            runFakeMLTest()
+                            runMLTest()
                         } label: {
                             QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Test ML")
                         }
@@ -248,18 +240,15 @@ struct HomeContentView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
+                        Button {
+                            showEditMetrics = true
+                        } label: {
+                            Label("Edit Health Metrics", systemImage: "slider.horizontal.3")
+                        }
+
                         if !auth.email.isEmpty {
                             Text("Signed in as \(auth.email)")
                         }
-
-                        // NEW menu action for uploading fake data
-                        Button {
-                            uploadFakeData()
-                        } label: {
-                            Label(isUploadingFakeData ? "Uploading..." : "Upload Fake Data",
-                                  systemImage: "icloud.and.arrow.up")
-                        }
-                        .disabled(isUploadingFakeData)
 
                         Button("Sign out", role: .destructive) {
                             auth.signOut()
@@ -277,35 +266,102 @@ struct HomeContentView: View {
                     health.sleepHours = 7.2
                     health.activeEnergyKcal = 3231
                     health.restingHR = 71
+                    health.latestMeasurement = Measurement(steps: 8432,
+                                                           activeEnergyKcal: 3231,
+                                                           restingHRBpm: 71,
+                                                           hrvSDNNms: 48,
+                                                           sleepHours: 7.2,
+                                                           deepSleepHours: 1.3)
                     return
                 }
                 #endif
-                Task { await health.authorizeAndRefresh() }
+                Task { await refreshHealth() }
+            }
+            .sheet(isPresented: $showEditMetrics) {
+                EditHealthMetricsView(store: metricsStore, uid: auth.uid)
+            }
+            .task(id: auth.uid) {
+                metricsStore.load(uid: auth.uid)
+                await loadStoredMeasurements()
+            }
+            .onChange(of: env.isCloudSyncOn) { _, on in
+                Task { await loadStoredMeasurements() }
+                if on {
+                    metricsStore.load(uid: auth.uid)
+                    Task { await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid) }
+                }
             }
             //When the user exits the appliction (Refresh health data so it is new when they open it)
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
                     Task {
-                        await health.authorizeAndRefresh()
+                        await refreshHealth()
                     }
                 }
             }
         }
     }
 
-    // MARK: - Fake ML Test
-    private func runFakeMLTest() {
+    private func refreshHealth() async {
+        await health.authorizeAndRefresh()
+        await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid)
+        await loadStoredMeasurements()
+    }
+
+    // MARK: - Stored measurement fallback (when HealthKit has no value)
+    private func displayValue(for metric: HealthMetric) -> String {
+        if health.isAuthorized {
+            let live = metric.formattedValue(from: health.latestMeasurement)
+            if live != "--" { return live }
+        }
+        for record in storedMeasurements.reversed() {
+            let stored = metric.formattedValue(from: record)
+            if stored != "--" { return stored }
+        }
+        return "--"
+    }
+
+    private func loadStoredMeasurements() async {
+        if isSyncedToCloud {
+            storedMeasurements = (try? await repo.fetchLastDays(uid: auth.uid, lastDays: 14)) ?? []
+        } else {
+            let today = Date()
+            let from = Calendar.current.date(byAdding: .day, value: -13, to: today) ?? today
+            storedMeasurements = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
+        }
+    }
+
+    // MARK: - ML Test (last 30 days)
+    private func runMLTest() {
         Task {
             do {
-                let fake30 = FakeStruct.extremeHighRisk30Days()
-                let score = try PPDRiskModelRunner.shared.predictRisk(from: fake30)
+                if !auth.uid.isEmpty,
+                   try await !PrivacyRepository().fetchConsent(uid: auth.uid).riskInsights {
+                    mlTestMessage = "Risk insights are turned off in Data Privacy."
+                    showingMLTestAlert = true
+                    return
+                }
 
-                let pct = Int((score * 100).rounded())
-                mlTestMessage = """
-                Fake 30-day high-risk data result:
-                score = \(score, default: "%.3f")
-                (~\(pct)% risk)
-                """
+                let records: [Measurement]
+                if isSyncedToCloud {
+                    records = try await repo.fetchLastDays(uid: auth.uid, lastDays: 30)
+                } else {
+                    let today = Date()
+                    let from = Calendar.current.date(byAdding: .day, value: -29, to: today) ?? today
+                    records = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
+                }
+
+                if records.isEmpty {
+                    mlTestMessage = "No measurements in the last 30 days. Log data or sync your watch first."
+                } else {
+                    let score = try PPDRiskModelRunner.shared.predictRisk(from: records)
+                    let pct = Int((score * 100).rounded())
+                    mlTestMessage = """
+                    Last 30 days (\(records.count) days of data)
+                    score = \(score, default: "%.3f")
+                    (~\(pct)% risk)
+                    """
+                }
             } catch {
                 mlTestMessage = "Couldn’t run model: \(error.localizedDescription)"
             }
@@ -314,7 +370,8 @@ struct HomeContentView: View {
         }
     }
 
-    // MARK: - Upload Fake Data (Right now just uploading fake data since we don't have real apple watch data)
+    // MARK: - Upload Fake Data
+    // depricated method use: uploads FakeStruct.extremeHighRisk30Days() to Firestore. Not wired to the UI.
     @MainActor
     private func uploadFakeData() {
         guard !isUploadingFakeData else { return }
