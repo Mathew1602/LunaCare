@@ -12,6 +12,10 @@ extension InsightMetric: CaseIterable {
             .restingHR,
             .avgHR,
             .walkingHR,
+            .hrv,
+            .respiratoryRate,
+            .oxygenSaturation,
+            .vo2Max,
 
             // Sleep
             .sleepHours,
@@ -20,7 +24,24 @@ extension InsightMetric: CaseIterable {
             .coreSleepHours,
             .sleepEfficiencyPct,
             .wakeAfterSleepOnsetMin,
-            .sleepTroubleScore
+
+            // Activity
+            .steps,
+            .distanceWalked,
+            .flightsClimbed,
+            .activeEnergy,
+            .basalEnergy,
+            .exerciseMinutes,
+            .standHours,
+
+            // Mood, symptoms, and body measurements
+            .mood,
+            .fatigue,
+            .bleeding,
+            .hairLoss,
+            .appetiteIssue,
+            .sleepTrouble,
+            .weight
         ]
     }
 }

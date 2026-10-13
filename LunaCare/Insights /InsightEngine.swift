@@ -10,26 +10,40 @@ import Foundation
 
 struct InsightEngine {
 
-    /// Compare last 7 records vs previous 7 records (rolling weeks).
+    /// Compare the last 7 complete calendar days with the 7 days before them.
     static func compareLast7vsPrev7(
         records: [Measurement],
-        metric: InsightMetric
+        metric: InsightMetric,
+        now: Date = Date(),
+        calendar: Calendar = .current
     ) -> InsightResult? {
+        let today = calendar.startOfDay(for: now)
+        guard
+            let previousStart = calendar.date(byAdding: .day, value: -14, to: today),
+            let recentStart = calendar.date(byAdding: .day, value: -7, to: today)
+        else {
+            return nil
+        }
 
-        let sorted = records.sorted { $0.createdAt < $1.createdAt }
-        guard sorted.count >= 14 else { return nil }
+        let previousValues = dailyValues(
+            in: records,
+            metric: metric,
+            from: previousStart,
+            to: recentStart,
+            calendar: calendar
+        )
+        let recentValues = dailyValues(
+            in: records,
+            metric: metric,
+            from: recentStart,
+            to: today,
+            calendar: calendar
+        )
 
-        let last14 = Array(sorted.suffix(14))
-        let prev7 = Array(last14.prefix(7))
-        let last7 = Array(last14.suffix(7))
+        guard previousValues.count >= 5, recentValues.count >= 5 else { return nil }
 
-        let prevValues = prev7.compactMap { metric.value(from: $0) }
-        let lastValues = last7.compactMap { metric.value(from: $0) }
-
-        guard !prevValues.isEmpty, !lastValues.isEmpty else { return nil }
-
-        let prevAvg = prevValues.reduce(0, +) / Double(prevValues.count)
-        let lastAvg = lastValues.reduce(0, +) / Double(lastValues.count)
+        let prevAvg = previousValues.reduce(0, +) / Double(previousValues.count)
+        let lastAvg = recentValues.reduce(0, +) / Double(recentValues.count)
 
         let delta = lastAvg - prevAvg
         let pct = prevAvg != 0 ? (delta / prevAvg) * 100.0 : 0
@@ -52,16 +66,39 @@ struct InsightEngine {
         )
     }
 
-    /// Generates a human-readable insight sentence comparing rolling 7-day windows.
-    static func makeText(records: [Measurement], metric: InsightMetric) -> String? {
-        guard let r = compareLast7vsPrev7(records: records, metric: metric) else { return nil }
+    private static func dailyValues(
+        in records: [Measurement],
+        metric: InsightMetric,
+        from start: Date,
+        to end: Date,
+        calendar: Calendar
+    ) -> [Double] {
+        let valuesByDay = records.reduce(into: [Date: [Double]]()) { result, record in
+            guard record.createdAt >= start, record.createdAt < end,
+                  let value = metric.value(from: record),
+                  value.isFinite
+            else {
+                return
+            }
+            let day = calendar.startOfDay(for: record.createdAt)
+            result[day, default: []].append(value)
+        }
 
+        return valuesByDay.values.map { values in
+            values.reduce(0, +) / Double(values.count)
+        }
+    }
+
+    /// Generates a human-readable insight sentence from a weekly comparison.
+    static func makeText(result r: InsightResult, metric: InsightMetric) -> String {
         let goodOrBad: String
         if r.direction == "about the same" {
             goodOrBad = "stable"
-        } else {
-            let improvement = (r.delta > 0 && metric.higherIsBetter) || (r.delta < 0 && !metric.higherIsBetter)
+        } else if let higherIsBetter = metric.higherIsBetter {
+            let improvement = (r.delta > 0 && higherIsBetter) || (r.delta < 0 && !higherIsBetter)
             goodOrBad = improvement ? "an improvement" : "a decline"
+        } else {
+            goodOrBad = "a change"
         }
 
         return String(

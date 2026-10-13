@@ -14,29 +14,38 @@ final class WeeklyInsightService {
     private init() {}
 
     
-    func generateWeeklyInsights(measurements: [Measurement]) -> [WeeklyInsight] {
+    func generateWeeklyInsights(
+        measurements: [Measurement],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [WeeklyInsight] {
 
         var results: [WeeklyInsight] = []
 
         for metric in InsightMetric.allCases {
-            if let r = InsightEngine.compareLast7vsPrev7(records: measurements, metric: metric),
-               let text = InsightEngine.makeText(records: measurements, metric: metric) {
-
-                let insight = WeeklyInsight(
-                    id: UUID().uuidString,
-                    metric: metric.label,
-                    text: text,
-                    last7Avg: r.last7Avg,
-                    prev7Avg: r.prev7Avg,
-                    delta: r.delta,
-                    percentChange: r.percentChange,
-                    direction: r.direction,
-                    createdAt: Date(),
-                    localOnly: true     // will be flipped to false when successfully uploaded
-                )
-
-                results.append(insight)
+            guard let r = InsightEngine.compareLast7vsPrev7(
+                records: measurements,
+                metric: metric,
+                now: now,
+                calendar: calendar
+            ) else {
+                continue
             }
+
+            let insight = WeeklyInsight(
+                id: UUID().uuidString,
+                metric: metric.label,
+                text: InsightEngine.makeText(result: r, metric: metric),
+                last7Avg: r.last7Avg,
+                prev7Avg: r.prev7Avg,
+                delta: r.delta,
+                percentChange: r.percentChange,
+                direction: r.direction,
+                createdAt: now,
+                localOnly: true
+            )
+
+            results.append(insight)
         }
 
         return results
