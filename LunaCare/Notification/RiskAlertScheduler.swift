@@ -8,7 +8,7 @@
 import Foundation
 import UserNotifications
 
-/// Decides when to fire a high-risk health alert notification based on weekly insights.
+/// Applies trend-based red-flag rules to weekly insights.
 final class RiskAlertScheduler {
 
     static let shared = RiskAlertScheduler()
@@ -16,14 +16,13 @@ final class RiskAlertScheduler {
 
     private let lastAlertKey = "FA3_lastRiskAlertDate"
 
-    /// Call this with the current weekly insights (fake data or real).
+    /// Schedules one notification when a weekly insight matches a red-flag rule.
     /// It will:
-    /// - Look for a “high-risk” metric
+    /// - Look for a red-flag metric
     /// - Send ONE notification if needed
     /// - Never send more than once per calendar day
     func scheduleIfNeeded(from insights: [WeeklyInsight]) {
-        // 1. Find a high-risk insight
-        guard let highRisk = insights.first(where: { isHighRisk($0) }) else {
+        guard let redFlag = insights.first(where: Self.isRedFlag) else {
             return
         }
 
@@ -36,7 +35,7 @@ final class RiskAlertScheduler {
         //  Schedule local notification
         let content = UNMutableNotificationContent()
         content.title = "Health Alert"
-        content.body  = makeBody(from: highRisk)
+        content.body  = makeBody(from: redFlag)
         content.sound = .default
 
         // Small delay so it feels “later”, not exactly when you tap
@@ -59,11 +58,13 @@ final class RiskAlertScheduler {
         }
     }
 
-    // MARK: - High-risk rules
+    // MARK: - Trend red-flag rules
 
-    /// Very simple “risk rules” based on metric label + direction + % change.
-    /// Uses fake weekly data but works the same once you plug real data.
-    private func isHighRisk(_ insight: WeeklyInsight) -> Bool {
+    static func redFlagInsights(from insights: [WeeklyInsight]) -> [WeeklyInsight] {
+        insights.filter(isRedFlag)
+    }
+
+    private static func isRedFlag(_ insight: WeeklyInsight) -> Bool {
         let name = insight.metric.lowercased()
         let change = abs(insight.percentChange)
 

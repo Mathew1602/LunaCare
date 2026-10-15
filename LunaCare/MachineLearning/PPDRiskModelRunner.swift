@@ -34,17 +34,14 @@ final class PPDRiskModelRunner {
         let provider = try MLDictionaryFeatureProvider(dictionary: features)
         let output = try model.prediction(from: provider)
 
-        if let score = output.featureValue(for: "ppd_risk_score")?.doubleValue {
-            return score
-        }
-
-        if let first = output.featureNames.first,
-           let score = output.featureValue(for: first)?.doubleValue {
+        if let score = output.featureValue(for: "ppd_risk_score_0to1")?.doubleValue,
+           score.isFinite,
+           (0.0...1.0).contains(score) {
             return score
         }
 
         throw NSError(domain: "PPDRiskModelRunner",
                       code: -1,
-                      userInfo: [NSLocalizedDescriptionKey: "Model output missing/invalid"])
+                      userInfo: [NSLocalizedDescriptionKey: "Model output ppd_risk_score_0to1 is missing or outside 0-1."])
     }
 }

@@ -32,7 +32,7 @@ struct HealthAlertsView: View {
                     ProgressView("Checking alerts…")
                         .padding(.top, 20)
 
-                } else if vm.alertInsights.isEmpty {
+                } else if !vm.hasAlerts && !vm.hasRiskScore {
                     noAlertsView
 
                 } else {
@@ -40,7 +40,18 @@ struct HealthAlertsView: View {
                         ForEach(vm.alertInsights) { insight in
                             AlertCard(insight: insight)
                         }
+                        if let score = vm.ppdRiskScore {
+                            PPDModelAlertCard(
+                                score: score,
+                                thresholdPercent: vm.highPPDScoreThresholdPercent,
+                                isHighScore: vm.highPPDRiskScore != nil
+                            )
+                        }
                     }
+                }
+
+                if let message = vm.riskAssessmentMessage {
+                    riskAssessmentStatus(message)
                 }
 
                 Spacer(minLength: 40)
@@ -77,7 +88,7 @@ struct HealthAlertsView: View {
                 .font(.system(.title, design: .rounded).bold())
                 .multilineTextAlignment(.center)
 
-            Text("Generated from changes in your weekly health trends.")
+            Text("Red flags use weekly trend rules. ML alerts appear at model scores of \(vm.highPPDScoreThresholdPercent)% or higher.")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -94,11 +105,22 @@ struct HealthAlertsView: View {
             Text("No active alerts 🎉")
                 .font(.system(size: 17, weight: .semibold))
 
-            Text("Everything looks stable this week.")
+            Text("No data-based red flags or high model-score alerts are active. Trend checks need at least five days of data in each of the two complete weeks.")
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
         .padding(.top, 30)
+    }
+
+    private func riskAssessmentStatus(_ message: String) -> some View {
+        Label(message, systemImage: "info.circle")
+            .font(.system(size: 12))
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Color.lcLavenderSoft)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -130,7 +152,7 @@ private struct AlertCard: View {
                     .font(.system(size: 14))
                     .foregroundColor(.primary)
 
-                Label("Updated this week", systemImage: "clock")
+                Label("Compared with the previous week", systemImage: "clock")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }
@@ -147,29 +169,52 @@ private struct AlertCard: View {
     // MARK: - Badge
 
     private var severityBadge: some View {
-        let pct = abs(insight.percentChange)
-
-        let text: String
-        let color: Color
-
-        if pct > 20 {
-            text = "High"
-            color = .red
-        } else if pct > 8 {
-            text = "Medium"
-            color = .orange
-        } else {
-            text = "Low"
-            color = .yellow
-        }
-
-        return Text(text)
+        Text("Red flag")
             .font(.system(size: 12, weight: .semibold))
             .foregroundColor(.white)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(color)
+            .background(Color.lcWarningRed)
             .clipShape(Capsule())
+    }
+}
+
+private struct PPDModelAlertCard: View {
+    let score: Double
+    let thresholdPercent: Int
+    let isHighScore: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("PPD model score", systemImage: "brain.head.profile")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(isHighScore ? .lcWarningRed : .primary)
+                Spacer()
+                Text("\(Int((score * 100).rounded()))%")
+                    .font(.system(.title3, design: .rounded, weight: .bold))
+            }
+
+            ProgressView(value: score, total: 1)
+                .tint(isHighScore ? .lcWarningRed : .lcLavender)
+
+            Text(isHighScore
+                 ? "High-score alert: at or above the \(thresholdPercent)% cutoff."
+                 : "Below the \(thresholdPercent)% alert cutoff.")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(isHighScore ? .lcWarningRed : .secondary)
+
+            Text("Raw model output: \(String(format: "%.3f", score)) on a 0–1 scale. This is not verified confidence, a calibrated probability, or a diagnosis.")
+                .font(.system(size: 14))
+                .foregroundColor(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.lcLavenderSoft)
+                .shadow(color: Color.lcCardShadow, radius: 10, y: 6)
+        )
     }
 }
 
