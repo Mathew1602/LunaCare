@@ -4,6 +4,7 @@ Usage (from repo root, inside functions-ml venv):
     python federated-learning/scripts/set_ppd_label.py --uid <uid> --status ppd|no_ppd|unverified [--by demo-doctor]
     python federated-learning/scripts/set_ppd_label.py --email <email> --status ppd
     python federated-learning/scripts/set_ppd_label.py --list
+    python federated-learning/scripts/set_ppd_label.py --backfill   # ppdLabel=unverified on users missing it
 
 GOOGLE_APPLICATION_CREDENTIALS defaults to ~/Downloads/newlunacare-firebase-adminsdk-fbsvc-0968d9f0e2.json.
 """
@@ -29,12 +30,23 @@ def list_opted_in(db):
     print(f"{rows} opted-in user(s)")
 
 
+def backfill(db):
+    missing = [d.reference for d in db.collection("users").stream() if "ppdLabel" not in (d.to_dict() or {})]
+    for start in range(0, len(missing), 400):
+        batch = db.batch()
+        for ref in missing[start:start + 400]:
+            batch.set(ref, {"ppdLabel": {"status": "unverified", "verifiedAt": None, "verifiedBy": None}}, merge=True)
+        batch.commit()
+    print(f"backfilled ppdLabel=unverified on {len(missing)} user(s)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     who = ap.add_mutually_exclusive_group(required=True)
     who.add_argument("--uid")
     who.add_argument("--email")
     who.add_argument("--list", action="store_true")
+    who.add_argument("--backfill", action="store_true")
     ap.add_argument("--status", choices=STATUSES)
     ap.add_argument("--by", default="demo-doctor")
     args = ap.parse_args()
@@ -44,6 +56,9 @@ def main():
 
     if args.list:
         list_opted_in(db)
+        return
+    if args.backfill:
+        backfill(db)
         return
     if not args.status:
         ap.error("--status is required with --uid/--email")

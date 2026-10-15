@@ -22,6 +22,7 @@ final class UserRepository {
             "lastName": lastName,
             "displayName": "\(firstName) \(lastName)",
             "cloudSync": false,
+            "ppdLabel": ["status": "unverified", "verifiedAt": NSNull(), "verifiedBy": NSNull()],
             "createdAt": now,
             "updatedAt": now
         ]
