@@ -71,6 +71,19 @@ test("new user cannot create own doc with ppdLabel", async () => {
   await assertSucceeds(setDoc(doc(db, "users", "carol"), { name: "Carol" }));
 });
 
+test("client may only add the initial unverified ppdLabel", async () => {
+  const initial = { status: "unverified", verifiedAt: null, verifiedBy: null };
+  const db = env.authenticatedContext("carol").firestore();
+  await assertSucceeds(setDoc(doc(db, "users", "carol"), { name: "Carol", ppdLabel: initial }, { merge: true }));
+  await assertFails(updateDoc(doc(db, "users", "carol"), { ppdLabel: { ...initial, verifiedBy: "me" } }));
+  const dave = env.authenticatedContext("dave").firestore();
+  await assertFails(setDoc(doc(dave, "users", "dave"), { ppdLabel: { ...initial, extra: 1 } }));
+  await assertFails(setDoc(doc(dave, "users", "dave"), { ppdLabel: { ...initial, status: "ppd" } }));
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), "users", ALICE), { ppdLabel: { status: "ppd" } }, { merge: true }));
+  await assertFails(setDoc(doc(alice(), "users", ALICE), { ppdLabel: initial }, { merge: true }));
+});
+
 test("user can still update consent and other fields", async () => {
   await assertSucceeds(updateDoc(doc(alice(), "users", ALICE), { "consent.contributeToModel": false }));
   await assertSucceeds(setDoc(doc(alice(), "users", ALICE), { doctorIds: ["doc1"] }, { merge: true }));

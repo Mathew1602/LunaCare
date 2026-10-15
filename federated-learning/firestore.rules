@@ -18,12 +18,18 @@ service cloud.firestore {
       return ownsPseudoId(pid) && myUser().get('consent', {}).get('contributeToModel', false) == true;
     }
 
-    // ppdLabel is admin-only (set_ppd_label.py / functions). flPseudoId is write-once, and can't
-    // claim a pseudoId that already has contributions (delete + recreate the user doc is allowed).
+    // ppdLabel is admin-only (set_ppd_label.py / functions), except the client may add the initial
+    // unverified label when none exists. flPseudoId is write-once, and can't claim a pseudoId that
+    // already has contributions (delete + recreate the user doc is allowed).
+    function initialPpdLabel(before) {
+      return !('ppdLabel' in before)
+        && request.resource.data.ppdLabel == {'status': 'unverified', 'verifiedAt': null, 'verifiedBy': null};
+    }
+
     function validUserWrite() {
       let before = resource == null ? {} : resource.data;
       let changed = request.resource.data.diff(before).affectedKeys();
-      return !changed.hasAny(['ppdLabel'])
+      return (!changed.hasAny(['ppdLabel']) || initialPpdLabel(before))
         && (!changed.hasAny(['flPseudoId'])
             || (!('flPseudoId' in before)
                 && request.resource.data.flPseudoId is string
