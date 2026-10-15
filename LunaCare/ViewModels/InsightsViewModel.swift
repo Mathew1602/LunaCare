@@ -45,10 +45,8 @@ final class InsightsViewModel: ObservableObject {
         let weekly = snapshot.insights
 
         // Save to Firestore only if authenticated and cloud sync is on
-        if !auth.uid.isEmpty && env.isCloudSyncOn {
-            weekly.forEach { insight in
-                env.insightsRepo?.saveInsight(insight)
-            }
+        if !auth.uid.isEmpty && env.isCloudSyncOn, let repo = env.insightsRepo {
+            Task { await repo.syncInsights(weekly) }
         }
 
         insights = weekly
@@ -93,8 +91,13 @@ final class InsightsViewModel: ObservableObject {
             return
         }
 
+        guard let runner = PPDRiskModelRunner.shared else {
+            riskAssessmentMessage = "ML risk alert could not be calculated: model unavailable."
+            return
+        }
+
         do {
-            ppdRiskScore = try PPDRiskModelRunner.shared.predictRisk(from: snapshot.measurements)
+            ppdRiskScore = try runner.predictRisk(from: snapshot.measurements)
         } catch {
             riskAssessmentMessage = "ML risk alert could not be calculated: \(error.localizedDescription)"
         }
