@@ -29,9 +29,33 @@ struct RecommendationsView: View {
                     emptyState
                 } else {
                     recommendationSummary
-                    LazyVStack(spacing: 14) {
-                        ForEach(vm.recommendations) { item in
-                            RecommendationCard(item: item)
+
+                    let trendRecommendations = vm.recommendations.filter {
+                        $0.title != RecommendationEngine.screeningRecommendationTitle
+                    }
+                    let screeningRecommendations = vm.recommendations.filter {
+                        $0.title == RecommendationEngine.screeningRecommendationTitle
+                    }
+
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        if !trendRecommendations.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                ForEach(trendRecommendations) { item in
+                                    RecommendationCard(item: item)
+                                }
+                            }
+                        }
+
+                        if !screeningRecommendations.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                recommendationSectionTitle(
+                                    "Screening support",
+                                    subtitle: "The raw model score is supplemental, not a diagnosis or verified confidence."
+                                )
+                                ForEach(screeningRecommendations) { item in
+                                    RecommendationCard(item: item)
+                                }
+                            }
                         }
                     }
                 }
@@ -44,8 +68,8 @@ struct RecommendationsView: View {
         .navigationTitle("Recommendations")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if vm.insights.isEmpty {
-                await vm.loadInsights()
+            if vm.ppdRiskScore == nil && vm.riskAssessmentMessage == nil {
+                await vm.loadInsights(includeRiskAssessment: true)
             }
         }
     }
@@ -56,7 +80,7 @@ struct RecommendationsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Recommendations")
                         .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Small, supportive steps shaped by your trends.")
+                    Text("A few supportive ideas based on your recent health and check-in trends.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -68,41 +92,50 @@ struct RecommendationsView: View {
                     .frame(width: 48, height: 48)
                     .background(Color.purple.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
             }
-
-            Label("Based on your weekly health data", systemImage: "waveform.path.ecg")
-                .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 12)
     }
 
     private var recommendationSummary: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "heart.text.square.fill")
-                .font(.title2)
-                .foregroundColor(.purple)
-                .frame(width: 44, height: 44)
-                .background(Color.purple.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: "heart.text.square.fill")
+                    .font(.title2)
+                    .foregroundColor(.purple)
+                    .frame(width: 46, height: 46)
+                    .background(Color.purple.opacity(0.1), in: RoundedRectangle(cornerRadius: 15))
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("A few ideas for this week")
-                    .font(.subheadline.weight(.semibold))
-                Text("Choose what feels useful for you.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("A few ideas for this week")
+                        .font(.headline)
+                    Text("Based on your recent Insights—not a fixed checklist.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
-            Text("\(vm.recommendations.count)")
-                .font(.headline.weight(.bold))
-                .foregroundColor(.purple)
         }
-        .padding(15)
-        .background(.background, in: RoundedRectangle(cornerRadius: 18))
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.purple.opacity(0.14), lineWidth: 1)
+                .stroke(Color.purple.opacity(0.12), lineWidth: 1)
         }
+    }
+
+    private func recommendationSectionTitle(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 6)
+        .accessibilityElement(children: .combine)
     }
 
     private var emptyState: some View {
@@ -114,10 +147,12 @@ struct RecommendationsView: View {
                 .background(Color.purple.opacity(0.1), in: Circle())
 
             VStack(spacing: 7) {
-                Text("Recommendations grow with your data")
+                Text(vm.insights.isEmpty ? "Ideas grow with your check-ins" : "No specific nudge right now")
                     .font(.headline)
                     .multilineTextAlignment(.center)
-                Text("Keep syncing Apple Health and logging mood or symptoms. We’ll share trend-based ideas when there’s enough data to compare two weeks.")
+                Text(vm.insights.isEmpty
+                     ? "Keep syncing Apple Health and logging mood or symptoms. We’ll suggest something when your Insights show a useful change."
+                     : "Your recent Insights don’t show a change that calls for a specific suggestion. Keep checking in, and we’ll share an idea when a trend gives us something useful.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -186,59 +221,58 @@ private struct RecommendationCard: View {
                 .frame(width: 44, height: 44)
                 .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 7) {
                 Text(item.title)
-                    .font(.system(.headline, design: .rounded))
+                    .font(.headline)
                     .foregroundColor(.primary)
 
                 Text(item.subtitle)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary.opacity(0.85))
                     .fixedSize(horizontal: false, vertical: true)
 
-                Divider()
-
+                Text(item.title == RecommendationEngine.screeningRecommendationTitle
+                     ? "SCREENING SIGNAL"
+                     : "FROM YOUR INSIGHTS")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.secondary)
+                    .padding(.top, 3)
                 Text(item.reason)
                     .font(.footnote)
-                    .foregroundColor(.primary.opacity(0.82))
+                    .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(15)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-                .shadow(color: tint.opacity(0.08), radius: 10, y: 4)
-        )
-        .overlay(alignment: .leading) {
-            Capsule()
-                .fill(tint)
-                .frame(width: 4)
-                .padding(.vertical, 15)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(tint.opacity(0.14), lineWidth: 1)
         }
     }
 
     private var symbol: String {
         switch item.title {
-        case "Sleep Routine": return "moon.zzz.fill"
-        case "Wind-Down Breathing": return "wind"
-        case "Relaxed Movement", "Daily Movement": return "figure.walk"
-        case "Mood Check-In": return "face.smiling"
-        case "Symptom Check-In": return "cross.case"
-        case "Hydration": return "drop.fill"
+        case "Make a little room for rest", "Try one small wind-down cue": return "moon.zzz.fill"
+        case "Keep movement gentle and doable": return "figure.walk"
+        case "Make space for support", RecommendationEngine.screeningRecommendationTitle: return "heart"
+        case "Notice when symptoms show up": return "cross.case"
+        case "Check in with how you’re feeling": return "heart.text.square"
         default: return "sparkles"
         }
     }
 
     private var tint: Color {
         switch item.title {
-        case "Sleep Routine", "Wind-Down Breathing": return Color(red: 0.48, green: 0.40, blue: 0.78)
-        case "Relaxed Movement", "Daily Movement": return Color(red: 0.25, green: 0.61, blue: 0.48)
-        case "Mood Check-In": return Color(red: 0.80, green: 0.56, blue: 0.31)
-        case "Symptom Check-In": return Color(red: 0.78, green: 0.48, blue: 0.38)
-        case "Hydration": return Color(red: 0.30, green: 0.58, blue: 0.78)
+        case "Make a little room for rest", "Try one small wind-down cue":
+            return Color(red: 0.48, green: 0.40, blue: 0.78)
+        case "Keep movement gentle and doable": return Color(red: 0.25, green: 0.61, blue: 0.48)
+        case "Make space for support", RecommendationEngine.screeningRecommendationTitle:
+            return Color(red: 0.78, green: 0.48, blue: 0.38)
+        case "Notice when symptoms show up", "Check in with how you’re feeling":
+            return Color(red: 0.78, green: 0.40, blue: 0.48)
         default: return .purple
         }
     }

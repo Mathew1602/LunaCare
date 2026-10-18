@@ -17,13 +17,12 @@ import Foundation
 @MainActor
 final class InsightsViewModel: ObservableObject {
 
-    private static let highPPDScoreThreshold = 0.90
-
     @Published var insights: [WeeklyInsight] = []
     @Published var isLoading = false
     @Published var errorMessage: String? = nil
     @Published private(set) var ppdRiskScore: Double?
     @Published private(set) var riskAssessmentMessage: String?
+    @Published private(set) var metricCoverage: [String: InsightMetricCoverage] = [:]
 
     private let auth: AuthViewModel
     private let env: AppEnvironment
@@ -51,6 +50,7 @@ final class InsightsViewModel: ObservableObject {
         }
 
         insights = weekly
+        metricCoverage = snapshot.metricCoverage
         if includeRiskAssessment {
             await loadRiskAssessment(using: snapshot)
         } else {
@@ -106,7 +106,8 @@ final class InsightsViewModel: ObservableObject {
     }
 
     var highPPDRiskScore: Double? {
-        guard let ppdRiskScore, ppdRiskScore >= Self.highPPDScoreThreshold else { return nil }
+        guard let ppdRiskScore,
+              ppdRiskScore >= RecommendationEngine.highPPDScoreThreshold else { return nil }
         return ppdRiskScore
     }
 
@@ -115,7 +116,7 @@ final class InsightsViewModel: ObservableObject {
     }
 
     var highPPDScoreThresholdPercent: Int {
-        Int((Self.highPPDScoreThreshold * 100).rounded())
+        Int((RecommendationEngine.highPPDScoreThreshold * 100).rounded())
     }
 
     var hasAlerts: Bool {
@@ -138,6 +139,14 @@ final class InsightsViewModel: ObservableObject {
 
     // MARK: - Recommendations
     var recommendations: [RecommendationEngine.RecommendationItem] {
-        RecommendationEngine.build(from: insights)
+        RecommendationEngine.build(from: insights, ppdRiskScore: ppdRiskScore)
+    }
+
+    var eligibleMetricCount: Int {
+        metricCoverage.values.filter(\.isSufficient).count
+    }
+
+    func coverage(for metric: String) -> InsightMetricCoverage? {
+        metricCoverage[metric]
     }
 }

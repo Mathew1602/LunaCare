@@ -101,6 +101,10 @@ struct InsightsOverviewView: View {
             VStack(spacing: 22) {
                 header
 
+                if !vm.isLoading {
+                    alertsToolbarLink
+                }
+
                 if vm.isLoading {
                     ProgressView("Analyzing your data…")
                         .frame(maxWidth: .infinity)
@@ -112,21 +116,10 @@ struct InsightsOverviewView: View {
                 } else {
                     if !vm.insights.isEmpty {
                         summaryCard
+                        dataCoverageCard
                     }
 
-                    if vm.hasAlerts {
-                        NavigationLink {
-                            HealthAlertsView()
-                                .environmentObject(vm)
-                        } label: {
-                            OverviewAlertCard(
-                                alertCount: vm.alertCount,
-                                metricNames: vm.alertMetricNames
-                            )
-                        }
-                    }
-
-                    if !vm.hasAlerts, let score = vm.ppdRiskScore {
+                    if let score = vm.ppdRiskScore {
                         NavigationLink {
                             HealthAlertsView()
                                 .environmentObject(vm)
@@ -212,6 +205,41 @@ struct InsightsOverviewView: View {
         .padding(.top, 12)
     }
 
+    private var alertsToolbarLink: some View {
+        NavigationLink {
+            HealthAlertsView()
+                .environmentObject(vm)
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: vm.hasAlerts ? "bell.badge.fill" : "bell")
+                Text("Alerts")
+                if vm.alertCount > 0 {
+                    Text("\(vm.alertCount)")
+                        .font(.caption2.weight(.bold).monospacedDigit())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.red, in: Capsule())
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundColor(.secondary)
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundColor(vm.hasAlerts ? .red : .primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+            .overlay {
+                Capsule().stroke(Color(.separator).opacity(0.2), lineWidth: 1)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(vm.alertCount > 0 ? "Alerts, \(vm.alertCount) active" : "Alerts")
+    }
+
     private var summaryCard: some View {
         HStack(spacing: 14) {
             Image(systemName: "chart.xyaxis.line")
@@ -246,6 +274,42 @@ struct InsightsOverviewView: View {
                 .stroke(Color.lcLavender.opacity(0.18), lineWidth: 1)
         }
         .shadow(color: .lcCardShadow, radius: 12, y: 5)
+    }
+
+    private var dataCoverageCard: some View {
+        let metricsWithData = vm.metricCoverage.values.filter {
+            $0.previousWeekDays > 0 || $0.lastWeekDays > 0
+        }.count
+        let coveredMetrics = vm.eligibleMetricCount
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundColor(Color.lcLavender)
+                Text("Data coverage")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(coveredMetrics)/\(metricsWithData)")
+                    .font(.caption.weight(.bold).monospacedDigit())
+                    .foregroundColor(.secondary)
+            }
+
+            if metricsWithData > 0 {
+                ProgressView(value: Double(coveredMetrics), total: Double(metricsWithData))
+                    .tint(Color.lcLavender)
+            }
+
+            Text("Showing a trend only when that metric has valid readings on at least 5 distinct days in both weeks. Coverage counts are shown on each trend.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(15)
+        .background(.background, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.lcLavender.opacity(0.15), lineWidth: 1)
+        }
     }
 
     private var emptyState: some View {
@@ -357,6 +421,8 @@ private struct InsightCategorySection: View {
 // MARK: - Sparkline Card
 
 private struct InsightCard: View {
+    @EnvironmentObject var vm: InsightsViewModel
+
     let insight: WeeklyInsight
     let tint: Color
 
@@ -390,6 +456,15 @@ private struct InsightCard: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if let coverage = vm.coverage(for: insight.metric) {
+                Label(
+                    "Data coverage: \(coverage.previousWeekDays)/7 days previous, \(coverage.lastWeekDays)/7 days last",
+                    systemImage: coverage.isSufficient ? "checkmark.circle" : "exclamationmark.circle"
+                )
+                .font(.caption2.weight(.medium))
+                .foregroundColor(coverage.isSufficient ? tint : .secondary)
+            }
         }
         .padding(14)
         .background(
@@ -451,48 +526,6 @@ private struct MiniChart: View {
         let high = max(prev, last)
         let padding = max(max((high - low) * 0.3, abs(high) * 0.03), 0.1)
         return (low - padding)...(high + padding)
-    }
-}
-
-// MARK: - Alert Callout
-
-private struct OverviewAlertCard: View {
-    let alertCount: Int
-    let metricNames: [String]
-
-    var subtitle: String {
-        let names = metricNames.map { $0.capitalized }
-        if names.count == 1 { return "\(names[0]) triggered an alert. Tap to review." }
-        return "\(names[0]) and \(names[1]) triggered alerts. Tap to review."
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "bell.badge.fill")
-                .font(.title2)
-                .foregroundColor(.white)
-                .padding(10)
-                .background(Color.red)
-                .clipShape(Circle())
-
-            VStack(alignment: .leading) {
-                Text("Health Alerts")
-                    .font(.subheadline.bold())
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-            Image(systemName: "chevron.right")
-                .foregroundColor(.secondary)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.lcLavenderSoft)
-                .shadow(color: .lcCardShadow, radius: 8, y: 4)
-        )
     }
 }
 

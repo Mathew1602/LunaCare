@@ -21,11 +21,10 @@ struct InsightsDetailView: View {
 
                 headerSection
 
-                CombinedCategoryChart(insights: insights)
-                    .frame(height: 220)
-                    .padding(.top, 8)
-
                 VStack(alignment: .leading, spacing: 18) {
+                    Text("Week-to-week trends")
+                        .font(.headline)
+
                     ForEach(insights) { item in
                         InsightBreakdownCard(insight: item)
                     }
@@ -56,6 +55,8 @@ struct InsightsDetailView: View {
 // MARK: - Insight Breakdown Card
 
 private struct InsightBreakdownCard: View {
+    @EnvironmentObject var vm: InsightsViewModel
+
     let insight: WeeklyInsight
 
     var body: some View {
@@ -67,14 +68,34 @@ private struct InsightBreakdownCard: View {
 
                 Spacer()
 
-                Text(String(format: "%.1f%%", insight.percentChange))
+                Label(insight.direction.capitalized, systemImage: directionSymbol)
                     .font(.subheadline.bold())
-                    .foregroundColor(insight.percentChange >= 0 ? .green : .red)
+                    .foregroundColor(directionColor)
             }
+
+            MetricWeeklyChart(insight: insight)
+                .frame(height: 150)
+
+            HStack {
+                Text("Previous: \(String(format: "%.2f", insight.prev7Avg))")
+                Spacer()
+                Text("Last: \(String(format: "%.2f", insight.last7Avg))")
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundColor(.secondary)
 
             Text(insight.text)
                 .font(.footnote)
                 .foregroundColor(.secondary)
+
+            if let coverage = vm.coverage(for: insight.metric) {
+                Label(
+                    "\(coverage.previousWeekDays)/7 days previous · \(coverage.lastWeekDays)/7 days last",
+                    systemImage: coverage.isSufficient ? "checkmark.circle" : "exclamationmark.circle"
+                )
+                .font(.caption2)
+                .foregroundColor(coverage.isSufficient ? .green : .secondary)
+            }
         }
         .padding()
         .background(
@@ -82,51 +103,65 @@ private struct InsightBreakdownCard: View {
                 .fill(Color(.systemGray6).opacity(0.75))
         )
     }
-}
 
-
-// MARK: - Combined Multi-Metric Category Chart
-
-private struct CombinedCategoryChart: View {
-    let insights: [WeeklyInsight]
-
-    var body: some View {
-        Chart {
-            ForEach(insights) { item in
-
-                LineMark(
-                    x: .value("Week", "Previous"),
-                    y: .value("Avg", item.prev7Avg)
-                )
-                .foregroundStyle(color(for: item))
-                .interpolationMethod(.catmullRom)
-                .symbol(by: .value("Metric", item.metric))
-
-                LineMark(
-                    x: .value("Week", "Last"),
-                    y: .value("Avg", item.last7Avg)
-                )
-                .foregroundStyle(color(for: item))
-                .interpolationMethod(.catmullRom)
-                .symbol(by: .value("Metric", item.metric))
-            }
-        }
-        .chartLegend(.visible)
-        .chartXAxis {
-            AxisMarks(values: ["Previous", "Last"])
-        }
-        .chartYAxis {
-            AxisMarks()
+    private var directionSymbol: String {
+        switch insight.direction {
+        case "higher": return "arrow.up.right"
+        case "lower": return "arrow.down.right"
+        default: return "arrow.right"
         }
     }
 
-    // Pastel theme unique per metric
-    private func color(for insight: WeeklyInsight) -> Color {
-        let name = insight.metric.lowercased()
-        if name.contains("rest") { return Color(red: 0.67, green: 0.63, blue: 0.94) } // lavender
-        if name.contains("avg")  { return Color(red: 0.62, green: 0.80, blue: 0.87) } // aqua
-        if name.contains("walk") { return Color(red: 0.76, green: 0.84, blue: 0.69) } // green pastel
-        if name.contains("sleep") { return Color(red: 0.85, green: 0.74, blue: 0.92) } // violet softer
-        return .purple.opacity(0.7)
+    private var directionColor: Color {
+        guard let metric = InsightMetric.allCases.first(where: {
+            $0.label.caseInsensitiveCompare(insight.metric) == .orderedSame
+        }), let higherIsBetter = metric.higherIsBetter else {
+            return .secondary
+        }
+
+        if insight.direction == "about the same" {
+            return .secondary
+        }
+        let isImprovement = (insight.direction == "higher" && higherIsBetter) ||
+            (insight.direction == "lower" && !higherIsBetter)
+        return isImprovement ? .green : .orange
+    }
+}
+
+private struct MetricWeeklyChart: View {
+    let insight: WeeklyInsight
+
+    var body: some View {
+        Chart {
+            LineMark(
+                x: .value("Week", "Previous"),
+                y: .value("Average", insight.prev7Avg)
+            )
+            .foregroundStyle(.purple)
+            .symbol(.circle)
+            LineMark(
+                x: .value("Week", "Last"),
+                y: .value("Average", insight.last7Avg)
+            )
+            .foregroundStyle(.purple)
+            .symbol(.circle)
+        }
+        .chartLegend(.hidden)
+        .chartXAxis {
+            AxisMarks(values: ["Previous", "Last"]) { value in
+                AxisValueLabel()
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading)
+        }
+        .chartYScale(domain: chartDomain)
+    }
+
+    private var chartDomain: ClosedRange<Double> {
+        let low = min(insight.prev7Avg, insight.last7Avg)
+        let high = max(insight.prev7Avg, insight.last7Avg)
+        let padding = max((high - low) * 0.25, abs(high) * 0.03, 0.1)
+        return (low - padding)...(high + padding)
     }
 }
