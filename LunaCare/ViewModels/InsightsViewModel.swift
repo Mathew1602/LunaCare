@@ -17,6 +17,8 @@ import Foundation
 @MainActor
 final class InsightsViewModel: ObservableObject {
 
+    private static let highPPDScoreThreshold = 0.90
+
     @Published var insights: [WeeklyInsight] = []
     @Published var isLoading = false
     @Published var errorMessage: String? = nil

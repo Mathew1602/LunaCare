@@ -566,3 +566,41 @@ private struct InsightRiskScoreCard: View {
         )
     }
 }
+
+private struct InsightRiskScoreCard: View {
+    let score: Double
+    let threshold: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("PPD model score", systemImage: "brain.head.profile")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.primary)
+                Spacer()
+                Text("\(Int((score * 100).rounded()))%")
+                    .font(.system(.title3, design: .rounded, weight: .bold))
+                    .foregroundColor(score >= threshold ? .red : .primary)
+            }
+
+            ProgressView(value: score, total: 1)
+                .tint(score >= threshold ? .red : .lcLavender)
+
+            Text(score >= threshold
+                 ? "High-score alert. Open to view details."
+                 : "Below the \(Int((threshold * 100).rounded()))% alert cutoff. Open to view details.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text("Raw model output—not verified confidence or a diagnosis.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.lcLavenderSoft)
+                .shadow(color: .lcCardShadow, radius: 8, y: 4)
+        )
+    }
+}
