@@ -10,7 +10,17 @@ import Foundation
 struct InsightDataSnapshot {
     let insights: [WeeklyInsight]
     let measurements: [Measurement]
+    let metricCoverage: [String: InsightMetricCoverage]
     let loadErrorMessage: String?
+}
+
+struct InsightMetricCoverage {
+    let previousWeekDays: Int
+    let lastWeekDays: Int
+
+    var isSufficient: Bool {
+        previousWeekDays >= 5 && lastWeekDays >= 5
+    }
 }
 
 @MainActor
@@ -32,7 +42,12 @@ final class InsightService {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: now)
         guard let from = calendar.date(byAdding: .day, value: -29, to: today) else {
-            return InsightDataSnapshot(insights: [], measurements: [], loadErrorMessage: nil)
+            return InsightDataSnapshot(
+                insights: [],
+                measurements: [],
+                metricCoverage: [:],
+                loadErrorMessage: nil
+            )
         }
 
         if uid.isEmpty || !SyncManager.shared.isCloudSyncOn {
@@ -40,8 +55,14 @@ final class InsightService {
             let moods = LocalMoodStore.shared.offlineMoodHistory(from: from, to: now)
             let symptoms = LocalSymptomStore.shared.offlineSymptomHistory(from: from, to: now)
             let records = combining(measurements: measurements, moods: moods, symptoms: symptoms)
+            let coverage = metricCoverage(for: records, now: now, calendar: calendar)
             guard !records.isEmpty else {
-                return InsightDataSnapshot(insights: [], measurements: records, loadErrorMessage: nil)
+                return InsightDataSnapshot(
+                    insights: [],
+                    measurements: records,
+                    metricCoverage: coverage,
+                    loadErrorMessage: nil
+                )
             }
 
             let weekly = WeeklyInsightService.shared.generateWeeklyInsights(
@@ -50,7 +71,12 @@ final class InsightService {
                 calendar: calendar
             )
             LocalStorageInsights.shared.save(weekly)
-            return InsightDataSnapshot(insights: weekly, measurements: records, loadErrorMessage: nil)
+            return InsightDataSnapshot(
+                insights: weekly,
+                measurements: records,
+                metricCoverage: coverage,
+                loadErrorMessage: nil
+            )
         }
 
         do {
@@ -63,8 +89,14 @@ final class InsightService {
                 symptomsFetch
             )
             let records = combining(measurements: measurements, moods: moods, symptoms: symptoms)
+            let coverage = metricCoverage(for: records, now: now, calendar: calendar)
             guard !records.isEmpty else {
-                return InsightDataSnapshot(insights: [], measurements: records, loadErrorMessage: nil)
+                return InsightDataSnapshot(
+                    insights: [],
+                    measurements: records,
+                    metricCoverage: coverage,
+                    loadErrorMessage: nil
+                )
             }
 
             let weekly = WeeklyInsightService.shared.generateWeeklyInsights(
@@ -73,16 +105,58 @@ final class InsightService {
                 calendar: calendar
             )
             LocalStorageInsights.shared.save(weekly)
-            return InsightDataSnapshot(insights: weekly, measurements: records, loadErrorMessage: nil)
+            return InsightDataSnapshot(
+                insights: weekly,
+                measurements: records,
+                metricCoverage: coverage,
+                loadErrorMessage: nil
+            )
 
         } catch {
             print("Insight load failed: \(error)")
             return InsightDataSnapshot(
                 insights: LocalStorageInsights.shared.load(),
                 measurements: [],
+                metricCoverage: [:],
                 loadErrorMessage: error.localizedDescription
             )
         }
+    }
+
+    private func metricCoverage(
+        for records: [Measurement],
+        now: Date,
+        calendar: Calendar
+    ) -> [String: InsightMetricCoverage] {
+        let today = calendar.startOfDay(for: now)
+        guard let previousStart = calendar.date(byAdding: .day, value: -14, to: today),
+              let recentStart = calendar.date(byAdding: .day, value: -7, to: today)
+        else {
+            return [:]
+        }
+
+        return Dictionary(uniqueKeysWithValues: InsightMetric.allCases.map { metric in
+            func coveredDays(from start: Date, to end: Date) -> Int {
+                Set(records.compactMap { record -> Date? in
+                    guard record.createdAt >= start,
+                          record.createdAt < end,
+                          let value = metric.value(from: record),
+                          value.isFinite
+                    else {
+                        return nil
+                    }
+                    return calendar.startOfDay(for: record.createdAt)
+                }).count
+            }
+
+            return (
+                metric.label,
+                InsightMetricCoverage(
+                    previousWeekDays: coveredDays(from: previousStart, to: recentStart),
+                    lastWeekDays: coveredDays(from: recentStart, to: today)
+                )
+            )
+        })
     }
 
     private func combining(
