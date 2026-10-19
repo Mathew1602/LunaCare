@@ -1,0 +1,118 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    function myUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function ownsPseudoId(pid) {
+      return signedIn() && myUser().get('flPseudoId', null) == pid;
+    }
+    // Uploads need live consent so an in-flight upload can't recreate data after opt-out.
+    function canContribute(pid) {
+      return ownsPseudoId(pid) && myUser().get('consent', {}).get('contributeToModel', false) == true;
+    }
+
+    // ppdLabel is admin-only (set_ppd_label.py / functions), except the client may add the initial
+    // unverified label when none exists. flPseudoId is write-once, and can't claim a pseudoId that
+    // already has contributions (delete + recreate the user doc is allowed).
+    function initialPpdLabel(before) {
+      return !('ppdLabel' in before)
+        && request.resource.data.ppdLabel == {'status': 'unverified', 'verifiedAt': null, 'verifiedBy': null};
+    }
+
+    function validUserWrite() {
+      let before = resource == null ? {} : resource.data;
+      let changed = request.resource.data.diff(before).affectedKeys();
+      return (!changed.hasAny(['ppdLabel']) || initialPpdLabel(before))
+        && (!changed.hasAny(['flPseudoId'])
+            || (!('flPseudoId' in before)
+                && request.resource.data.flPseudoId is string
+                && !exists(/databases/$(database)/documents/fl_contributions/$(request.resource.data.flPseudoId))));
+    }
+
+    function validContribution() {
+      return request.resource.data.keys().hasOnly(['createdAt', 'lastUploadAt', 'featureSchemaVersion'])
+        && request.resource.data.featureSchemaVersion == 1;
+    }
+
+    // Shape only; value types are re-checked server-side (build_training_sample.clean_features).
+    function validSnapshot() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['features', 'daysWithData', 'windowStart', 'windowEnd', 'featureSchemaVersion', 'appModelVersion'])
+        && d.features is map && d.features.size() == 168
+        && d.daysWithData is int && d.daysWithData >= 0 && d.daysWithData <= 30
+        && d.windowStart is timestamp
+        && d.windowEnd is timestamp && d.windowEnd <= request.time + duration.value(5, 'm')
+        && d.windowStart <= d.windowEnd
+        && d.featureSchemaVersion == 1
+        && (!('appModelVersion' in d) || d.appModelVersion is int);
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validUserWrite();
+
+      // Subcollections only. {sub=**} alone also matches users/{uid} itself in rules v2.
+      match /{collection}/{path=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    match /fl_contributions/{pid} {
+      allow read, delete: if ownsPseudoId(pid);
+      allow create, update: if canContribute(pid) && validContribution();
+
+      match /snapshots/{sid} {
+        allow read, delete: if ownsPseudoId(pid);
+        allow create, update: if canContribute(pid) && validSnapshot();
+      }
+    }
+
+    match /ml_models/{doc=**} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /training_samples/{doc} {
+      allow read, write: if false;
+    }
+    match /training_runs/{doc} {
+      allow read, write: if false;
+    }
+
+    // Unchanged from the live rules (2026-10-09).
+    match /doctors/{doctorId} {
+      function me() { return request.auth.uid; }
+      function patients(d) { return d.get('patientIds', []).toSet(); }
+      function pending(d) { return d.get('pendingPatientIds', []).toSet(); }
+      function onlyListsChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['patientIds', 'pendingPatientIds']);
+      }
+
+      allow read: if request.auth != null
+        && (me() in resource.data.patientIds
+            || me() in resource.data.pendingPatientIds);
+
+      allow update: if request.auth != null && onlyListsChanged() && (
+        // Approve or decline my own pending request
+        (me() in resource.data.get('pendingPatientIds', [])
+          && pending(request.resource.data) == pending(resource.data).difference([me()].toSet())
+          && (patients(request.resource.data) == patients(resource.data).union([me()].toSet())
+              || patients(request.resource.data) == patients(resource.data)))
+        ||
+        // Revoke my own access
+        (me() in resource.data.get('patientIds', [])
+          && patients(request.resource.data) == patients(resource.data).difference([me()].toSet())
+          && pending(request.resource.data) == pending(resource.data))
+      );
+
+      allow create, delete: if false;
+    }
+  }
+}

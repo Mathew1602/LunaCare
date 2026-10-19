@@ -169,63 +169,6 @@ struct RecommendationsView: View {
         }
     }
 
-    private var recommendationSummary: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "heart.text.square.fill")
-                .font(.title2)
-                .foregroundColor(.purple)
-                .frame(width: 44, height: 44)
-                .background(Color.purple.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("A few ideas for this week")
-                    .font(.subheadline.weight(.semibold))
-                Text("Choose what feels useful for you.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            Spacer(minLength: 0)
-            Text("\(vm.recommendations.count)")
-                .font(.headline.weight(.bold))
-                .foregroundColor(.purple)
-        }
-        .padding(15)
-        .background(.background, in: RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.purple.opacity(0.14), lineWidth: 1)
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 15) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 28, weight: .medium))
-                .foregroundColor(.purple)
-                .frame(width: 66, height: 66)
-                .background(Color.purple.opacity(0.1), in: Circle())
-
-            VStack(spacing: 7) {
-                Text("Recommendations grow with your data")
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-                Text("Keep syncing Apple Health and logging mood or symptoms. We’ll share trend-based ideas when there’s enough data to compare two weeks.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 22)
-        .padding(.vertical, 28)
-        .background(.background, in: RoundedRectangle(cornerRadius: 22))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(Color.purple.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [6]))
-        }
-    }
-
     // MARK: - Reminders section
     private var remindersSection: some View {
         VStack(alignment: .leading, spacing: 14) {

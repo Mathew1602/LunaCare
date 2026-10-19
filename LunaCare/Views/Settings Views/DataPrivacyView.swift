@@ -30,6 +30,7 @@ struct DataPrivacyView: View {
     @StateObject private var vm = DataPrivacyViewModel()
     @State private var doctorToRevoke: Doctor? = nil
     @State private var showDeleteSheet = false
+    @State private var modelVersionText = Self.currentModelVersionText()
 
     var body: some View {
         ScrollView {
@@ -61,6 +62,9 @@ struct DataPrivacyView: View {
         .navigationTitle("Data Privacy")
         .navigationBarTitleDisplayMode(.inline)
         .task { await vm.load(uid: auth.uid) }
+        .onReceive(NotificationCenter.default.publisher(for: ModelUpdateService.didUpdateNotification)) { _ in
+            modelVersionText = Self.currentModelVersionText()
+        }
         .refreshable { await vm.load(uid: auth.uid) }
         .confirmationDialog(
             "Revoke access for \(doctorToRevoke?.displayName ?? "this doctor")?",
@@ -227,6 +231,13 @@ struct DataPrivacyView: View {
                         isOn: vm.consent.riskInsights,
                         key: .riskInsights
                     )
+                    Divider()
+                    consentToggle(
+                        title: "Help improve LunaCare's PPD model",
+                        detail: "Shares an anonymous 30-day summary (no names, no daily logs) to retrain the risk model. If your doctor confirms a diagnosis, it's used as a training label. Turn off anytime to delete it.",
+                        isOn: vm.consent.contributeToModel,
+                        key: .contributeToModel
+                    )
                     if let updated = vm.consent.updatedAt {
                         Text("Last updated \(updated.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption2)
@@ -253,12 +264,21 @@ struct DataPrivacyView: View {
         .tint(Color(.systemIndigo))
     }
 
+    private static func currentModelVersionText() -> String {
+        let version = ModelUpdateService.currentVersion
+        guard let updated = ModelUpdateService.updatedAt else {
+            return "Risk model version: v\(version) (built in)"
+        }
+        return "Risk model version: v\(version) (updated \(updated.formatted(date: .abbreviated, time: .omitted)))"
+    }
+
     private var onDeviceSection: some View {
         PrivacySection(title: "How Your Data Is Used") {
             PrivacyCard {
                 VStack(alignment: .leading, spacing: 12) {
-                    Label("Your PPD risk score is calculated on your phone. The model never sends your data anywhere.", systemImage: "iphone")
+                    Label("Your PPD risk score is calculated on your phone. If you opt in above, only an anonymous 30-day summary is shared to improve the model.", systemImage: "iphone")
                     Label("HealthKit data is only read with your permission. Manage it in iOS Settings → Health.", systemImage: "heart")
+                    Label(modelVersionText, systemImage: "cpu")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)

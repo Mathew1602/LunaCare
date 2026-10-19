@@ -14,11 +14,16 @@ struct LunaCareApp: App {
 
     @StateObject private var env  = AppEnvironment.shared
     @StateObject private var auth = AuthViewModel()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // This activates connectivity to watchOS
         WatchConnectivityManager.shared.activate()
         _ = WatchSyncService.shared
+
+        #if DEBUG
+        Task.detached(priority: .background) { PPDParityCheck.run() }
+        #endif
     }
 
     var body: some Scene {
@@ -27,6 +32,19 @@ struct LunaCareApp: App {
                 .environmentObject(env)
                 .environmentObject(auth)
                 .preferredColorScheme(env.selectedTheme.colorScheme)
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { runModelSync() }
+                }
+                .onChange(of: auth.uid) { _, uid in
+                    if !uid.isEmpty { runModelSync() }
+                }
+        }
+    }
+
+    private func runModelSync() {
+        Task {
+            await ModelUpdateService.shared.checkForUpdate()
+            await FLContributionService.shared.uploadIfDue()
         }
     }
 }
