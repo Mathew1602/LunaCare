@@ -135,15 +135,29 @@ struct HomeContentView: View {
 
                     // Quick Access
                     HStack(spacing: 20) {
-                        QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
+                        NavigationLink {
+                            ReportsView()
+                                .environmentObject(auth)
+                        } label: {
+                            QuickAccessButton(
+                                icon: "doc.text.magnifyingglass",
+                                title: "Reports"
+                            )
+                        }
 
                         Button {
                             runMLTest()
                         } label: {
-                            QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Test ML")
+                            QuickAccessButton(
+                                icon: "brain",
+                                title: "Prediction"
+                            )
                         }
                         .buttonStyle(.plain)
-                        .alert("PPD Risk Test", isPresented: $showingMLTestAlert) {
+                        .alert(
+                            "PPD Risk Prediction",
+                            isPresented: $showingMLTestAlert
+                        ) {
                             Button("OK", role: .cancel) { }
                         } message: {
                             Text(mlTestMessage)
