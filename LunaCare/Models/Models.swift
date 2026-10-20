@@ -140,11 +140,21 @@ struct SymptomLogPayload: Codable {
     let source: String?
 }
 
-/// One symptom check-in (time + list of SymptomRow)
 struct SymptomLogSummary: Codable, Identifiable, Hashable {
-    var id = UUID()
+
+    let id: String
     let createdAt: Date
     let rows: [SymptomRow]
+
+    init(
+        id: String = UUID().uuidString,
+        createdAt: Date,
+        rows: [SymptomRow]
+    ) {
+        self.id = id
+        self.createdAt = createdAt
+        self.rows = rows
+    }
 }
 
 struct CalendarDayLog: Codable, Identifiable, Hashable {

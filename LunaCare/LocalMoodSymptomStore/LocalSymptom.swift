@@ -3,7 +3,7 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2025-11-15.
-//
+//  Updated by Xiaoya for deleting function.
 
 
 import Foundation
@@ -39,6 +39,36 @@ final class LocalSymptomStore {
         existing.append(log)
         if let data = try? JSONEncoder().encode(existing) {
             UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+    
+    func deleteOfflineSymptomLog(
+        createdAt: Date
+    ) {
+
+        var existing =
+            loadOfflineSymptomLogs()
+
+
+        existing.removeAll { log in
+
+            abs(
+                log.createdAt
+                    .timeIntervalSince(
+                        createdAt
+                    )
+            ) < 1
+        }
+
+
+        if let data =
+            try? JSONEncoder()
+                .encode(existing) {
+
+            UserDefaults.standard.set(
+                data,
+                forKey: key
+            )
         }
     }
 
