@@ -3,7 +3,7 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2025-11-14.
-//
+//  Updated bu Xiaoya
 
 import Foundation
 
@@ -20,6 +20,17 @@ final class LocalMoodCalendarStore {
         var existing = loadAll()
         existing.removeAll { $0.id == log.id }
         existing.append(log)
+        persist(existing)
+    }
+    
+    // delete mood log
+    func deleteLog(logId: String) {
+        var existing = loadAll()
+
+        existing.removeAll {
+            $0.id == logId
+        }
+
         persist(existing)
     }
 

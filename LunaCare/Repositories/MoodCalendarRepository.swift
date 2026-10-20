@@ -97,4 +97,17 @@ final class MoodCalendarRepository {
 
         try await ref.updateData(data)
     }
+    
+    func deleteLog(
+        uid: String,
+        logId: String
+    ) async throws {
+
+        try await Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .collection("mood_logs")
+            .document(logId)
+            .delete()
+    }
 }
