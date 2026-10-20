@@ -8,158 +8,576 @@
 
 import SwiftUI
 
-struct SymptomCalendarView: View {
-    @EnvironmentObject var auth: AuthViewModel
-    @StateObject private var vm = SymptomCalendarViewModel()
 
-    private let cols = Array(repeating: GridItem(.flexible()), count: 7)
-    // private let symptomTint = Color(red: 139/255, green: 146/255, blue: 250/255)
-    private let symptomTint = Color(.systemIndigo)
+struct SymptomCalendarView: View {
+
+    @EnvironmentObject var auth:
+        AuthViewModel
+
+    @StateObject private var vm =
+        SymptomCalendarViewModel()
+
+
+    private let cols =
+        Array(
+            repeating:
+                GridItem(.flexible()),
+            count: 7
+        )
+
+
+    private let symptomTint =
+        Color(.systemIndigo)
+
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
 
-                    // MARK: - Calendar section
-                    VStack(spacing: 12) {
+        NavigationStack {
+
+            ScrollView {
+
+                VStack(
+                    spacing: 0
+                ) {
+
+                    // MARK: - Calendar
+
+                    VStack(
+                        spacing: 12
+                    ) {
+
                         Spacer()
 
-                        // Month header
+
+                        // Month Header
                         HStack {
+
                             Button {
-                                Task { await vm.changeMonth(by: -1, uid: auth.uid) }
+
+                                Task {
+
+                                    await vm.changeMonth(
+                                        by: -1,
+                                        uid: auth.uid
+                                    )
+                                }
+
                             } label: {
-                                Image(systemName: "chevron.left")
-                                    .foregroundColor(symptomTint)
-                                    .font(.title3)
+
+                                Image(
+                                    systemName:
+                                        "chevron.left"
+                                )
+                                .foregroundColor(
+                                    symptomTint
+                                )
+                                .font(
+                                    .title3
+                                )
                             }
+
 
                             Spacer()
 
-                            Text(vm.monthTitle)
-                                .font(.headline)
+
+                            Text(
+                                vm.monthTitle
+                            )
+                            .font(
+                                .headline
+                            )
+
 
                             Spacer()
 
+
                             Button {
-                                Task { await vm.changeMonth(by: 1, uid: auth.uid) }
+
+                                Task {
+
+                                    await vm.changeMonth(
+                                        by: 1,
+                                        uid: auth.uid
+                                    )
+                                }
+
                             } label: {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(symptomTint)
-                                    .font(.title3)
+
+                                Image(
+                                    systemName:
+                                        "chevron.right"
+                                )
+                                .foregroundColor(
+                                    symptomTint
+                                )
+                                .font(
+                                    .title3
+                                )
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(
+                            .horizontal,
+                            16
+                        )
 
-                        // Weekday row
+
+                        // Weekdays
                         HStack {
-                            ForEach(vm.weekdaySymbols, id: \.self) { s in
-                                Text(s)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity)
+
+                            ForEach(
+                                vm.weekdaySymbols,
+                                id: \.self
+                            ) { symbol in
+
+                                Text(
+                                    symbol
+                                )
+                                .font(
+                                    .caption
+                                )
+                                .foregroundStyle(
+                                    .secondary
+                                )
+                                .frame(
+                                    maxWidth:
+                                        .infinity
+                                )
                             }
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 8)
+                        .padding(
+                            .horizontal,
+                            24
+                        )
+                        .padding(
+                            .top,
+                            8
+                        )
 
-                        // Calendar grid
-                        LazyVGrid(columns: cols, spacing: 10) {
-                            ForEach(vm.daysGrid, id: \.self) { day in
+
+                        // Calendar
+                        LazyVGrid(
+                            columns: cols,
+                            spacing: 10
+                        ) {
+                            ForEach(
+                                Array(vm.daysGrid.enumerated()),
+                                id: \.offset
+                            ) { _, day in
+
                                 SymptomDayCell(
                                     date: day,
                                     selected: vm.selected,
-                                    hasSymptoms: vm.hasSymptoms(on: day),
-                                    isToday: vm.isToday(day),
+                                    hasSymptoms: vm.hasSymptoms(
+                                        on: day
+                                    ),
+                                    isToday: vm.isToday(
+                                        day
+                                    ),
                                     tint: symptomTint
                                 ) {
-                                    if let d = day {
+
+                                    if let day {
+
                                         Task {
-                                            await vm.select(day: d, uid: auth.uid)
+
+                                            await vm.select(
+                                                day: day,
+                                                uid: auth.uid
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 8)
+                        .padding(
+                            .horizontal,
+                            24
+                        )
+                        .padding(
+                            .top,
+                            8
+                        )
                     }
 
+
                     Spacer()
-                        .frame(height: 24)
+                        .frame(
+                            height: 24
+                        )
+
 
                     Divider()
 
-                    // MARK: - Selected day details
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(vm.selectedTitle)
-                            .font(.headline)
+
+                    // MARK: - Selected Day
+
+                    VStack(
+                        alignment: .leading,
+                        spacing: 12
+                    ) {
+
+                        Text(
+                            vm.selectedTitle
+                        )
+                        .font(
+                            .headline
+                        )
+
 
                         if vm.loadingSelected {
+
                             HStack {
+
                                 Spacer()
+
                                 ProgressView()
+                                    .tint(
+                                        symptomTint
+                                    )
+
                                 Spacer()
                             }
-                        } else if vm.selectedEntries.isEmpty {
-                            Text("No symptom logs recorded for this day.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(vm.selectedEntries) { entry in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    // Time of this log
-                                    Text(timeFormatter.string(from: entry.createdAt))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
 
-                                    // Symptom rows for this log
-                                    ForEach(entry.rows) { row in
-                                        HStack {
-                                            Text(row.name)
-                                                .font(.body)
-                                            Spacer()
-                                            Text("\(row.value) / 10")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                        }
+                        } else if
+                            vm.selectedEntries
+                                .isEmpty {
+
+                            Text(
+                                "No symptom logs recorded for this day."
+                            )
+                            .font(
+                                .subheadline
+                            )
+                            .foregroundStyle(
+                                .secondary
+                            )
+
+                        } else {
+
+                            ForEach(
+                                vm.selectedEntries
+                            ) { entry in
+
+                                SwipeToDeleteSymptomCard(
+                                    entry:
+                                        entry,
+                                    tint:
+                                        symptomTint,
+                                    isDeleting:
+                                        vm.deletingEntryId ==
+                                        entry.id,
+                                    onDelete: {
+
+                                        vm.requestDelete(
+                                            entry
+                                        )
                                     }
-                                }
-                                .padding(.vertical, 4)
-                                Divider()
+                                )
                             }
                         }
 
+
                         Spacer()
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                    .padding(
+                        .horizontal,
+                        24
+                    )
+                    .padding(
+                        .top,
+                        16
+                    )
                 }
-                // load current month when the view appears
                 .task {
-                    let uid = auth.uid
-                    await vm.loadMonth(for: uid)
+
+                    await vm.loadMonth(
+                        for: auth.uid
+                    )
                 }
             }
-            .navigationTitle("Symptom Calendar")
+
+            .navigationTitle(
+                "Symptom Calendar"
+            )
         }
+
+
+        // MARK: - Delete Confirmation
+
+        .alert(
+            "Delete Symptom Entry?",
+            isPresented:
+                $vm.showingDeleteConfirmation
+        ) {
+
+            Button(
+                "Cancel",
+                role: .cancel
+            ) {
+
+                vm.entryToDelete =
+                    nil
+            }
+
+
+            Button(
+                "Delete",
+                role: .destructive
+            ) {
+
+                Task {
+
+                    await vm
+                        .deleteSelectedEntry(
+                            uid: auth.uid
+                        )
+                }
+            }
+
+        } message: {
+
+            Text(
+                "This symptom record will be permanently deleted."
+            )
+        }
+
+
         .onDisappear {
-            NotificationManager.shared.scheduleDemo(after: 5)
+
+            NotificationManager
+                .shared
+                .scheduleDemo(
+                    after: 5
+                )
         }
-    }
-
-    // MARK: - Formatters
-
-    private var timeFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.dateStyle = .none
-        df.timeStyle = .short
-        return df
     }
 }
 
-private struct SymptomDayCell: View {
+
+// =============================================================
+// MARK: - Swipe Delete Card
+// =============================================================
+
+private struct SwipeToDeleteSymptomCard: View {
+
+    let entry: SymptomLogSummary
+    let tint: Color
+    let isDeleting: Bool
+    let onDelete: () -> Void
+
+    @State private var offset: CGFloat = 0
+
+    private let deleteWidth: CGFloat = 90
+
+
+    var body: some View {
+
+        ZStack(alignment: .trailing) {
+
+            // =====================================================
+            // Delete button behind card
+            // =====================================================
+
+            Button {
+
+                onDelete()
+
+            } label: {
+
+                VStack(spacing: 6) {
+
+                    if isDeleting {
+
+                        ProgressView()
+                            .tint(.white)
+
+                    } else {
+
+                        Image(systemName: "trash.fill")
+                            .font(.title2)
+
+                        Text("Delete")
+                            .font(.caption.bold())
+                    }
+                }
+                .foregroundColor(.white)
+                .frame(width: deleteWidth)
+                .frame(maxHeight: .infinity)
+            }
+            .buttonStyle(.plain)
+            .disabled(isDeleting)
+            .frame(width: deleteWidth)
+            .frame(maxHeight: .infinity)
+            .background(Color.red)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: 16
+                )
+            )
+
+
+            // =====================================================
+            // Main card
+            // =====================================================
+
+            VStack(
+                alignment: .leading,
+                spacing: 10
+            ) {
+
+                HStack(spacing: 6) {
+
+                    Image(systemName: "clock")
+                        .foregroundColor(tint)
+
+                    Text(
+                        timeFormatter.string(
+                            from: entry.createdAt
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+
+                    Spacer()
+
+
+                    Image(systemName: "chevron.left")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+
+                    Text("Swipe")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+
+                ForEach(entry.rows) { row in
+
+                    HStack {
+
+                        Text(row.name)
+
+                        Spacer()
+
+                        Text("\(row.value) / 10")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(14)
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
+            .background(
+                Color(.secondarySystemBackground)
+            )
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: 16
+                )
+            )
+            .overlay(
+                RoundedRectangle(
+                    cornerRadius: 16
+                )
+                .stroke(
+                    tint.opacity(0.15),
+                    lineWidth: 1
+                )
+            )
+            .offset(x: offset)
+            .contentShape(Rectangle())
+
+            // IMPORTANT:
+            // When fully opened, stop this card from
+            // blocking taps on the Delete button behind it.
+            .allowsHitTesting(
+                offset > -deleteWidth + 5
+            )
+
+            .highPriorityGesture(
+
+                DragGesture(
+                    minimumDistance: 10
+                )
+
+                .onChanged { value in
+
+                    let horizontal =
+                        value.translation.width
+
+                    let vertical =
+                        value.translation.height
+
+
+                    guard abs(horizontal) >
+                            abs(vertical)
+                    else {
+                        return
+                    }
+
+
+                    if horizontal < 0 {
+
+                        offset =
+                            max(
+                                horizontal,
+                                -deleteWidth
+                            )
+                    }
+                }
+
+                .onEnded { value in
+
+                    withAnimation(
+                        .easeOut(
+                            duration: 0.2
+                        )
+                    ) {
+
+                        if value.translation.width < -35 {
+
+                            offset =
+                                -deleteWidth
+
+                        } else {
+
+                            offset = 0
+                        }
+                    }
+                }
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: 16
+            )
+        )
+    }
+
+
+    private var timeFormatter: DateFormatter {
+
+        let formatter =
+            DateFormatter()
+
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+
+        return formatter
+    }
+}
+
+// =============================================================
+// MARK: - Calendar Cell
+// =============================================================
+
+private struct SymptomDayCell:
+    View {
+
     let date: Date?
     let selected: Date?
     let hasSymptoms: Bool
@@ -167,45 +585,110 @@ private struct SymptomDayCell: View {
     let tint: Color
     let onTap: () -> Void
 
+
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 4) {
+
+        Button(
+            action: onTap
+        ) {
+
+            VStack(
+                spacing: 4
+            ) {
+
                 ZStack {
-                    // big purple circle for "today"
+
                     if isToday {
+
                         Circle()
-                            .fill(tint)
-                            .frame(width: 28, height: 28)
+                            .fill(
+                                tint
+                            )
+                            .frame(
+                                width: 28,
+                                height: 28
+                            )
                     }
 
-                    Text(dayText)
-                        .font(.callout)
-                        .fontWeight(isToday ? .semibold : .regular)
-                        .foregroundStyle(
-                            date == nil
+
+                    Text(
+                        dayText
+                    )
+                    .font(
+                        .callout
+                    )
+                    .fontWeight(
+                        isToday
+                            ? .semibold
+                            : .regular
+                    )
+                    .foregroundStyle(
+                        date == nil
                             ? .clear
-                            : (isToday ? Color.white : .primary)
-                        )
+                            : (
+                                isToday
+                                    ? Color.white
+                                    : .primary
+                            )
+                    )
                 }
 
+
                 Circle()
-                    .fill(tint)
-                    .frame(width: 5, height: 5)
-                    .opacity(hasSymptoms ? 1 : 0)
+                    .fill(
+                        tint
+                    )
+                    .frame(
+                        width: 5,
+                        height: 5
+                    )
+                    .opacity(
+                        hasSymptoms
+                            ? 1
+                            : 0
+                    )
             }
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
+            .frame(
+                maxWidth:
+                    .infinity,
+                minHeight: 44
+            )
+            .contentShape(
+                Rectangle()
+            )
         }
-        .disabled(date == nil)
+        .buttonStyle(
+            .plain
+        )
+        .disabled(
+            date == nil
+        )
     }
 
-    private var dayText: String {
-        guard let d = date else { return "" }
-        return String(Calendar.current.component(.day, from: d))
+
+    private var dayText:
+        String {
+
+        guard let date else {
+            return ""
+        }
+
+
+        return String(
+            Calendar.current
+                .component(
+                    .day,
+                    from: date
+                )
+        )
     }
 }
 
+
 #Preview {
+
     SymptomCalendarView()
-        .environmentObject(AuthViewModel.preview)
+        .environmentObject(
+            AuthViewModel.preview
+        )
 }
