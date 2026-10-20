@@ -3,6 +3,7 @@
 //  LunaCare
 //
 //  Created by Mathew Boyd on 2026-10-08.
+//  Updated by xiaoya
 //
 
 import Foundation
@@ -64,16 +65,38 @@ final class DoctorRepository {
 
         return snapshot.documents.compactMap { doc in
             let data = doc.data()
-            guard let text = data["text"] as? String,
-                  let ts = data["createdAt"] as? Timestamp else { return nil }
+
+            guard
+                let text = data["text"] as? String,
+                let timestamp = data["createdAt"] as? Timestamp
+            else {
+                return nil
+            }
+
+            // Support both old seeded notes and
+            // new Doctor Portal notes.
+            let doctorId =
+                data["authorId"] as? String ??
+                data["doctorId"] as? String ??
+                ""
+
+            let doctorName =
+                data["authorName"] as? String ??
+                data["doctorName"] as? String ??
+                "Healthcare Provider"
+
+            let metric =
+                data["metric"] as? String ??
+                "general"
+
             return DoctorNote(
                 id: doc.documentID,
-                doctorId: data["doctorId"] as? String ?? "",
-                doctorName: data["doctorName"] as? String ?? "",
-                metric: data["metric"] as? String ?? "",
+                doctorId: doctorId,
+                doctorName: doctorName,
+                metric: metric,
                 dayKey: data["dayKey"] as? String,
                 text: text,
-                createdAt: ts.dateValue()
+                createdAt: timestamp.dateValue()
             )
         }
     }

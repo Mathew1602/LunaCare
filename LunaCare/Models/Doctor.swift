@@ -33,20 +33,44 @@ struct DoctorNote: Identifiable, Hashable {
     let createdAt: Date
 
     var metricTitle: String {
-        if let healthMetric = HealthMetric(rawValue: metric) { return healthMetric.title }
+        if metric == "general" || metric.isEmpty {
+            return "General Note"
+        }
+
+        if let healthMetric = HealthMetric(rawValue: metric) {
+            return healthMetric.title
+        }
+
         switch metric {
-        case "mood": return "Mood"
-        case "symptoms": return "Symptoms"
-        default: return metric.capitalized
+        case "mood":
+            return "Mood"
+
+        case "symptoms":
+            return "Symptoms"
+
+        default:
+            return metric.capitalized
         }
     }
 
     var metricIcon: String {
-        if let healthMetric = HealthMetric(rawValue: metric) { return healthMetric.icon }
+        if metric == "general" || metric.isEmpty {
+            return "text.bubble"
+        }
+
+        if let healthMetric = HealthMetric(rawValue: metric) {
+            return healthMetric.icon
+        }
+
         switch metric {
-        case "mood": return "face.smiling"
-        case "symptoms": return "cross.case"
-        default: return "chart.bar"
+        case "mood":
+            return "face.smiling"
+
+        case "symptoms":
+            return "cross.case"
+
+        default:
+            return "text.bubble"
         }
     }
 }
