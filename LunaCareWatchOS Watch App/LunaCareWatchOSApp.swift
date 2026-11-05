@@ -12,7 +12,6 @@ struct LunaCareWatchOS_Watch_AppApp: App {
     @StateObject private var health = AppleWatchDataStore.shared
 
     init() {
-        //REQUIRED: activate connectivity with IOS application
         WatchConnectivityManager.shared.activate()
     }
 

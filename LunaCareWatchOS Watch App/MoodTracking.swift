@@ -85,11 +85,9 @@ struct MoodTracking: View {
     private func saveMood(_ mood: Mood) {
         sendMoodToPhone(mood)
 
-        // Reset UI
         selectedMood = nil
         note = ""
 
-        // Haptic + alert
         WKInterfaceDevice.current().play(.success)
         showingSavedAlert = true
     }

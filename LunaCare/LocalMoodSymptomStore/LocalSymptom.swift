@@ -5,7 +5,6 @@
 //  Created by Mathew Boyd on 2025-11-15.
 //  Updated by Xiaoya for deleting function.
 
-
 import Foundation
 
 final class LocalSymptomStore {
@@ -14,66 +13,50 @@ final class LocalSymptomStore {
 
     private let key = "offline_watch_symptom_logs"
 
-    func saveOfflineSymptomLog(_ payload: SymptomLogPayload) {
-        var existing = loadOfflineSymptomLogs()
-        let log = LocalSymptomLog(payload: payload, createdAt: Date())
-        existing.append(log)
-
-        if let data = try? JSONEncoder().encode(existing) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
+    func saveOfflineSymptomLog(_ payload: SymptomLogPayload, createdAt: Date = Date()) {
+        save(LocalSymptomLog(payload: payload, createdAt: createdAt))
     }
 
     func loadOfflineSymptomLogs() -> [LocalSymptomLog] {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let logs = try? JSONDecoder().decode([LocalSymptomLog].self, from: data) else {
+        guard let data = StorageScope.data(forKey: key),
+              var logs = try? JSONDecoder().decode([LocalSymptomLog].self, from: data) else {
             return []
+        }
+        if logs.contains(where: { $0.id == nil }) {
+            for i in logs.indices where logs[i].id == nil {
+                logs[i].id = UUID().uuidString
+            }
+            persist(logs)
         }
         return logs
     }
 
-    /// Save a pre-built log (preserves its original createdAt). Deduplicates by createdAt within 1 second.
+    /// Save a pre-built log (preserves its original createdAt). Deduplicates by id, or by createdAt within 1 second.
     func save(_ log: LocalSymptomLog) {
+        var normalized = log
+        if normalized.id == nil { normalized.id = LocalSymptomLog.dayID(for: normalized.createdAt) }
         var existing = loadOfflineSymptomLogs()
-        existing.removeAll { abs($0.createdAt.timeIntervalSince(log.createdAt)) < 1 }
-        existing.append(log)
-        if let data = try? JSONEncoder().encode(existing) {
-            UserDefaults.standard.set(data, forKey: key)
+        existing.removeAll {
+            $0.id == normalized.id || abs($0.createdAt.timeIntervalSince(normalized.createdAt)) < 1
+        }
+        existing.append(normalized)
+        persist(existing)
+    }
+
+    private func persist(_ logs: [LocalSymptomLog]) {
+        if let data = try? JSONEncoder().encode(logs) {
+            StorageScope.set(data, forKey: key)
         }
     }
     
-    func deleteOfflineSymptomLog(
-        createdAt: Date
-    ) {
-
-        var existing =
-            loadOfflineSymptomLogs()
-
-
-        existing.removeAll { log in
-
-            abs(
-                log.createdAt
-                    .timeIntervalSince(
-                        createdAt
-                    )
-            ) < 1
-        }
-
-
-        if let data =
-            try? JSONEncoder()
-                .encode(existing) {
-
-            UserDefaults.standard.set(
-                data,
-                forKey: key
-            )
-        }
+    func deleteOfflineSymptomLog(createdAt: Date) {
+        var existing = loadOfflineSymptomLogs()
+        existing.removeAll { abs($0.createdAt.timeIntervalSince(createdAt)) < 1 }
+        persist(existing)
     }
 
     func clearOfflineSymptomLogs() {
-        UserDefaults.standard.removeObject(forKey: key)
+        StorageScope.removeObject(forKey: key)
     }
 
     func offlineSymptomHistory(from: Date, to: Date) -> [SymptomLogSummary] {
@@ -89,7 +72,7 @@ final class LocalSymptomStore {
                     .map { SymptomRow(name: $0.key, value: $0.value) }
                     .sorted { $0.value > $1.value }
 
-                return SymptomLogSummary(createdAt: item.createdAt, rows: rows)
+                return SymptomLogSummary(id: item.id ?? LocalSymptomLog.dayID(for: item.createdAt), createdAt: item.createdAt, rows: rows)
             }
             .sorted { $0.createdAt > $1.createdAt }
     }

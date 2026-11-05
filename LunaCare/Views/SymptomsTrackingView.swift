@@ -103,7 +103,7 @@ struct SymptomsTrackingView: View {
                         spacing: 10
                     ) {
 
-                        if vm.loading {
+                        if vm.isSaving {
 
                             ProgressView()
                                 .tint(.white)
@@ -161,31 +161,13 @@ struct SymptomsTrackingView: View {
                 )
 
 
-                // =====================================================
-                // Backend Status
-                // =====================================================
-
-                if let status =
-                    vm.backendStatus {
-
-                    HStack(
-                        alignment: .top,
-                        spacing: 10
-                    ) {
-
-                        Image(
-                            systemName:
-                                "icloud.and.arrow.up"
-                        )
-                        .foregroundColor(
-                            accentColor
-                        )
-
-                        Text(status)
+                if let error = vm.errorMessage {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(error)
                             .font(.caption)
-                            .foregroundStyle(
-                                .secondary
-                            )
+                            .foregroundStyle(.secondary)
                     }
                     .padding(
                         .horizontal,
@@ -279,18 +261,7 @@ struct SymptomsTrackingView: View {
             ) { }
 
         } message: {
-
-            if let status =
-                vm.backendStatus {
-
-                Text(status)
-
-            } else {
-
-                Text(
-                    "Your symptom check-in has been saved successfully."
-                )
-            }
+            Text("Your symptom check-in has been saved successfully.")
         }
     }
 
@@ -300,11 +271,7 @@ struct SymptomsTrackingView: View {
     // =========================================================
 
     private var saveDisabled: Bool {
-
-        vm.loading ||
-        !vm.symptoms.contains {
-            $0.level != nil
-        }
+        !vm.canSave
     }
 }
 

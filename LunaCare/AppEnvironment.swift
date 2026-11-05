@@ -5,13 +5,6 @@
 //  Created by Fernanda Battig on 2025-11-07.
 //
 
-//
-//  AppEnvironment.swift
-//  LunaCare
-//
-//  Created by Fernanda Battig on 2025-11-07.
-//
-
 import Foundation
 import FirebaseAuth
 
@@ -23,17 +16,19 @@ final class AppEnvironment: ObservableObject {
     @Published var isSyncing: Bool = false
     @Published var syncProgress: Double = 0.0
     @Published var syncHasData: Bool = true
+    @Published var lastSyncError: String?
     @Published var selectedTheme: AppTheme {
         didSet {
             UserDefaults.standard.set(selectedTheme.rawValue, forKey: "appTheme")
         }
     }
     @Published var insightsRepo: InsightsRepository?
+    private var authHandle: AuthStateDidChangeListenerHandle?
 
     private init() {
         let savedTheme = UserDefaults.standard.string(forKey: "appTheme")
         self.selectedTheme = AppTheme(rawValue: savedTheme ?? "") ?? .system
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
+        authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self else { return }
 
             if let user = user {
@@ -45,6 +40,7 @@ final class AppEnvironment: ObservableObject {
                 // value without waiting for SettingsView to appear.
                 UserRepository().fetchCloudSync(uid: user.uid) { cloudOn in
                     DispatchQueue.main.async {
+                        guard let cloudOn, Auth.auth().currentUser?.uid == user.uid else { return }
                         self.isCloudSyncOn = cloudOn
                         UserDefaults.standard.set(cloudOn, forKey: "cloudSyncEnabled")
                     }
@@ -54,11 +50,12 @@ final class AppEnvironment: ObservableObject {
                 self.insightsRepo = nil
 
                 // Reset to local-only so a subsequent guest session doesn't
-                // inherit a stale cloud-sync preference or sync high-water mark.
+                // inherit a stale cloud-sync preference.
                 DispatchQueue.main.async {
+                    SyncManager.shared.cancelSync(env: self)
+                    self.lastSyncError = nil
                     self.isCloudSyncOn = false
                     UserDefaults.standard.set(false, forKey: "cloudSyncEnabled")
-                    UserDefaults.standard.removeObject(forKey: "lastCloudSyncDate")
                 }
             }
         }

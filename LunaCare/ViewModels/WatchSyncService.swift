@@ -4,7 +4,6 @@
 //
 //  Created by Mathew Boyd on 2025-11-14.
 //
-//
 
 import Combine
 import Foundation
@@ -13,7 +12,6 @@ import FirebaseAuth
 final class WatchSyncService {
     static let shared = WatchSyncService()
 
-    
     private var cancellable: AnyCancellable?
     private let moodRepo: MoodLogsRepositoryType
     private let calendarRepo: MoodCalendarRepository
@@ -43,46 +41,43 @@ final class WatchSyncService {
     private func handle(_ msg: SyncMessage) {
         let uid = Auth.auth().currentUser?.uid ?? ""
         let useCloud = useCloudProvider
-        
 
         switch msg.type {
 
         case .moodLog:
             guard var m = msg.moodLog else { return }
+            if m.createdAt == nil { m.createdAt = Date() }
+            if m.id == nil { m.id = UUID().uuidString }
+            if m.tags == nil { m.tags = ["watch"] }
+            if m.source == nil { m.source = "watch" }
 
             if uid.isEmpty || !useCloud {
-                print("No UID. Saving mood locally.")
-                if m.createdAt == nil { m.createdAt = Date() }
                 LocalMoodStore.shared.saveOfflineMood(m)
             } else {
-                print("Saving watch mood to Firestore. uid = \(uid)")
-                moodRepo.createMoodLog(
-                    uid: uid,
-                    mood: m.mood,
-                    notes: m.notes,
-                    tags: m.tags ?? ["watch"],
-                    source: m.source ?? "watch",
-                    createdAt: m.createdAt ?? Date(),
-                    completion: nil
-                )
+                let log = m
+                Task {
+                    do {
+                        try await self.moodRepo.upsertMoodLog(log, uid: uid)
+                    } catch {
+                        print("Watch mood upload failed, kept locally: \(error.localizedDescription)")
+                        LocalMoodStore.shared.saveOfflineMood(log)
+                    }
+                }
             }
 
         case .symptomLog:
             guard let payload = msg.symptomLog else { return }
+            let log = LocalSymptomLog(payload: payload, createdAt: Date())
 
             if uid.isEmpty || !useCloud {
-                print("No UID. Saving symptom log locally.")
-                LocalSymptomStore.shared.saveOfflineSymptomLog(payload)
+                LocalSymptomStore.shared.save(log)
             } else {
-                print("Saving watch symptom log to Firestore. uid = \(uid)")
-                SymptomLogRepository().create(
-                    uid: uid,
-                    payload: payload
-                ) { error in
-                    if let error = error {
-                        print("Symptom log save error: \(error.localizedDescription)")
-                    } else {
-                        print("Symptom log saved to Firestore")
+                Task {
+                    do {
+                        try await SymptomLogRepository().upsert(uid: uid, log: log)
+                    } catch {
+                        print("Watch symptom upload failed, kept locally: \(error.localizedDescription)")
+                        LocalSymptomStore.shared.save(log)
                     }
                 }
             }
@@ -98,7 +93,6 @@ final class WatchSyncService {
             print("Profile received on \(uid.isEmpty ? "watch (offline)" : "watch") : \(profile.fullName)")
 
 
-        // MARK: - Mood history request
         case .getMoodRequest:
             guard let request = msg.getMoodRequest else { return }
             print("GetMoodRequest received: \(request.from) to \(request.to)")
@@ -134,7 +128,6 @@ final class WatchSyncService {
             guard let log = msg.getMoodResponse else { return }
             print("GetMoodResponse received: \(log.count) items")
 
-        // MARK: - Symptom history request (range)
         case .getSymptomRequest:
             guard let request = msg.getSymptomRequest else { return }
             print("GetSymptomRequest received: \(request.from) to \(request.to)")

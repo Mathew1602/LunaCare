@@ -6,7 +6,6 @@
 //  Created by Fernanda Battig on 2025-11-07.
 //
 
-
 import SwiftUI
 
 struct RecommendationsView: View {
@@ -14,7 +13,9 @@ struct RecommendationsView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var vm: InsightsViewModel
 
-    @State private var sendDailyReminders = true
+    @AppStorage(NotificationPreferences.dailyReminderEnabledKey) private var sendDailyReminders = false
+    @State private var notificationsDenied = false
+    @State private var showPermissionAlert = false
 
     var body: some View {
         ScrollView {
@@ -30,12 +31,8 @@ struct RecommendationsView: View {
                 } else {
                     recommendationSummary
 
-                    let trendRecommendations = vm.recommendations.filter {
-                        $0.title != RecommendationEngine.screeningRecommendationTitle
-                    }
-                    let screeningRecommendations = vm.recommendations.filter {
-                        $0.title == RecommendationEngine.screeningRecommendationTitle
-                    }
+                    let trendRecommendations = vm.recommendations.filter { !$0.isScreening }
+                    let screeningRecommendations = vm.recommendations.filter(\.isScreening)
 
                     LazyVStack(alignment: .leading, spacing: 18) {
                         if !trendRecommendations.isEmpty {
@@ -68,9 +65,18 @@ struct RecommendationsView: View {
         .navigationTitle("Recommendations")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if vm.ppdRiskScore == nil && vm.riskAssessmentMessage == nil {
-                await vm.loadInsights(includeRiskAssessment: true)
+            notificationsDenied = await NotificationManager.shared.authorizationStatus() == .denied
+            await vm.loadIfNeeded()
+        }
+        .alert("Notifications are off", isPresented: $showPermissionAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
             }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Allow notifications for LunaCare in iOS Settings to get daily reminders.")
         }
     }
 
@@ -169,7 +175,8 @@ struct RecommendationsView: View {
         }
     }
 
-    // MARK: - Reminders section
+    // MARK: - Reminders
+
     private var remindersSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 10) {
@@ -179,37 +186,46 @@ struct RecommendationsView: View {
                     .font(.headline)
             }
 
-            Toggle(isOn: $sendDailyReminders) {
+            Toggle(isOn: Binding(
+                get: { sendDailyReminders && !notificationsDenied },
+                set: { newValue in Task { await setDailyReminder(newValue) } }
+            )) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Send daily reminders")
                         .font(.subheadline.weight(.semibold))
-                    Text("A gentle nudge to revisit your goals.")
+                    Text("A gentle nudge to log your mood each day.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
             .tint(.purple)
-
-            Divider()
-
-            Button {
-                print("Mark as done pressed")
-            } label: {
-                Label("Mark as done", systemImage: "checkmark")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
-                    .background(Color.purple, in: RoundedRectangle(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
         }
         .padding(17)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
     }
+
+    private func setDailyReminder(_ isOn: Bool) async {
+        let manager = NotificationManager.shared
+        if isOn {
+            var status = await manager.authorizationStatus()
+            if status == .notDetermined {
+                _ = await manager.requestAuthorization()
+                status = await manager.authorizationStatus()
+            }
+            guard status == .authorized || status == .provisional || status == .ephemeral else {
+                notificationsDenied = true
+                showPermissionAlert = true
+                return
+            }
+            notificationsDenied = false
+        }
+        sendDailyReminders = isOn
+        manager.updateDailyReminder()
+    }
 }
 
 // MARK: - Recommendation Card
+
 private struct RecommendationCard: View {
     let item: RecommendationEngine.RecommendationItem
 
@@ -231,7 +247,7 @@ private struct RecommendationCard: View {
                     .foregroundColor(.primary.opacity(0.85))
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(item.title == RecommendationEngine.screeningRecommendationTitle
+                Text(item.isScreening
                      ? "SCREENING SIGNAL"
                      : "FROM YOUR INSIGHTS")
                     .font(.caption2.weight(.semibold))
@@ -254,26 +270,25 @@ private struct RecommendationCard: View {
     }
 
     private var symbol: String {
-        switch item.title {
-        case "Make a little room for rest", "Try one small wind-down cue": return "moon.zzz.fill"
-        case "Keep movement gentle and doable": return "figure.walk"
-        case "Make space for support", RecommendationEngine.screeningRecommendationTitle: return "heart"
-        case "Notice when symptoms show up": return "cross.case"
-        case "Check in with how you’re feeling": return "heart.text.square"
-        default: return "sparkles"
+        switch item.kind {
+        case .sleep: return "moon.zzz.fill"
+        case .movement: return "figure.walk"
+        case .mood, .screeningSupport: return "heart"
+        case .screeningMonitor: return "eye"
+        case .symptom: return "cross.case"
+        case .vitals: return "heart.text.square"
+        case .other: return "sparkles"
         }
     }
 
     private var tint: Color {
-        switch item.title {
-        case "Make a little room for rest", "Try one small wind-down cue":
-            return Color(red: 0.48, green: 0.40, blue: 0.78)
-        case "Keep movement gentle and doable": return Color(red: 0.25, green: 0.61, blue: 0.48)
-        case "Make space for support", RecommendationEngine.screeningRecommendationTitle:
-            return Color(red: 0.78, green: 0.48, blue: 0.38)
-        case "Notice when symptoms show up", "Check in with how you’re feeling":
-            return Color(red: 0.78, green: 0.40, blue: 0.48)
-        default: return .purple
+        switch item.kind {
+        case .sleep: return Color(red: 0.48, green: 0.40, blue: 0.78)
+        case .movement: return Color(red: 0.25, green: 0.61, blue: 0.48)
+        case .mood, .screeningSupport: return Color(red: 0.78, green: 0.48, blue: 0.38)
+        case .screeningMonitor: return PPDRiskTier.medium.color
+        case .symptom, .vitals: return Color(red: 0.78, green: 0.40, blue: 0.48)
+        case .other: return .purple
         }
     }
 }

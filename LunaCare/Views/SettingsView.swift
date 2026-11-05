@@ -11,11 +11,9 @@ struct SettingsView: View {
     @EnvironmentObject var auth: AuthViewModel
     @EnvironmentObject var env:  AppEnvironment
 
-    @State private var isCloudSyncOn: Bool = false
-    @State private var statusText: String  = ""
-    @State private var showSyncConfirmAlert      = false
-    @State private var showCloudToLocalAlert     = false
-    @State private var isSyncingDown: Bool       = false
+    @State private var showSyncConfirmAlert  = false
+    @State private var showCloudToLocalAlert = false
+    @State private var isSyncingDown         = false
     private var isGuest: Bool { auth.noAccount }
 
     var body: some View {
@@ -23,18 +21,9 @@ struct SettingsView: View {
             List {
                 Section(header: Text("Profile")) {
                     if !isGuest {
-                        NavigationLink {
-                            AccountPage()
-                                .environmentObject(auth)
-                        } label: {
-                            Text("Account")
-                        }
-                        NavigationLink("My Care Team") {
-                            CareTeamView()
-                                .environmentObject(auth)
-                        }
+                        NavigationLink("Account") { AccountPage() }
+                        NavigationLink("My Care Team") { CareTeamView() }
                     } else {
-                        // Guest: show name, prompt to create account
                         HStack {
                             Image(systemName: "person.crop.circle")
                                 .foregroundColor(.secondary)
@@ -52,7 +41,6 @@ struct SettingsView: View {
                                 lastName: auth.lastName,
                                 isFromSettings: true
                             )
-                            .environmentObject(auth)
                         } label: {
                             Label("Create an Account", systemImage: "person.badge.plus")
                                 .foregroundColor(Color(.systemIndigo))
@@ -60,135 +48,29 @@ struct SettingsView: View {
                     }
                 }
 
-                // ── Privacy & Security ────────────────────────────────────
                 Section(header: Text("Privacy & Security")) {
                     if !isGuest {
-                        NavigationLink("Data Privacy") {
-                            DataPrivacyView()
-                                .environmentObject(auth)
-                                .environmentObject(env)
-                        }
+                        NavigationLink("Data Privacy") { DataPrivacyView() }
                     }
-                    NavigationLink("Data Export") {
-                        DataExportView()
-                            .environmentObject(auth)
-                            .environmentObject(env)
-                    }
+                    NavigationLink("Data Export") { DataExportView() }
 
-                    // Cloud Sync — disabled for guests
                     if isGuest {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("Cloud Sync")
-                                Spacer()
-                                Toggle("", isOn: .constant(false))
-                                    .disabled(true)
-                                    .labelsHidden()
-                            }
-                            HStack(spacing: 6) {
-                                Image(systemName: "lock.icloud")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                Text("Create an account to sync with cloud")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                            }
-                        }
+                        guestCloudSyncRow
                     } else {
-                        Toggle(isOn: Binding(
-                            get: { isCloudSyncOn },
-                            set: { newValue in
-                                if newValue {
-                                    showSyncConfirmAlert = true
-                                } else {
-                                    showCloudToLocalAlert = true
-                                }
-                            }
-                        )) { Text("Cloud Sync") }
-                        .disabled(env.isSyncing)
-                        // Local → Cloud
-                        .alert("Sync to Cloud?", isPresented: $showSyncConfirmAlert) {
-                            Button("Sync to Cloud") {
-                                isCloudSyncOn = true
-                                let uid = auth.uid
-                                guard !uid.isEmpty else { return }
-                                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: true, env: env)
-                                statusText = "Syncing..."
-                            }
-                            Button("Cancel", role: .cancel) { }
-                        } message: {
-                            Text("Your data is currently stored locally. Are you sure you want to sync it to the cloud?")
-                        }
-                        // Cloud → Local
-                        .alert("Download Cloud Data?", isPresented: $showCloudToLocalAlert) {
-                            Button("Download to Device") {
-                                isCloudSyncOn = false
-                                let uid = auth.uid
-                                guard !uid.isEmpty else { return }
-                                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
-                                isSyncingDown = true
-                                statusText = "Downloading..."
-                                Task {
-                                    await MainActor.run {
-                                        env.syncHasData = false
-                                        env.isSyncing = true
-                                        env.syncProgress = 0.0
-                                    }
-                                    await SyncManager.shared.syncCloudToLocal(uid: uid) { progress in
-                                        Task { @MainActor in
-                                            env.syncHasData = true
-                                            env.syncProgress = progress
-                                        }
-                                    }
-                                    await MainActor.run {
-                                        env.isSyncing = false
-                                        env.syncProgress = 1.0
-                                        isSyncingDown = false
-                                        statusText = "Local Only"
-                                    }
-                                }
-                            }
-                            Button("Turn Off Only") {
-                                isCloudSyncOn = false
-                                let uid = auth.uid
-                                guard !uid.isEmpty else { return }
-                                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
-                                statusText = "Local Only"
-                            }
-                            Button("Cancel", role: .cancel) { }
-                        } message: {
-                            Text("Would you like to download your cloud data to this device before turning off cloud sync?")
-                        }
-
-                        if env.syncHasData && env.isSyncing {
-                            VStack(alignment: .leading, spacing: 4) {
-                                ProgressView(value: env.syncProgress)
-                                    .progressViewStyle(.linear)
-                                Text(isSyncingDown ? "Downloading your data…" : "Uploading your data…")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 4)
-                        } else if !statusText.isEmpty {
-                            Text(statusText)
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                        }
+                        cloudSyncToggle
+                        syncStatus
                     }
                 }
 
-                // ── App Preferences ───────────────────────────────────────
                 Section(header: Text("App Preferences")) {
-                    NavigationLink("Notifications") { Text("Notification Settings") }
+                    NavigationLink("Notifications") { NotificationSettingsView() }
                     Picker("Theme", selection: $env.selectedTheme) {
                         ForEach(AppTheme.allCases, id: \.self) { theme in
                             Text(theme.rawValue)
                         }
                     }
-                    NavigationLink("Language") { Text("Language Settings") }
                 }
 
-                // ── Account ───────────────────────────────────────────────
                 Section {
                     if !auth.displayName.isEmpty {
                         Text(isGuest
@@ -210,24 +92,101 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .listStyle(.insetGrouped)
-            .onChange(of: env.isSyncing) { _, syncing in
-                if !syncing && isCloudSyncOn {
-                    statusText = "Synced to Cloud"
+        }
+    }
+
+    private var guestCloudSyncRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Cloud Sync")
+                Spacer()
+                Toggle("", isOn: .constant(false))
+                    .disabled(true)
+                    .labelsHidden()
+            }
+            HStack(spacing: 6) {
+                Image(systemName: "lock.icloud")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                Text("Create an account to sync with cloud")
+                    .font(.caption)
+                    .foregroundColor(.orange)
+            }
+        }
+    }
+
+    private var cloudSyncToggle: some View {
+        Toggle(isOn: Binding(
+            get: { env.isCloudSyncOn },
+            set: { newValue in
+                if newValue {
+                    showSyncConfirmAlert = true
+                } else {
+                    showCloudToLocalAlert = true
                 }
             }
-            .onAppear {
-                guard !isGuest else {
-                    statusText = "Local Only"
-                    return
-                }
+        )) { Text("Cloud Sync") }
+        .disabled(env.isSyncing || auth.uid.isEmpty)
+        .alert("Sync to Cloud?", isPresented: $showSyncConfirmAlert) {
+            Button("Sync to Cloud") {
                 let uid = auth.uid
                 guard !uid.isEmpty else { return }
-                UserRepository().fetchCloudSync(uid: uid) { cloudOn in
-                    isCloudSyncOn   = cloudOn
-                    env.isCloudSyncOn = cloudOn
-                    statusText = cloudOn ? "Synced to Cloud" : "Local Only"
+                isSyncingDown = false
+                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: true, env: env)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Your data is currently stored locally. Are you sure you want to sync it to the cloud?")
+        }
+        .alert("Download Cloud Data?", isPresented: $showCloudToLocalAlert) {
+            Button("Download to Device") {
+                let uid = auth.uid
+                guard !uid.isEmpty else { return }
+                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
+                isSyncingDown = true
+                SyncManager.shared.startDownload(uid: uid, env: env) {
+                    isSyncingDown = false
                 }
             }
+            Button("Turn Off Only") {
+                let uid = auth.uid
+                guard !uid.isEmpty else { return }
+                SyncManager.shared.applyCloudSyncPreference(uid: uid, isOn: false, env: env)
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Would you like to download your cloud data to this device before turning off cloud sync?")
+        }
+    }
+
+    @ViewBuilder
+    private var syncStatus: some View {
+        if env.isSyncing {
+            VStack(alignment: .leading, spacing: 4) {
+                ProgressView(value: env.syncHasData ? env.syncProgress : nil)
+                    .progressViewStyle(.linear)
+                Text(isSyncingDown ? "Downloading your data…" : "Uploading your data…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 4)
+        } else if let error = env.lastSyncError {
+            VStack(alignment: .leading, spacing: 6) {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundColor(.orange)
+                if env.isCloudSyncOn {
+                    Button("Retry Sync") {
+                        isSyncingDown = false
+                        SyncManager.shared.startUpload(uid: auth.uid, env: env)
+                    }
+                    .font(.footnote.weight(.semibold))
+                }
+            }
+        } else {
+            Text(env.isCloudSyncOn ? "Synced to Cloud" : "Local Only")
+                .font(.footnote)
+                .foregroundColor(.secondary)
         }
     }
 }

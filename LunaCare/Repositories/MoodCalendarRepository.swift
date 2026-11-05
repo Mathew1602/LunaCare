@@ -4,12 +4,13 @@
 //
 //  Created by Xiaoya Zou on 2025-11-11.
 //
+
 import Foundation
 import FirebaseFirestore
 
 final class MoodCalendarRepository {
 
-    func fetchMonth(uid: String, monthStart: Date) async throws -> [Date: [CalendarDayLog]] {
+    func fetchMonth(uid: String, monthStart: Date, source: FirestoreSource = .default) async throws -> [Date: [CalendarDayLog]] {
         let cal = Calendar.current
         guard let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart) else { return [:] }
 
@@ -20,7 +21,7 @@ final class MoodCalendarRepository {
             .whereField("createdAt", isLessThan: monthEnd)
             .order(by: "createdAt", descending: true)
 
-        let snapshot = try await ref.getDocuments()
+        let snapshot = try await ref.getDocuments(source: source)
 
         var grouped: [Date: [CalendarDayLog]] = [:]
         for doc in snapshot.documents {
@@ -34,7 +35,6 @@ final class MoodCalendarRepository {
             let created = ts.dateValue()
             let dayKey = cal.startOfDay(for: created)
 
-            // Use Firestore document ID as the CalendarDayLog.id
             let item = CalendarDayLog(
                 id: doc.documentID,
                 mood: Mood(score: score),
@@ -78,36 +78,20 @@ final class MoodCalendarRepository {
         newMood: Mood,
         newNote: String?
     ) async throws {
-        let ref = Firestore.firestore()
-            .collection("users").document(uid)
-            .collection("mood_logs")
-            .document(logId)
-
         var data: [String: Any] = [
             "mood": newMood.score,
-            "updatedAt": FieldValue.serverTimestamp()
+            "updatedAt": Date()
         ]
-
         if let note = newNote, !note.isEmpty {
             data["notes"] = note
         } else {
-            // Clear the notes field if empty
             data["notes"] = FieldValue.delete()
         }
 
-        try await ref.updateData(data)
+        try await FirestoreManager.shared.setDocument(path: "\(FSPath.moodLogs(uid))/\(logId)", data: data)
     }
     
-    func deleteLog(
-        uid: String,
-        logId: String
-    ) async throws {
-
-        try await Firestore.firestore()
-            .collection("users")
-            .document(uid)
-            .collection("mood_logs")
-            .document(logId)
-            .delete()
+    func deleteLog(uid: String, logId: String) async throws {
+        try await FirestoreManager.shared.deleteDocument(path: "\(FSPath.moodLogs(uid))/\(logId)")
     }
 }

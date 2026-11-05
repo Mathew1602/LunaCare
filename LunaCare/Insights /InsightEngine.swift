@@ -5,7 +5,6 @@
 //  Created by Mathew Boyd on 2025-11-24.
 //
 
-
 import Foundation
 
 struct InsightEngine {
@@ -46,7 +45,7 @@ struct InsightEngine {
         let lastAvg = recentValues.reduce(0, +) / Double(recentValues.count)
 
         let delta = lastAvg - prevAvg
-        let pct = prevAvg != 0 ? (delta / prevAvg) * 100.0 : 0
+        let pct: Double? = prevAvg != 0 ? (delta / prevAvg) * 100.0 : nil
 
         let direction: String
         if abs(delta) < metric.neutralDeltaThreshold {
@@ -101,9 +100,15 @@ struct InsightEngine {
             goodOrBad = "a change"
         }
 
+        if let pct = r.percentChange {
+            return String(
+                format: "Your %@ is %@ vs last week (%0.2f → %0.2f, %+0.2f, %+0.1f%%) — %@.",
+                metric.label, r.direction, r.prev7Avg, r.last7Avg, r.delta, pct, goodOrBad
+            )
+        }
         return String(
-            format: "Your %@ is %@ vs last week (%0.2f → %0.2f, %+0.2f, %+0.1f%%) — %@.",
-            metric.label, r.direction, r.prev7Avg, r.last7Avg, r.delta, r.percentChange, goodOrBad
+            format: "Your %@ is %@ vs last week (%0.2f → %0.2f, %+0.2f) — %@.",
+            metric.label, r.direction, r.prev7Avg, r.last7Avg, r.delta, goodOrBad
         )
     }
 }

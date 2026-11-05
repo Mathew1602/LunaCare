@@ -49,7 +49,7 @@ enum InsightMetric {
         case .walkingHR: return m.walkingHeartRateAvgBpm
         case .hrv: return m.hrvSDNNms
         case .respiratoryRate: return m.respiratoryRateBpm
-        case .oxygenSaturation: return m.oxygenSaturationPct
+        case .oxygenSaturation: return m.oxygenSaturationPct.map(Measurement.spo2Percent)
         case .vo2Max: return m.vo2Max
 
         // Sleep
@@ -167,7 +167,7 @@ enum InsightMetric {
         case .weight:
             return 0.2
         default:
-            return 0.5         // default bpm-ish threshold
+            return 0.5
         }
     }
 }

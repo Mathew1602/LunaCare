@@ -154,6 +154,7 @@ struct MoodTrackingView: View {
                         "",
                         selection:
                             $vm.createdAt,
+                        in: ...Date(),
                         displayedComponents: [
                             .date,
                             .hourAndMinute
@@ -339,6 +340,12 @@ struct MoodTrackingView: View {
                     saveDisabled
                 )
 
+                if let error = vm.errorMessage {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                }
+
 
                 // =====================================================
                 // Privacy Note
@@ -461,17 +468,7 @@ struct MoodTrackingView: View {
     // =========================================================
 
     private var saveDisabled: Bool {
-
-        vm.loading ||
-        (
-            vm.selectedMood == nil &&
-            vm.note
-                .trimmingCharacters(
-                    in:
-                        .whitespacesAndNewlines
-                )
-                .isEmpty
-        )
+        !vm.canSave
     }
 }
 
