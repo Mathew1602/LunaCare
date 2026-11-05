@@ -347,39 +347,16 @@ struct HomeContentView: View {
         isRunningMLTest = true
         Task {
             defer { isRunningMLTest = false }
-            do {
-                if !auth.uid.isEmpty,
-                   try await !PrivacyRepository().fetchConsent(uid: auth.uid).riskInsights {
-                    mlTestMessage = "Risk insights are turned off in Data Privacy."
-                    showingMLTestAlert = true
-                    return
-                }
-
-                let loader = PPDWindowLoader()
-                guard try await loader.hasMonthOfHistory(uid: auth.uid, fromCloud: isSyncedToCloud) else {
-                    mlTestMessage = PPDWindowLoader.notEnoughHistoryMessage
-                    showingMLTestAlert = true
-                    return
-                }
-                let records = try await loader.load(uid: auth.uid, fromCloud: isSyncedToCloud)
-
-                if records.isEmpty {
-                    mlTestMessage = "No measurements in the last 30 days. Log data or sync your watch first."
-                } else if let runner = PPDRiskModelRunner.shared {
-                    let score = try runner.predictRisk(from: records)
-                    let pct = PPDRiskTier.percent(score)
-                    mlTestMessage = """
-                    Last 30 days (\(records.count) days of data)
-                    score = \(score, default: "%.3f")
-                    (~\(pct)% risk) · \(PPDRiskTier(score: score).title)
-                    """
-                } else {
-                    mlTestMessage = "Model unavailable"
-                }
-            } catch {
-                mlTestMessage = "Couldn’t run model: \(error.localizedDescription)"
+            let result = await PPDRiskCheck.run(uid: auth.uid, fromCloud: isSyncedToCloud)
+            if let score = result.score {
+                mlTestMessage = """
+                Last 30 days (\(result.dataDays) days of data)
+                score = \(score, default: "%.3f")
+                (~\(PPDRiskTier.percent(score))% risk) · \(PPDRiskTier(score: score).title)
+                """
+            } else {
+                mlTestMessage = result.message ?? "Model unavailable"
             }
-
             showingMLTestAlert = true
         }
     }

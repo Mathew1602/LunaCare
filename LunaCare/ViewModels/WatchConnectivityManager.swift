@@ -10,15 +10,20 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     @Published var lastProfile: UserProfile? = nil {
         didSet { persistProfile(lastProfile) }
     }
+    @Published var lastRisk: WatchRiskSummary? = nil {
+        didSet { persistRisk(lastRisk) }
+    }
     @Published var errorMessage: String?
 
     private var session: WCSession?
 
     private let profileCacheKey = "lc_lastProfile_cache"
+    private let riskCacheKey = "lc_lastRisk_cache"
 
     private override init() {
         super.init()
         loadCachedProfile()
+        loadCachedRisk()
         startSession()
     }
 
@@ -172,6 +177,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
                     self.lastReceived = SyncMessage(type: type, getSymptomResponse: logs)
                 }
             }
+
+        case .getRiskRequest:
+            DispatchQueue.main.async {
+                self.lastReceived = SyncMessage(type: type)
+            }
+
+        case .getRiskResponse:
+            if let risk = try? decoder.decode(WatchRiskSummary.self, from: data) {
+                DispatchQueue.main.async {
+                    self.lastRisk = risk
+                    self.lastReceived = SyncMessage(type: type, getRiskResponse: risk)
+                }
+            }
         }
     }
 
@@ -217,6 +235,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         if let data = try? JSONEncoder().encode(profile) {
             UserDefaults.standard.set(data, forKey: profileCacheKey)
         }
+    }
+
+    private func persistRisk(_ risk: WatchRiskSummary?) {
+        guard let risk, let data = try? JSONEncoder().encode(risk) else { return }
+        UserDefaults.standard.set(data, forKey: riskCacheKey)
+    }
+
+    private func loadCachedRisk() {
+        guard let data = UserDefaults.standard.data(forKey: riskCacheKey),
+              let risk = try? JSONDecoder().decode(WatchRiskSummary.self, from: data) else {
+            return
+        }
+        lastRisk = risk
     }
 
     private func loadCachedProfile() {

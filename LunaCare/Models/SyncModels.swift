@@ -19,6 +19,9 @@ enum SyncType: String, Codable {
 
     case getSymptomRequest
     case getSymptomResponse
+
+    case getRiskRequest
+    case getRiskResponse
 }
 
 struct SyncMessage: Identifiable {
@@ -36,6 +39,14 @@ struct SyncMessage: Identifiable {
 
     var getSymptomRequest: GetRequest? = nil
     var getSymptomResponse: [SymptomLogSummary]? = nil
+
+    var getRiskResponse: WatchRiskSummary? = nil
+}
+
+struct WatchRiskSummary: Codable {
+    let score: Double?
+    let message: String?
+    let computedAt: Date
 }
 
 struct GetRequest: Codable {

@@ -161,6 +161,15 @@ final class WatchSyncService {
         case .getSymptomResponse:
             guard let rows = msg.getSymptomResponse else { return }
             print("GetSymptomResponse received: \(rows.count) items")
+
+        case .getRiskRequest:
+            Task {
+                let result = await PPDRiskCheck.run(uid: uid, fromCloud: !uid.isEmpty && useCloud)
+                WatchConnectivityManager.shared.send(result.watchSummary, type: .getRiskResponse)
+            }
+
+        case .getRiskResponse:
+            break
         }
     }
 }

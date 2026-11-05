@@ -16,40 +16,30 @@ struct SymptomsTrackingView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                Text("Symptoms Tracking")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-
+            VStack(spacing: 8) {
                 ForEach(symptomNames, id: \.self) { name in
                     SymptomLevelRow(title: name, level: binding(for: name))
                 }
 
-                Button(action: {
+                Button {
                     sendSymptomLog()
-                }) {
-                    Text("Save & Sync")
-                        .font(.body)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 20)
+                } label: {
+                    Label("Save & Sync", systemImage: "checkmark")
                         .frame(maxWidth: .infinity)
                 }
-                .background(.ultraThinMaterial)
-                .cornerRadius(40)
-                .padding(.horizontal)
-                .padding(.bottom, 10)
+                .buttonStyle(.borderedProminent)
+                .disabled(levels.isEmpty)
+                .padding(.top, 4)
             }
-            .padding(.vertical)
+            .padding(.horizontal, 4)
         }
-        .alert("Symptoms Saved",
-               isPresented: $showingSavedAlert,
-               actions: {
-                   Button("OK", role: .cancel) { }
-               },
-               message: {
-                   Text("Your symptom check-in has been synced")
-               })
+        .navigationTitle("Symptoms")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Symptoms Saved", isPresented: $showingSavedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Your symptom check-in has been synced")
+        }
     }
 
     private func binding(for name: String) -> Binding<SymptomLevel?> {
@@ -63,19 +53,11 @@ struct SymptomsTrackingView: View {
         let values = Dictionary(
             uniqueKeysWithValues: symptomNames.map { ($0, levels[$0]?.rawValue ?? 0) }
         )
-
-        let payload = SymptomLogPayload(
-            values: values,
-            notes: nil,
-            tags: ["watch"],
-            source: "watch"
-        )
-
+        let payload = SymptomLogPayload(values: values, notes: nil, tags: ["watch"], source: "watch")
         WatchConnectivityManager.shared.send(payload, type: .symptomLog)
 
         WKInterfaceDevice.current().play(.success)
         showingSavedAlert = true
-
         levels.removeAll()
     }
 }
@@ -86,41 +68,40 @@ struct SymptomLevelRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.body)
-                .fontWeight(.semibold)
+            HStack {
+                Text(title)
+                    .font(.footnote.weight(.semibold))
+                Spacer()
+                if let level {
+                    Circle()
+                        .fill(level.tint)
+                        .frame(width: 8, height: 8)
+                }
+            }
 
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 ForEach(SymptomLevel.allCases) { option in
+                    let selected = level == option
                     Button {
-                        level = (level == option) ? nil : option
+                        level = selected ? nil : option
                         WKInterfaceDevice.current().play(.click)
                     } label: {
                         Text(option.label)
-                            .font(.caption)
+                            .font(.caption2.weight(selected ? .bold : .regular))
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
+                            .background(option.tint.opacity(selected ? 0.55 : 0.15), in: Capsule())
                     }
                     .buttonStyle(.plain)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(level == option
-                                  ? Color.accentColor.opacity(0.4)
-                                  : Color.white.opacity(0.12))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.accentColor,
-                                    lineWidth: level == option ? 1.5 : 0)
-                    )
                     .accessibilityLabel("\(title), \(option.label)")
-                    .accessibilityAddTraits(level == option ? [.isButton, .isSelected] : [.isButton])
+                    .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
                 }
             }
         }
-        .padding(.horizontal)
+        .padding(8)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
     }
 }
 
