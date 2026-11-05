@@ -305,6 +305,11 @@ struct HomeContentView: View {
                     Task { await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid) }
                 }
             }
+            .onChange(of: env.isSyncing) { _, syncing in
+                if !syncing {
+                    Task { await loadStoredMeasurements() }
+                }
+            }
             //When the user exits the appliction (Refresh health data so it is new when they open it)
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .active {
@@ -366,7 +371,7 @@ struct HomeContentView: View {
                     mlTestMessage = """
                     Last 30 days (\(records.count) days of data)
                     score = \(score, default: "%.3f")
-                    (~\(pct)% risk)
+                    (~\(pct)% risk) · \(PPDRiskTier(score: score).title)
                     """
                 } else {
                     mlTestMessage = "Model unavailable"

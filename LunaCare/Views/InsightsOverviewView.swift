@@ -124,10 +124,7 @@ struct InsightsOverviewView: View {
                             HealthAlertsView()
                                 .environmentObject(vm)
                         } label: {
-                            InsightRiskScoreCard(
-                                score: score,
-                                threshold: Double(vm.highPPDScoreThresholdPercent) / 100
-                            )
+                            InsightRiskScoreCard(score: score, tier: PPDRiskTier(score: score))
                         }
                         .buttonStyle(.plain)
                     }
@@ -531,7 +528,7 @@ private struct MiniChart: View {
 
 private struct InsightRiskScoreCard: View {
     let score: Double
-    let threshold: Double
+    let tier: PPDRiskTier
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -540,17 +537,21 @@ private struct InsightRiskScoreCard: View {
                     .font(.subheadline.bold())
                     .foregroundColor(.primary)
                 Spacer()
+                Text(tier.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(tier.color, in: Capsule())
                 Text("\(Int((score * 100).rounded()))%")
                     .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundColor(score >= threshold ? .red : .primary)
+                    .foregroundColor(tier.color)
             }
 
             ProgressView(value: score, total: 1)
-                .tint(score >= threshold ? .red : .lcLavender)
+                .tint(tier.color)
 
-            Text(score >= threshold
-                 ? "High-score alert. Open to view details."
-                 : "Below the \(Int((threshold * 100).rounded()))% alert cutoff. Open to view details.")
+            Text("\(tier.summary) Open to view details.")
                 .font(.caption)
                 .foregroundColor(.secondary)
 

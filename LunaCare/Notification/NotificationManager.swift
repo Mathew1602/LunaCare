@@ -12,6 +12,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
     let center = UNUserNotificationCenter.current()
 
+    static let dailyReminderID = "daily.checkin.reminder"
+    private let lastPPDAlertKey = "notif.ppdAlerts.lastDate"
+
     // Ask user for permission
     func requestAuthorization() {
         center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, err in
@@ -19,14 +22,78 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             print("Notifications granted:", granted)
         }
     }
-    
+
+    func requestAuthorization() async -> Bool {
+        do {
+            return try await center.requestAuthorization(options: [.alert, .badge, .sound])
+        } catch {
+            print("Notification authorization error:", error)
+            return false
+        }
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
+    }
+
+    func updateDailyReminder() {
+        center.removePendingNotificationRequests(withIdentifiers: [Self.dailyReminderID])
+        guard NotificationPreferences.dailyReminderEnabled else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Time for your LunaCare check-in"
+        content.body = "Take a moment to log your mood and how you’re feeling today."
+        content.sound = .default
+
+        var time = DateComponents()
+        time.hour = NotificationPreferences.dailyReminderHour
+        time.minute = NotificationPreferences.dailyReminderMinute
+        let trigger = UNCalendarNotificationTrigger(dateMatching: time, repeats: true)
+
+        let request = UNNotificationRequest(identifier: Self.dailyReminderID,
+                                            content: content,
+                                            trigger: trigger)
+        center.add(request) { error in
+            if let error { print("Failed to schedule daily reminder:", error) }
+        }
+    }
+
+    func schedulePPDHighRiskAlertIfNeeded(score: Double) {
+        guard NotificationPreferences.ppdAlertsEnabled,
+              PPDRiskTier(score: score) == .high else { return }
+
+        let defaults = UserDefaults.standard
+        if let last = defaults.object(forKey: lastPPDAlertKey) as? Date,
+           Calendar.current.isDateInToday(last) {
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = "LunaCare check-in"
+        content.body = "Some of your recent patterns stand out. Open LunaCare to see your alerts, and consider reaching out to your healthcare provider."
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+        let request = UNNotificationRequest(identifier: "ppd-high-risk-\(UUID().uuidString)",
+                                            content: content,
+                                            trigger: trigger)
+        center.add(request) { [lastPPDAlertKey] error in
+            if let error {
+                print("Failed to schedule PPD alert:", error)
+            } else {
+                UserDefaults.standard.set(Date(), forKey: lastPPDAlertKey)
+            }
+        }
+    }
+
     func scheduleHealthAlertsIfNeeded(from alerts: [WeeklyInsight]) {
+        guard NotificationPreferences.trendAlertsEnabled else { return }
         // No alerts → nothing to schedule
         guard !alerts.isEmpty else { return }
 
         let center = UNUserNotificationCenter.current()
 
-       
+
 
         let content = UNMutableNotificationContent()
         content.title = "LunaCare Health Alert"
@@ -78,4 +145,3 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         center.add(req)
     }
 }
-

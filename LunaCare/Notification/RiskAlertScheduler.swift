@@ -22,6 +22,7 @@ final class RiskAlertScheduler {
     /// - Send ONE notification if needed
     /// - Never send more than once per calendar day
     func scheduleIfNeeded(from insights: [WeeklyInsight]) {
+        guard NotificationPreferences.trendAlertsEnabled else { return }
         guard let redFlag = insights.first(where: Self.isRedFlag) else {
             return
         }

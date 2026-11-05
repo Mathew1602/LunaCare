@@ -14,7 +14,7 @@ struct RecommendationsView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var vm: InsightsViewModel
 
-    @State private var sendDailyReminders = true
+    @AppStorage(NotificationPreferences.dailyReminderEnabledKey) private var sendDailyReminders = false
 
     var body: some View {
         ScrollView {
@@ -31,10 +31,10 @@ struct RecommendationsView: View {
                     recommendationSummary
 
                     let trendRecommendations = vm.recommendations.filter {
-                        $0.title != RecommendationEngine.screeningRecommendationTitle
+                        !RecommendationEngine.screeningTitles.contains($0.title)
                     }
                     let screeningRecommendations = vm.recommendations.filter {
-                        $0.title == RecommendationEngine.screeningRecommendationTitle
+                        RecommendationEngine.screeningTitles.contains($0.title)
                     }
 
                     LazyVStack(alignment: .leading, spacing: 18) {
@@ -189,6 +189,14 @@ struct RecommendationsView: View {
                 }
             }
             .tint(.purple)
+            .onChange(of: sendDailyReminders) { _, isOn in
+                Task {
+                    if isOn, await NotificationManager.shared.authorizationStatus() == .notDetermined {
+                        _ = await NotificationManager.shared.requestAuthorization()
+                    }
+                    NotificationManager.shared.updateDailyReminder()
+                }
+            }
 
             Divider()
 
@@ -231,7 +239,7 @@ private struct RecommendationCard: View {
                     .foregroundColor(.primary.opacity(0.85))
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(item.title == RecommendationEngine.screeningRecommendationTitle
+                Text(RecommendationEngine.screeningTitles.contains(item.title)
                      ? "SCREENING SIGNAL"
                      : "FROM YOUR INSIGHTS")
                     .font(.caption2.weight(.semibold))
@@ -258,6 +266,7 @@ private struct RecommendationCard: View {
         case "Make a little room for rest", "Try one small wind-down cue": return "moon.zzz.fill"
         case "Keep movement gentle and doable": return "figure.walk"
         case "Make space for support", RecommendationEngine.screeningRecommendationTitle: return "heart"
+        case RecommendationEngine.monitorRecommendationTitle: return "eye"
         case "Notice when symptoms show up": return "cross.case"
         case "Check in with how you’re feeling": return "heart.text.square"
         default: return "sparkles"
@@ -271,6 +280,7 @@ private struct RecommendationCard: View {
         case "Keep movement gentle and doable": return Color(red: 0.25, green: 0.61, blue: 0.48)
         case "Make space for support", RecommendationEngine.screeningRecommendationTitle:
             return Color(red: 0.78, green: 0.48, blue: 0.38)
+        case RecommendationEngine.monitorRecommendationTitle: return PPDRiskTier.medium.color
         case "Notice when symptoms show up", "Check in with how you’re feeling":
             return Color(red: 0.78, green: 0.40, blue: 0.48)
         default: return .purple

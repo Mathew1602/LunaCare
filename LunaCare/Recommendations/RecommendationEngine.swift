@@ -9,8 +9,9 @@ import Foundation
 
 enum RecommendationEngine {
 
-    static let highPPDScoreThreshold = 0.90
     static let screeningRecommendationTitle = "Consider a supportive check-in"
+    static let monitorRecommendationTitle = "Keep an eye on how you’re feeling"
+    static let screeningTitles: Set<String> = [screeningRecommendationTitle, monitorRecommendationTitle]
 
     struct RecommendationItem: Identifiable, Codable {
         var id: String? // Firestore doc ID
@@ -28,13 +29,26 @@ enum RecommendationEngine {
             .sorted { $0.priority < $1.priority }
         var items = Array(trendIdeas.prefix(6).map(\.item))
 
-        if let ppdRiskScore, ppdRiskScore >= highPPDScoreThreshold {
-            items.append(.init(
-                id: "screening-support",
-                title: screeningRecommendationTitle,
-                subtitle: "If you have concerns about your mood or well-being, reach out to your healthcare provider.",
-                reason: "The screening model returned a high raw score (\(Int((ppdRiskScore * 100).rounded()))%). This is not a diagnosis or a verified probability."
-            ))
+        if let ppdRiskScore {
+            let pct = Int((ppdRiskScore * 100).rounded())
+            switch PPDRiskTier(score: ppdRiskScore) {
+            case .high:
+                items.append(.init(
+                    id: "screening-support",
+                    title: screeningRecommendationTitle,
+                    subtitle: "If you have concerns about your mood or well-being, reach out to your healthcare provider.",
+                    reason: "The screening model placed you in the High risk tier (\(pct)%, cutoff \(PPDRiskTier.highPercent)%). This is not a diagnosis or a verified probability."
+                ))
+            case .medium:
+                items.append(.init(
+                    id: "screening-monitor",
+                    title: monitorRecommendationTitle,
+                    subtitle: "Keep logging your mood and sleep, and mention how you’ve been feeling at your next check-up.",
+                    reason: "The screening model placed you in the Medium risk tier (\(pct)%, \(PPDRiskTier.mediumPercent)–\(PPDRiskTier.highPercent - 1)%). This is not a diagnosis or a verified probability."
+                ))
+            case .low:
+                break
+            }
         }
 
         return items

@@ -17,8 +17,6 @@ import Foundation
 @MainActor
 final class InsightsViewModel: ObservableObject {
 
-    private static let highPPDScoreThreshold = 0.90
-
     @Published var insights: [WeeklyInsight] = []
     @Published var isLoading = false
     @Published var errorMessage: String? = nil
@@ -97,7 +95,9 @@ final class InsightsViewModel: ObservableObject {
         }
 
         do {
-            ppdRiskScore = try runner.predictRisk(from: snapshot.measurements)
+            let score = try runner.predictRisk(from: snapshot.measurements)
+            ppdRiskScore = score
+            NotificationManager.shared.schedulePPDHighRiskAlertIfNeeded(score: score)
         } catch {
             riskAssessmentMessage = "ML risk alert could not be calculated: \(error.localizedDescription)"
         }
@@ -110,18 +110,16 @@ final class InsightsViewModel: ObservableObject {
         RiskAlertScheduler.redFlagInsights(from: insights)
     }
 
+    var ppdRiskTier: PPDRiskTier? {
+        ppdRiskScore.map(PPDRiskTier.init(score:))
+    }
+
     var highPPDRiskScore: Double? {
-        guard let ppdRiskScore,
-              ppdRiskScore >= RecommendationEngine.highPPDScoreThreshold else { return nil }
-        return ppdRiskScore
+        ppdRiskTier == .high ? ppdRiskScore : nil
     }
 
     var hasRiskScore: Bool {
         ppdRiskScore != nil
-    }
-
-    var highPPDScoreThresholdPercent: Int {
-        Int((RecommendationEngine.highPPDScoreThreshold * 100).rounded())
     }
 
     var hasAlerts: Bool {
