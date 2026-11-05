@@ -19,6 +19,7 @@ struct LunaCareWatchOS_Watch_AppApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(health)
+                .tint(.indigo)
                 .task { await health.authorizeAndRefresh() }
         }
     }

@@ -9,116 +9,76 @@ import SwiftUI
 import Combine
 
 struct SymptomHistoryView: View {
-
-    @StateObject private var wc = WatchConnectivityManager.shared
+    @ObservedObject private var wc = WatchConnectivityManager.shared
     @State private var logs: [SymptomLogSummary] = []
-    @State private var isLoading: Bool = true
+    @State private var isLoading = true
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Symptoms (Last 7 Days)")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Past 7 days")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 if isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                        Spacer()
-                    }
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                 } else if logs.isEmpty {
-                    Text("No symptom data yet.\nLog symptoms from the tracking screen.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.leading)
+                    WatchEmptyState(icon: "cross.case", text: "No symptoms yet. Log them from the home screen.")
                 } else {
-                    ForEach(groupedByDay, id: \.date) { section in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(dayFormatter.string(from: section.date))
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                                .padding(.bottom, 2)
-
-                            ForEach(section.entries) { entry in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(timeFormatter.string(from: entry.createdAt))
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-
-                                    ForEach(entry.rows) { row in
-                                        HStack {
-                                            Text(row.name)
-                                                .font(.caption2)
-                                                .lineLimit(1)
-                                            Spacer()
-                                            Text("\(row.value)")
-                                                .font(.caption2)
-                                                .bold()
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 3)
-                            }
-                        }
-                        .padding(.vertical, 4)
+                    ForEach(logs) { entry in
+                        card(entry)
                     }
                 }
             }
-            .padding()
+            .padding(.horizontal, 4)
         }
         .navigationTitle("Symptoms")
         .onAppear {
             wc.activate()
             isLoading = true
-
             let now = Date()
-            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -6, to: now) ?? now
-            let from = Calendar.current.startOfDay(for: sevenDaysAgo)
-            let to = now
-
-            let request = GetRequest(from: from, to: to)
-            wc.send(request, type: .getSymptomRequest)
+            let cal = Calendar.current
+            let from = cal.startOfDay(for: cal.date(byAdding: .day, value: -6, to: now) ?? now)
+            wc.send(GetRequest(from: from, to: now), type: .getSymptomRequest)
         }
-        .onReceive(
-            wc.$lastReceived
-                .compactMap { $0 }
-        ) { msg in
-            print("WATCH SymptomHistoryView received SyncMessage of type: \(msg.type)")
-            guard msg.type == .getSymptomResponse,
-                  let summaries = msg.getSymptomResponse else {
-                return
-            }
+        .onReceive(wc.$lastReceived.compactMap { $0 }) { msg in
+            guard msg.type == .getSymptomResponse, let summaries = msg.getSymptomResponse else { return }
             isLoading = false
             logs = summaries.sorted { $0.createdAt > $1.createdAt }
         }
     }
 
-    private var groupedByDay: [(date: Date, entries: [SymptomLogSummary])] {
-        let cal = Calendar.current
-        let groups = Dictionary(grouping: logs) { log in
-            cal.startOfDay(for: log.createdAt)
-        }
+    private func card(_ entry: SymptomLogSummary) -> some View {
+        let active = entry.rows.filter { $0.value > 0 }
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(entry.createdAt, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day())
+                .font(.footnote.weight(.semibold))
 
-        return groups
-            .map { key, values in
-                (date: key, entries: values.sorted { $0.createdAt > $1.createdAt })
+            if active.isEmpty {
+                Text("No symptoms")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(active) { row in
+                    HStack {
+                        Text(row.name)
+                            .font(.caption2)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(SymptomLevel(rawValue: row.value)?.label ?? "\(row.value)")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(SymptomLevel.tint(forValue: row.value).opacity(0.4), in: Capsule())
+                    }
+                }
             }
-            .sorted { $0.date > $1.date }
-    }
-
-    private var dayFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.dateStyle = .medium
-        df.timeStyle = .none
-        return df
-    }
-
-    private var timeFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.dateStyle = .none
-        df.timeStyle = .short
-        return df
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.teal.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
     }
 }
 

@@ -13,86 +13,71 @@ struct MoodTracking: View {
     @State private var note: String = ""
     @State private var showingSavedAlert = false
 
-    private let moodOptions: [Mood] = [.angry, .sad, .ecstatic, .happy, .okay]
+    private let moodOptions: [Mood] = [.ecstatic, .happy, .okay, .sad, .angry]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                Text("How do you feel today?")
+            VStack(spacing: 10) {
+                Text("How do you feel?")
                     .font(.headline)
-                    .multilineTextAlignment(.center)
 
-                HStack(spacing: 16) {
+                LazyVGrid(columns: columns, spacing: 6) {
                     ForEach(moodOptions) { mood in
-                        Button {
-                            selectedMood = mood
-                        } label: {
-                            Text(mood.rawValue)
-                                .font(.system(size: 24))
-                                .opacity(selectedMood == mood ? 1.0 : 0.5)
-                                .scaleEffect(selectedMood == mood ? 1.2 : 1.0)
-                                .animation(.easeInOut(duration: 0.15), value: selectedMood)
-                        }
-                        .buttonStyle(.plain)
+                        moodButton(mood)
                     }
-                }
-
-                if selectedMood != nil {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Add a note")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-
-                        TextField("Optional note", text: $note, axis: .vertical)
-                            .lineLimit(1...3)
-                            .font(.caption2)
-                            .padding(6)
-                            .background(Color.black.opacity(0.3))
-                            .cornerRadius(10)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 if let mood = selectedMood {
-                    Button {
-                        saveMood(mood)
-                    } label: {
-                        Text("Save Mood")
-                            .font(.headline)
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 20)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(40)
+                    Text(mood.label)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.indigo)
+
+                    TextField("Add a note", text: $note, axis: .vertical)
+                        .lineLimit(1...3)
+                        .font(.caption)
                 }
+
+                Button {
+                    if let mood = selectedMood { saveMood(mood) }
+                } label: {
+                    Label("Save Mood", systemImage: "checkmark")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedMood == nil)
             }
-            .padding(.horizontal)
-            .padding(.top, 8)
+            .padding(.horizontal, 4)
         }
         .navigationTitle("Log Mood")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Mood Saved",
-               isPresented: $showingSavedAlert,
-               actions: {
-                   Button("OK", role: .cancel) { }
-               },
-               message: {
-                   Text("Thanks for checking in")
-               })
+        .alert("Mood Saved", isPresented: $showingSavedAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Thanks for checking in")
+        }
+    }
+
+    private func moodButton(_ mood: Mood) -> some View {
+        let selected = selectedMood == mood
+        return Button {
+            selectedMood = mood
+            WKInterfaceDevice.current().play(.click)
+        } label: {
+            Text(mood.rawValue)
+                .font(.system(size: 26))
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(Color.indigo.opacity(selected ? 0.45 : 0.12), in: Circle())
+                .overlay(Circle().stroke(Color.indigo, lineWidth: selected ? 2 : 0))
+                .scaleEffect(selected ? 1.08 : 1)
+                .animation(.easeInOut(duration: 0.15), value: selected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(mood.label)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
     }
 
     private func saveMood(_ mood: Mood) {
-        sendMoodToPhone(mood)
-
-        selectedMood = nil
-        note = ""
-
-        WKInterfaceDevice.current().play(.success)
-        showingSavedAlert = true
-    }
-
-    private func sendMoodToPhone(_ mood: Mood) {
         let moodLog = MoodLog(
             id: nil,
             mood: mood.score,
@@ -102,8 +87,12 @@ struct MoodTracking: View {
             createdAt: Date(),
             updatedAt: Date()
         )
-
         WatchConnectivityManager.shared.send(moodLog, type: .moodLog)
+
+        selectedMood = nil
+        note = ""
+        WKInterfaceDevice.current().play(.success)
+        showingSavedAlert = true
     }
 }
 

@@ -9,97 +9,80 @@ import SwiftUI
 import Combine
 
 struct MoodHistoryView: View {
-
-    @StateObject private var wc = WatchConnectivityManager.shared
+    @ObservedObject private var wc = WatchConnectivityManager.shared
     @State private var history: [CalendarDayLog] = []
-    @State private var isLoading: Bool = true
-
-    @State private var showingNoteAlert = false
+    @State private var isLoading = true
     @State private var noteToShow: String? = nil
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Mood past 7 days")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Past 7 days")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 if isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                        Spacer()
-                    }
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                 } else if history.isEmpty {
-                    Text("No data yet. Please record your mood :)")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                    WatchEmptyState(icon: "face.smiling", text: "No moods yet. Log one from the home screen.")
                 } else {
                     ForEach(history) { log in
                         Button {
-                            noteToShow = log.note
-                                showingNoteAlert = true
+                            noteToShow = log.note ?? "No note"
                         } label: {
-                            HStack {
-                                Text(shortDateFormatter.string(from: log.createdAt))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-
-                                Text(log.mood.rawValue)
-                                    .font(.title3)
-
-                                Text(log.mood.label)
-                                    .font(.body)
-                                    .lineLimit(1)
-                            }
+                            row(log)
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
-            .padding()
+            .padding(.horizontal, 4)
         }
-        .navigationTitle("Mood History")
+        .navigationTitle("Moods")
         .onAppear {
             wc.activate()
             isLoading = true
-
             let now = Date()
-            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
-
-            let request = GetRequest(from: sevenDaysAgo, to: now)
-            wc.send(request, type: .getMoodRequest)
+            let from = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
+            wc.send(GetRequest(from: from, to: now), type: .getMoodRequest)
         }
-        .onReceive(
-            wc.$lastReceived
-                .compactMap { $0 }
-        ) { msg in
-            print("WATCH MoodHistoryView received SyncMessage of type: \(msg.type)")
-            guard msg.type == .getMoodResponse,
-                  let logs = msg.getMoodResponse else {
-                return
-            }
-
+        .onReceive(wc.$lastReceived.compactMap { $0 }) { msg in
+            guard msg.type == .getMoodResponse, let logs = msg.getMoodResponse else { return }
             isLoading = false
             history = logs.sorted { $0.createdAt > $1.createdAt }
         }
-        .alert("Mood Note",
-               isPresented: $showingNoteAlert,
-               actions: {
-                   Button("OK", role: .cancel) { }
-               },
-               message: {
-                   Text(noteToShow ?? "No Note")
-               }
-        )
+        .alert("Mood Note", isPresented: Binding(get: { noteToShow != nil }, set: { if !$0 { noteToShow = nil } })) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(noteToShow ?? "")
+        }
     }
 
-    private var shortDateFormatter: DateFormatter {
-        let df = DateFormatter()
-        df.dateFormat = "MMM d, h:mm a"
-        return df
+    private func row(_ log: CalendarDayLog) -> some View {
+        HStack(spacing: 8) {
+            Text(log.mood.rawValue)
+                .font(.system(size: 26))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(log.mood.label)
+                    .font(.footnote.weight(.semibold))
+                Text(log.createdAt, format: .dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            Spacer(minLength: 0)
+            if log.note?.isEmpty == false {
+                Image(systemName: "note.text")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(8)
+        .background(Color.indigo.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
     }
-
 }
 
 #Preview {
