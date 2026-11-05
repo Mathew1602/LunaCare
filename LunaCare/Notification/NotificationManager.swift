@@ -13,13 +13,12 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     let center = UNUserNotificationCenter.current()
 
     static let dailyReminderID = "daily.checkin.reminder"
+    static let ppdAlertID = "ppd-high-risk"
     private let lastPPDAlertKey = "notif.ppdAlerts.lastDate"
 
-    // Ask user for permission
     func requestAuthorization() {
         center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, err in
             if let err = err { print("Notification authorization error:", err) }
-            print("Notifications granted:", granted)
         }
     }
 
@@ -62,11 +61,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         guard NotificationPreferences.ppdAlertsEnabled,
               PPDRiskTier(score: score) == .high else { return }
 
-        let defaults = UserDefaults.standard
-        if let last = defaults.object(forKey: lastPPDAlertKey) as? Date,
-           Calendar.current.isDateInToday(last) {
-            return
-        }
+        let previous = StorageScope.object(forKey: lastPPDAlertKey) as? Date
+        if let previous, Calendar.current.isDateInToday(previous) { return }
+        StorageScope.set(Date(), forKey: lastPPDAlertKey)
 
         let content = UNMutableNotificationContent()
         content.title = "LunaCare check-in"
@@ -74,74 +71,28 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
-        let request = UNNotificationRequest(identifier: "ppd-high-risk-\(UUID().uuidString)",
+        let request = UNNotificationRequest(identifier: Self.ppdAlertID,
                                             content: content,
                                             trigger: trigger)
-        center.add(request) { [lastPPDAlertKey] error in
-            if let error {
-                print("Failed to schedule PPD alert:", error)
-            } else {
-                UserDefaults.standard.set(Date(), forKey: lastPPDAlertKey)
+        let key = lastPPDAlertKey
+        center.add(request) { error in
+            guard let error else { return }
+            print("Failed to schedule PPD alert:", error)
+            DispatchQueue.main.async {
+                StorageScope.set(previous, forKey: key)
             }
         }
     }
 
-    func scheduleHealthAlertsIfNeeded(from alerts: [WeeklyInsight]) {
-        guard NotificationPreferences.trendAlertsEnabled else { return }
-        // No alerts → nothing to schedule
-        guard !alerts.isEmpty else { return }
-
-        let center = UNUserNotificationCenter.current()
-
-
-
-        let content = UNMutableNotificationContent()
-        content.title = "LunaCare Health Alert"
-
-        if alerts.count == 1 {
-            // Use the full insight text for a single alert
-            content.body = alerts[0].text
-        } else {
-            let names = alerts.prefix(2).map { $0.metric }
-            let joined = names.joined(separator: " & ")
-            content.body = "Changes detected in \(joined). Open LunaCare to view your health alerts."
-        }
-
-        content.sound = .default
-
-        // Fire shortly after insights load (3 seconds)
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
-
-        let request = UNNotificationRequest(
-            identifier: "health-alert-\(UUID().uuidString)",
-            content: content,
-            trigger: trigger
-        )
-
-        center.add(request, withCompletionHandler: nil)
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            willPresent notification: UNNotification,
+                                            withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
     }
 
-    // Show banner even when app is in foreground
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .sound])
-    }
-
-    // Schedule a one-off demo notification
-    func scheduleDemo(after seconds: TimeInterval) {
-        // avoid piling up multiple pending requests
-        center.removePendingNotificationRequests(withIdentifiers: ["demo.mood.reminder"])
-
-        let content = UNMutableNotificationContent()
-        content.title = "Time to log your mood :)"
-        content.body  = "A quick check-in helps track your well-being."
-        content.sound = .default
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
-        let req = UNNotificationRequest(identifier: "demo.mood.reminder",
-                                        content: content,
-                                        trigger: trigger)
-        center.add(req)
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            didReceive response: UNNotificationResponse,
+                                            withCompletionHandler completionHandler: @escaping () -> Void) {
+        completionHandler()
     }
 }

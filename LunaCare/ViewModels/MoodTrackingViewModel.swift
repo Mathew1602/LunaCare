@@ -15,68 +15,48 @@ final class MoodTrackingViewModel: ObservableObject {
     @Published var note: String = ""
     @Published var createdAt: Date = Date()
     @Published var showSavedAlert = false
-    @Published var backendStatus = ""
+    @Published var errorMessage: String?
     @Published var loading = false
-    private var syncManager = SyncManager.shared
+    private let syncManager = SyncManager.shared
 
     private let repo: MoodLogsRepositoryType
 
     init(repo: MoodLogsRepositoryType = MoodLogsRepository()) {
-        syncManager = .shared
         self.repo = repo
     }
 
+    var canSave: Bool {
+        !loading && selectedMood != nil
+    }
+
     func save(uid: String) async {
-        guard let moodEnum = selectedMood else {
-            backendStatus = "Please select a mood."
+        guard let moodEnum = selectedMood, !loading else { return }
+        errorMessage = nil
+
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let log = MoodLog(
+            id: UUID().uuidString,
+            mood: moodEnum.score,
+            notes: trimmed.isEmpty ? nil : trimmed,
+            tags: ["manual"],
+            source: "manual",
+            createdAt: min(createdAt, Date()),
+            updatedAt: Date()
+        )
+
+        guard syncManager.isCloudSyncOn, !uid.isEmpty else {
+            LocalMoodStore.shared.saveOfflineMood(log)
+            resetUI()
             return
         }
 
-        if !syncManager.isCloudSyncOn {
-            let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-            let moodScore = moodEnum.score
-
-            let localLog = MoodLog(
-                mood: moodScore,
-                notes: trimmed.isEmpty ? nil : trimmed,
-                tags: ["manual"],
-                source: "manual",
-                createdAt: createdAt
-            )
-            LocalMoodStore.shared.saveOfflineMood(localLog)
-            
-            let calendarLog = CalendarDayLog(
-                id: localLog.id ?? UUID().uuidString,
-                mood: moodEnum,
-                note: trimmed.isEmpty ? nil : trimmed,
-                createdAt: createdAt
-            )
-            LocalMoodCalendarStore.shared.save(calendarLog)
-            backendStatus = "Mood saved locally."
+        loading = true
+        defer { loading = false }
+        do {
+            try await repo.upsertMoodLog(log, uid: uid)
             resetUI()
-        } else {
-            loading = true
-            let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-            let moodScore = moodEnum.score
-
-            repo.createMoodLog(
-                uid: uid,
-                mood: moodScore,
-                notes: trimmed.isEmpty ? nil : trimmed,
-                tags: ["manual"],
-                source: "manual",
-                createdAt: createdAt
-            ) { [weak self] err in
-                Task { @MainActor in
-                    if let err = err {
-                        self?.backendStatus = "Mood save error: \(err.localizedDescription)"
-                    } else {
-                        self?.backendStatus = "Mood saved to Firestore"
-                        self?.resetUI()
-                    }
-                    self?.loading = false
-                }
-            }
+        } catch {
+            errorMessage = "Couldn’t save your mood: \(error.localizedDescription)"
         }
     }
 

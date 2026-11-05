@@ -9,7 +9,7 @@
 import Foundation
 import CoreML
 
-final class PPDRiskModelRunner {
+nonisolated final class PPDRiskModelRunner: @unchecked Sendable {
 
     enum RunnerError: LocalizedError {
         case modelNotFound

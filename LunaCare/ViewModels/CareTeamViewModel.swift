@@ -54,9 +54,7 @@ final class CareTeamViewModel: ObservableObject {
         await perform(on: doctor) {
             try await self.repo.approve(uid: uid, doctorId: doctor.id)
             self.pendingDoctors.removeAll { $0.id == doctor.id }
-            if doctor.isAuthorized {
-                self.doctors = (self.doctors + [doctor]).sorted { $0.lastName < $1.lastName }
-            }
+            self.doctors = try await self.repo.fetchDoctors(uid: uid)
         }
     }
 

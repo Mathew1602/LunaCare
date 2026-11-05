@@ -23,6 +23,7 @@ final class AuthViewModel: ObservableObject {
     @Published var lastName: String = ""
     @Published var errorMessage: String = ""
     @Published var didResolveAuthState: Bool = false
+    private var authHandle: AuthStateDidChangeListenerHandle?
 
     var displayName: String {
         let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
@@ -34,11 +35,10 @@ final class AuthViewModel: ObservableObject {
     init(listenToAuth: Bool = true) {
         guard listenToAuth else { return }
 
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
+        authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             guard let self = self else { return }
 
             if let user = user {
-                // ── Authenticated via Firebase ──────────────────────────────
                 self.isAuthenticated = true
                 self.noAccount = false
                 self.email = user.email ?? ""
@@ -46,15 +46,15 @@ final class AuthViewModel: ObservableObject {
 
                 UserRepository().fetchUserProfile(uid: user.uid) { first, last in
                     DispatchQueue.main.async {
-                        self.firstName = first ?? ""
-                        self.lastName  = last  ?? ""
+                        guard Auth.auth().currentUser?.uid == user.uid else { return }
+                        if let first { self.firstName = first }
+                        if let last { self.lastName = last }
                         self.sendProfileToWatch()
                         self.didResolveAuthState = true
                     }
                 }
 
             } else {
-                // ── Not signed into Firebase — check for guest session ──────
                 self.isAuthenticated = false
                 self.email = ""
                 self.uid   = ""
@@ -77,12 +77,12 @@ final class AuthViewModel: ObservableObject {
 
     // MARK: - Firebase Auth
 
-    func signIn(email rawEmail: String, password rawPassword: String) {
+    func signIn(email rawEmail: String, password: String, completion: @escaping (Bool) -> Void = { _ in }) {
         errorMessage = ""
-        let email    = rawEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        let password = rawPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let email = rawEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Please enter email and password."
+            completion(false)
             return
         }
 
@@ -91,30 +91,41 @@ final class AuthViewModel: ObservableObject {
             if let error = error {
                 self.errorMessage = self.message(for: error)
             }
+            completion(error == nil)
         }
     }
 
     func signUp(email rawEmail: String,
-                password rawPassword: String,
-                firstName: String,
-                lastName: String) {
+                password: String,
+                firstName rawFirstName: String,
+                lastName rawLastName: String,
+                completion: @escaping (Bool) -> Void = { _ in }) {
         errorMessage = ""
-        let email    = rawEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        let password = rawPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let email     = rawEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstName = rawFirstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lastName  = rawLastName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !email.isEmpty, !password.isEmpty else {
             errorMessage = "Please enter email and password."
+            completion(false)
             return
         }
+        let wasGuest = noAccount
 
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             guard let self = self else { return }
             if let error = error {
                 self.errorMessage = self.message(for: error)
+                completion(false)
                 return
             }
-            guard let user = result?.user else { return }
+            guard let user = result?.user else {
+                completion(false)
+                return
+            }
 
-            // Clear any stale guest session data from UserDefaults (no-op if not a guest).
+            if wasGuest {
+                StorageScope.adoptGuestData(into: user.uid)
+            }
             UserDefaults.standard.removeObject(forKey: GuestKeys.firstName)
             UserDefaults.standard.removeObject(forKey: GuestKeys.lastName)
             UserDefaults.standard.set(false, forKey: GuestKeys.noAccount)
@@ -129,17 +140,16 @@ final class AuthViewModel: ObservableObject {
                                                firstName: firstName,
                                                lastName: lastName)
             self.sendProfileToWatch()
+            completion(true)
         }
     }
 
     func signOut() {
-        // ── Guest sign-out: wipe local data ─────────────────────────────────
         if noAccount {
             clearGuestSession()
             return
         }
 
-        // ── Firebase sign-out ────────────────────────────────────────────────
         do {
             try Auth.auth().signOut()
             errorMessage = ""
@@ -189,18 +199,9 @@ final class AuthViewModel: ObservableObject {
 
     // MARK: - Local profile helpers
 
-    /// True when a name was saved from a previous local session.
-    var hasLocalProfile: Bool {
-        let saved = UserDefaults.standard.string(forKey: GuestKeys.firstName) ?? ""
-        return !saved.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    /// Re-enters local mode using the previously saved name (no form needed).
-    func resumeLocalSession() {
-        let first = UserDefaults.standard.string(forKey: GuestKeys.firstName) ?? ""
-        let last  = UserDefaults.standard.string(forKey: GuestKeys.lastName)  ?? ""
-        guard !first.isEmpty else { return }
-        signInAsGuest(firstName: first, lastName: last)
+    var savedGuestName: (first: String, last: String) {
+        (UserDefaults.standard.string(forKey: GuestKeys.firstName) ?? "",
+         UserDefaults.standard.string(forKey: GuestKeys.lastName) ?? "")
     }
 
     // MARK: - Helpers
@@ -219,7 +220,7 @@ final class AuthViewModel: ObservableObject {
         case .invalidEmail:      return "That email address looks invalid."
         case .emailAlreadyInUse: return "An account already exists for this email."
         case .weakPassword:      return "Please choose a stronger password."
-        case .invalidCredential: return "Login method mismatch. Use email + password here."
+        case .invalidCredential: return "Incorrect email or password. Please try again."
         default:                 return ns.localizedDescription
         }
     }
@@ -242,10 +243,12 @@ final class AuthViewModel: ObservableObject {
 
     func refreshProfile() {
         guard !uid.isEmpty else { return }
-        UserRepository().fetchUserProfile(uid: uid) { first, last in
+        let requestedUID = uid
+        UserRepository().fetchUserProfile(uid: requestedUID) { first, last in
             DispatchQueue.main.async {
-                self.firstName = first ?? ""
-                self.lastName  = last  ?? ""
+                guard self.uid == requestedUID else { return }
+                if let first { self.firstName = first }
+                if let last { self.lastName = last }
                 self.sendProfileToWatch()
             }
         }

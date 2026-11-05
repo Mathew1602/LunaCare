@@ -7,7 +7,7 @@
 //
 
 import Foundation
-
+import FirebaseFirestore
 
 @MainActor
 final class MoodCalendarViewModel: ObservableObject {
@@ -16,482 +16,189 @@ final class MoodCalendarViewModel: ObservableObject {
     @Published var selected: Date? = nil
 
     @Published var logsByDay: [Date: [CalendarDayLog]] = [:]
-
     @Published var loading: Bool = false
     @Published var errorText: String? = nil
-
-
-    // MARK: - Editing
 
     @Published var editingLog: CalendarDayLog? = nil
     @Published var editingMood: Mood = .okay
     @Published var editingNote: String = ""
     @Published var isSavingEdit: Bool = false
 
-
-    // MARK: - Delete
-
     @Published var logToDelete: CalendarDayLog? = nil
     @Published var showingDeleteConfirmation = false
     @Published var isDeleting = false
 
-
     private let cal = Calendar.current
-
     private let repo: MoodCalendarRepository
+    private let localStore = LocalMoodCalendarStore.shared
+    private let syncManager = SyncManager.shared
+    private var loadToken = UUID()
 
-    private let localStore =
-        LocalMoodCalendarStore.shared
-
-    private var syncManager =
-        SyncManager.shared
-
-
-    init(
-        repo: MoodCalendarRepository =
-            MoodCalendarRepository()
-    ) {
-
+    init(repo: MoodCalendarRepository = MoodCalendarRepository()) {
         self.repo = repo
-        self.syncManager = .shared
     }
-
-
-    // MARK: - Month
 
     var monthStart: Date {
-
-        let base =
-            cal.date(
-                byAdding: .month,
-                value: monthOffset,
-                to: Date()
-            )!
-
-        return cal.date(
-            from:
-                cal.dateComponents(
-                    [.year, .month],
-                    from: base
-                )
-        )!
+        let base = cal.date(byAdding: .month, value: monthOffset, to: Date())!
+        return cal.date(from: cal.dateComponents([.year, .month], from: base))!
     }
-
 
     var monthTitle: String {
-
-        let formatter =
-            DateFormatter()
-
-        formatter.dateFormat =
-            "LLLL yyyy"
-
-        return formatter.string(
-            from: monthStart
-        )
+        let f = DateFormatter()
+        f.dateFormat = "LLLL yyyy"
+        return f.string(from: monthStart)
     }
-
 
     var weekdaySymbols: [String] {
-
-        let formatter =
-            DateFormatter()
-
-        formatter.locale =
-            .current
-
-        return formatter
-            .shortWeekdaySymbols
+        let f = DateFormatter()
+        f.locale = .current
+        return f.shortWeekdaySymbols
     }
-
 
     var daysGrid: [Date?] {
-
-        let firstWeekday =
-            cal.component(
-                .weekday,
-                from: monthStart
-            )
-
-        let leading =
-            (firstWeekday + 6) % 7
-
-
-        let days =
-            cal.range(
-                of: .day,
-                in: .month,
-                for: monthStart
-            )!.count
-
-
-        var array =
-            Array<Date?>(
-                repeating: nil,
-                count: leading
-            )
-
-
+        let firstWeekday = cal.component(.weekday, from: monthStart)
+        let leading = (firstWeekday + 6) % 7
+        let days = cal.range(of: .day, in: .month, for: monthStart)!.count
+        var arr = Array<Date?>(repeating: nil, count: leading)
         for i in 0..<days {
-
-            array.append(
-                cal.date(
-                    byAdding: .day,
-                    value: i,
-                    to: monthStart
-                )!
-            )
+            arr.append(cal.date(byAdding: .day, value: i, to: monthStart)!)
         }
-
-
-        return array
+        return arr
     }
-
 
     // MARK: - Navigation
 
-    func setMonth(
-        delta: Int,
-        uid: String
-    ) async {
-
+    func setMonth(delta: Int, uid: String) async {
         monthOffset += delta
-
-        await load(
-            uid: uid
-        )
+        selected = nil
+        await load(uid: uid)
     }
-
 
     // MARK: - Load
 
-    func load(
-        uid: String
-    ) async {
-
+    func load(uid: String) async {
+        let token = UUID()
+        loadToken = token
+        let month = monthStart
         loading = true
         errorText = nil
 
-
-        if !syncManager.isCloudSyncOn {
-
-            logsByDay =
-                localStore.fetchMonth(
-                    monthStart:
-                        monthStart
-                )
-
-
-            print(
-                "MoodCalendarViewModel: loaded \(logsByDay.count) days from local store."
-            )
-
+        if !syncManager.isCloudSyncOn || uid.isEmpty {
+            logsByDay = localStore.fetchMonth(monthStart: month)
         } else {
-
+            var showedCache = false
+            if let cached = try? await repo.fetchMonth(uid: uid, monthStart: month, source: .cache),
+               token == loadToken, !cached.isEmpty {
+                logsByDay = cached
+                showedCache = true
+                loading = false
+                selectDefaultDayIfNeeded()
+            }
             do {
-
-                let map =
-                    try await repo.fetchMonth(
-                        uid: uid,
-                        monthStart:
-                            monthStart
-                    )
-
-
-                logsByDay =
-                    map
-
+                let map = try await repo.fetchMonth(uid: uid, monthStart: month)
+                guard token == loadToken else { return }
+                logsByDay = map
             } catch {
-
-                errorText =
-                    "Failed to load: \(error.localizedDescription)"
-
-
-                print(
-                    "MoodCalendarViewModel.load error: \(error.localizedDescription)"
-                )
+                guard token == loadToken else { return }
+                if !showedCache { logsByDay = [:] }
+                errorText = "Failed to load: \(error.localizedDescription)"
             }
         }
-
 
         loading = false
-
-
-        if selected == nil {
-
-            if cal.isDate(
-                Date(),
-                equalTo:
-                    monthStart,
-                toGranularity:
-                    .month
-            ) {
-
-                selected =
-                    Date()
-
-            } else {
-
-                selected =
-                    logsByDay
-                        .keys
-                        .sorted()
-                        .first
-            }
-        }
+        selectDefaultDayIfNeeded()
     }
 
+    private func selectDefaultDayIfNeeded() {
+        guard selected == nil else { return }
+        if cal.isDate(Date(), equalTo: monthStart, toGranularity: .month) {
+            selected = Date()
+        } else {
+            selected = logsByDay.keys.sorted().first
+        }
+    }
 
     // MARK: - Helpers
 
-    func latestMood(
-        for day: Date?
-    ) -> Mood? {
-
-        guard let day else {
-            return nil
-        }
-
-
-        return logsByDay[
-            cal.startOfDay(
-                for: day
-            )
-        ]?
-        .first?
-        .mood
+    func latestMood(for day: Date?) -> Mood? {
+        guard let day else { return nil }
+        return logsByDay[cal.startOfDay(for: day)]?.first?.mood
     }
 
-
-    func logsForSelected()
-        -> [CalendarDayLog] {
-
-        guard let selected else {
-            return []
-        }
-
-
-        return logsByDay[
-            cal.startOfDay(
-                for: selected
-            )
-        ] ?? []
+    func logsForSelected() -> [CalendarDayLog] {
+        guard let s = selected else { return [] }
+        return logsByDay[cal.startOfDay(for: s)] ?? []
     }
-
 
     // MARK: - Editing
-
-    func beginEdit(
-        log: CalendarDayLog
-    ) {
-
-        editingLog =
-            log
-
-        editingMood =
-            log.mood
-
-        editingNote =
-            log.note ?? ""
+    func beginEdit(log: CalendarDayLog) {
+        editingLog = log
+        editingMood = log.mood
+        editingNote = log.note ?? ""
     }
 
+    func saveEdit(uid: String) async {
+        guard let log = editingLog else { return }
+        isSavingEdit = true
+        defer { isSavingEdit = false }
+        errorText = nil
 
-    func saveEdit(
-        uid: String
-    ) async {
+        let trimmedNote = editingNote.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard let log =
-            editingLog
-        else {
-            return
-        }
-
-
-        isSavingEdit =
-            true
-
-
-        defer {
-            isSavingEdit =
-                false
-        }
-
-
-        if !syncManager.isCloudSyncOn {
-
-            localStore.updateLog(
-                logId:
-                    log.id,
-                newMood:
-                    editingMood,
-                newNote:
-                    editingNote
+        if !syncManager.isCloudSyncOn || uid.isEmpty {
+            localStore.updateLog(logId: log.id, newMood: editingMood, newNote: trimmedNote)
+            let original = LocalMoodStore.shared.loadOfflineMoods().first { $0.id == log.id }
+            let updatedMoodLog = MoodLog(
+                id: log.id,
+                mood: editingMood.score,
+                notes: trimmedNote.isEmpty ? nil : trimmedNote,
+                tags: original?.tags ?? ["manual"],
+                source: original?.source ?? "manual",
+                createdAt: log.createdAt,
+                updatedAt: Date()
             )
-
-
-            let updatedMoodLog =
-                MoodLog(
-                    id:
-                        log.id,
-                    mood:
-                        editingMood.score,
-                    notes:
-                        editingNote
-                            .trimmingCharacters(
-                                in:
-                                    .whitespacesAndNewlines
-                            )
-                            .isEmpty
-                        ? nil
-                        : editingNote
-                            .trimmingCharacters(
-                                in:
-                                    .whitespacesAndNewlines
-                            ),
-                    tags:
-                        ["manual"],
-                    source:
-                        "manual",
-                    createdAt:
-                        log.createdAt
-                )
-
-
-            LocalMoodStore.shared
-                .saveOfflineMood(
-                    updatedMoodLog
-                )
-
-
-            print(
-                "Mood edit saved locally for log id: \(log.id)"
-            )
-
-
-            await load(
-                uid: uid
-            )
-
+            LocalMoodStore.shared.saveOfflineMood(updatedMoodLog)
         } else {
-
             do {
-
-                try await repo.updateLog(
-                    uid: uid,
-                    logId:
-                        log.id,
-                    newMood:
-                        editingMood,
-                    newNote:
-                        editingNote
-                )
-
-
-                await load(
-                    uid: uid
-                )
-
+                try await repo.updateLog(uid: uid, logId: log.id, newMood: editingMood, newNote: trimmedNote)
             } catch {
-
-                print(
-                    "MoodCalendarViewModel.saveEdit error: \(error.localizedDescription)"
-                )
+                errorText = "Couldn’t save your changes: \(error.localizedDescription)"
+                return
             }
         }
 
-
-        editingLog =
-            nil
+        editingLog = nil
+        await load(uid: uid)
     }
-
 
     // MARK: - Delete
 
-    func requestDelete(
-        log: CalendarDayLog
-    ) {
-
-        logToDelete =
-            log
-
-        showingDeleteConfirmation =
-            true
+    func requestDelete(log: CalendarDayLog) {
+        logToDelete = log
+        showingDeleteConfirmation = true
     }
 
-
-    func deleteLog(
-        uid: String
-    ) async {
-
-        guard let log =
-            logToDelete
-        else {
-            return
-        }
-
-
-        isDeleting =
-            true
-
-
+    func deleteLog(uid: String) async {
+        guard let log = logToDelete else { return }
+        isDeleting = true
+        errorText = nil
         defer {
-
-            isDeleting =
-                false
-
-            logToDelete =
-                nil
+            isDeleting = false
+            logToDelete = nil
         }
 
-
-        if !syncManager.isCloudSyncOn {
-
-            // Delete calendar copy
-            localStore.deleteLog(
-                logId:
-                    log.id
-            )
-
-
-            print(
-                "Mood log deleted locally: \(log.id)"
-            )
-
-
-            await load(
-                uid: uid
-            )
-
+        if !syncManager.isCloudSyncOn || uid.isEmpty {
+            localStore.deleteLog(logId: log.id)
+            LocalMoodStore.shared.deleteOfflineMood(id: log.id)
         } else {
-
             do {
-
-                try await repo.deleteLog(
-                    uid: uid,
-                    logId:
-                        log.id
-                )
-
-
-                print(
-                    "Mood log deleted from Firebase: \(log.id)"
-                )
-
-
-                await load(
-                    uid: uid
-                )
-
+                try await repo.deleteLog(uid: uid, logId: log.id)
             } catch {
-
-                errorText =
-                    "Unable to delete mood entry: \(error.localizedDescription)"
-
-
-                print(
-                    "MoodCalendarViewModel.deleteLog error: \(error.localizedDescription)"
-                )
+                errorText = "Unable to delete mood entry: \(error.localizedDescription)"
+                return
             }
         }
+
+        await load(uid: uid)
     }
 }

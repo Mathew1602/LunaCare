@@ -94,7 +94,6 @@ struct SymptomHistoryView: View {
         }
     }
 
-    // Group logs by calendar day
     private var groupedByDay: [(date: Date, entries: [SymptomLogSummary])] {
         let cal = Calendar.current
         let groups = Dictionary(grouping: logs) { log in

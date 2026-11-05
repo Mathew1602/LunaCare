@@ -53,7 +53,7 @@ struct MoodHistoryView: View {
                                     .lineLimit(1)
                             }
                         }
-                        .buttonStyle(.plain) // avoid blue button styling
+                        .buttonStyle(.plain)
                     }
                 }
             }

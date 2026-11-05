@@ -13,7 +13,6 @@ struct LoginView: View {
 
     @State private var username          = ""
     @State private var password          = ""
-    @State private var navigateToHome    = false
     @State private var navigateToRegister = false
     @State private var navigateToGuest   = false
     @State private var isLoading         = false
@@ -52,7 +51,9 @@ struct LoginView: View {
 
                 Button {
                     isLoading = true
-                    auth.signIn(email: username, password: password)
+                    auth.signIn(email: username, password: password) { _ in
+                        isLoading = false
+                    }
                 } label: {
                     HStack {
                         if isLoading { ProgressView().tint(.white) }
@@ -67,14 +68,7 @@ struct LoginView: View {
                     .padding(.horizontal, 40)
                 }
                 .disabled(isLoading)
-                .onChange(of: auth.isAuthenticated) { _, newValue in
-                    isLoading = false
-                    if newValue { navigateToHome = true }
-                }
-                .onChange(of: auth.errorMessage) { _, _ in
-                    if !auth.errorMessage.isEmpty { isLoading = false }
-                }
-                .navigationDestination(isPresented: $navigateToHome) { HomeView() }
+
                 Button {
                     navigateToGuest = true
                 } label: {
@@ -93,7 +87,6 @@ struct LoginView: View {
                     GuestRegistrationView()
                 }
 
-
                 Button { navigateToRegister = true } label: {
                     Text("Create Account")
                         .underline()
@@ -104,6 +97,7 @@ struct LoginView: View {
 
                 Spacer()
             }
+            .onAppear { auth.errorMessage = "" }
         }
     }
 }

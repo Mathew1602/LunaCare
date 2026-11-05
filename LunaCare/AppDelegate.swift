@@ -23,7 +23,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             print("Firebase configured (AppDelegate)")
         }
         
-        //Notifcation permissions
         UNUserNotificationCenter.current().delegate = NotificationManager.shared
         NotificationManager.shared.requestAuthorization()
         

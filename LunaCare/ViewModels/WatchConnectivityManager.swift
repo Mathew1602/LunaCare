@@ -36,7 +36,6 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         session?.delegate = self
         session?.activate()
 
-        // If iPhone already set context, grab it now
         if let context = session?.receivedApplicationContext, !context.isEmpty {
             handleIncoming(context)
         }
@@ -71,7 +70,6 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         print("- Payload: \(string)")
         print("- Reachable: \(session.isReachable)")
 
-        //If sending profile, also have to update application context on iOS
         #if os(iOS)
         if type == .profile {
             do {
@@ -85,8 +83,9 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil) { error in
-                self.errorMessage = "Failed to send message: \(error.localizedDescription)"
-                print(self.errorMessage ?? "")
+                let text = "Failed to send message: \(error.localizedDescription)"
+                print(text)
+                Task { @MainActor in self.errorMessage = text }
             }
         } else {
             session.transferUserInfo(message)
@@ -178,19 +177,26 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
     // MARK: - WCSessionDelegate
 
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        handleIncoming(message)
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        receive(message)
     }
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
-        handleIncoming(userInfo)
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
+        receive(userInfo)
     }
 
-    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        handleIncoming(applicationContext)
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        receive(applicationContext)
     }
 
-    func session(_ session: WCSession,
+    private nonisolated func receive(_ message: [String: Any]) {
+        nonisolated(unsafe) let message = message
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { WatchConnectivityManager.shared.handleIncoming(message) }
+        }
+    }
+
+    nonisolated func session(_ session: WCSession,
                  activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
         if let error = error {
@@ -199,8 +205,8 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     }
 
     #if os(iOS)
-    func sessionDidBecomeInactive(_ session: WCSession) {}
-    func sessionDidDeactivate(_ session: WCSession) {
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+    nonisolated func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
     }
     #endif

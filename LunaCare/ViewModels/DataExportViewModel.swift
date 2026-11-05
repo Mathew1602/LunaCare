@@ -89,7 +89,7 @@ final class DataExportViewModel: ObservableObject {
                     healthFrom = await healthRepo.earliestSampleDate() ?? todayStart
                 }
                 let days = await healthRepo.fetchDailyMeasurements(from: healthFrom, to: to) { p in
-                    Task { @MainActor in self.progress = p * 0.7 }
+                    Task { @MainActor in self.progress = max(self.progress, p * 0.7) }
                 }
                 health = days.filter { $0.hasHealthData }
             } catch {

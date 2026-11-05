@@ -1,11 +1,9 @@
-
 //
 //  HealthAlertsView.swift
 //  LunaCare
 //
 //  Created by Fernanda Battig on 2025-11-07.
 //
-
 
 import SwiftUI
 
@@ -15,9 +13,6 @@ private extension Color {
     static let lcCardShadow    = Color.black.opacity(0.10)
     static let lcWarningRed    = Color(red: 0.93, green: 0.34, blue: 0.34)
 }
-
-// simple flag so demo notifications only fire once
-private let demoAlertsScheduledKey = "LC_DemoAlertsScheduled"
 
 struct HealthAlertsView: View {
     @EnvironmentObject var vm: InsightsViewModel
@@ -57,23 +52,6 @@ struct HealthAlertsView: View {
         }
         .navigationTitle("Alerts")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            scheduleDemoNotificationsIfNeeded()
-        }
-    }
-
-    // MARK: - Demo notification trigger
-
-    private func scheduleDemoNotificationsIfNeeded() {
-        // Only schedule once for this demo
-        let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: demoAlertsScheduledKey) == false else { return }
-        guard !vm.alertInsights.isEmpty else { return }
-
-        // Use your existing notification manager (already used in InsightsOverviewView)
-        NotificationManager.shared.scheduleHealthAlertsIfNeeded(from: vm.alertInsights)
-
-        defaults.set(true, forKey: demoAlertsScheduledKey)
     }
 
     // MARK: - UI Sections
@@ -193,7 +171,7 @@ private struct PPDModelAlertCard: View {
                     .padding(.vertical, 5)
                     .background(tier.color)
                     .clipShape(Capsule())
-                Text("\(Int((score * 100).rounded()))%")
+                Text("\(PPDRiskTier.percent(score))%")
                     .font(.system(.title3, design: .rounded, weight: .bold))
             }
 

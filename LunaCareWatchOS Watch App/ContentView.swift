@@ -28,7 +28,6 @@ struct ContentView: View {
                                       .multilineTextAlignment(.center)
                                       .padding(.horizontal)
                     
-                    // Navigate to Mood Logging
                     NavigationLink(destination: MoodTracking()) {
                         HStack {
                             Text("Log Mood")
@@ -39,7 +38,6 @@ struct ContentView: View {
                         .cornerRadius(12)
                     }
                     
-                    // Health metrics section
                     VStack(alignment: .leading, spacing: 8) {
                     Text("Health Metrics")
                         .font(.subheadline)
@@ -73,7 +71,6 @@ struct ContentView: View {
                 }
                 .padding(.top)
 
-                    // Navigation to all other screens
                     VStack(spacing: 8) {
                         NavigationLink("Symptoms Tracking", destination: SymptomsTrackingView())
                             .buttonStyle(.bordered)

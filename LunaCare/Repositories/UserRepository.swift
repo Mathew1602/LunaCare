@@ -34,43 +34,32 @@ final class UserRepository {
 
     func fetchUserProfile(uid: String,
                           completion: @escaping (_ firstName: String?, _ lastName: String?) -> Void) {
-        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data in
+        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data, _ in
             let first = data?["firstName"] as? String
             let last  = data?["lastName"] as? String
             completion(first, last)
         }
     }
-    
-    /// Updates user profile information (first name and last name)
-    func updateUserProfile(uid: String,
-                          firstName: String,
-                          lastName: String,
-                          completion: @escaping (Error?) -> Void) {
+
+    func updateUserProfile(uid: String, firstName: String, lastName: String) async throws {
         let data: [String: Any] = [
             "firstName": firstName,
             "lastName": lastName,
             "displayName": "\(firstName) \(lastName)",
             "updatedAt": Date()
         ]
-        
-        FirestoreManager.shared.write(path: FSPath.userMeta(uid),
-                                      data: data,
-                                      merge: true)
-        
-        // Refresh the profile after saving
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.fetchUserProfile(uid: uid) { _, _ in
-                completion(nil)
-            }
-        }
+        try await FirestoreManager.shared.setDocument(path: FSPath.userMeta(uid), data: data)
     }
 
     // MARK: - Cloud Sync
 
-    func fetchCloudSync(uid: String, completion: @escaping (Bool) -> Void) {
-        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data in
-            let on = (data?["cloudSync"] as? Bool) ?? false
-            completion(on)
+    func fetchCloudSync(uid: String, completion: @escaping (Bool?) -> Void) {
+        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data, error in
+            guard error == nil else {
+                completion(nil)
+                return
+            }
+            completion((data?["cloudSync"] as? Bool) ?? false)
         }
     }
 
@@ -87,7 +76,7 @@ final class UserRepository {
     // MARK: - Home Metrics
 
     func fetchHomeMetrics(uid: String, completion: @escaping ([String]?) -> Void) {
-        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data in
+        FirestoreManager.shared.get(path: FSPath.userMeta(uid)) { data, _ in
             completion(data?["homeMetrics"] as? [String])
         }
     }
@@ -108,8 +97,7 @@ final class UserRepository {
                       completion: @escaping (Error?) -> Void) {
         
         let email = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentPassword = currentPassword.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         guard !email.isEmpty, !currentPassword.isEmpty, !newPassword.isEmpty else {
             let error = NSError(domain: "UserRepository",
                               code: -1,
@@ -125,8 +113,7 @@ final class UserRepository {
             completion(error)
             return
         }
-        
-        // Verify the email matches the current user's email
+
         guard let userEmail = currentUser.email, userEmail.lowercased() == email.lowercased() else {
             let error = NSError(domain: "UserRepository",
                               code: -3,
@@ -134,16 +121,13 @@ final class UserRepository {
             completion(error)
             return
         }
-        
-        // Reauthenticate with current password
+
         let credential = EmailAuthProvider.credential(withEmail: userEmail, password: currentPassword)
         
         currentUser.reauthenticate(with: credential) { _, authError in
             if let authError = authError {
-                let nsError = authError as NSError
-                
-                // Handle specific Firebase errors
-                if nsError.code == AuthErrorCode.wrongPassword.rawValue {
+                let code = AuthErrorCode(rawValue: (authError as NSError).code)
+                if code == .wrongPassword || code == .invalidCredential {
                     let error = NSError(domain: "UserRepository",
                                       code: -4,
                                       userInfo: [NSLocalizedDescriptionKey: "Incorrect password. Please try again."])
@@ -153,14 +137,9 @@ final class UserRepository {
                 }
                 return
             }
-            
-            // Now update the password
+
             currentUser.updatePassword(to: newPassword) { updateError in
-                if let updateError = updateError {
-                    completion(updateError)
-                } else {
-                    completion(nil)
-                }
+                completion(updateError)
             }
         }
     }

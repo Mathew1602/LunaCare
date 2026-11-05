@@ -5,13 +5,6 @@
 //  Created by Fernanda Battig on 2025-11-29.
 //
 
-//
-//  InsightsViewModel.swift
-//  LunaCare
-//
-//  Created by Fernanda Battig on 2025-11-29.
-//
-
 import Foundation
 
 @MainActor
@@ -33,37 +26,65 @@ final class InsightsViewModel: ObservableObject {
         self.env = env
     }
 
-    // MARK: - LOAD INSIGHTS
+    private var loadTask: Task<Void, Never>?
+    private var loadedUID: String?
+
+    // MARK: - Load Insights
+
+    func loadIfNeeded() async {
+        guard loadedUID != auth.uid else { return }
+        await loadInsights(includeRiskAssessment: true)
+    }
 
     func loadInsights(includeRiskAssessment: Bool = false) async {
+        if let loadTask {
+            await loadTask.value
+            return
+        }
+        let task = Task { await performLoad(includeRiskAssessment: includeRiskAssessment) }
+        loadTask = task
+        await task.value
+        loadTask = nil
+    }
+
+    private func performLoad(includeRiskAssessment: Bool) async {
         isLoading = true
         errorMessage = nil
 
-        let snapshot = await service.loadSnapshot(uid: auth.uid)
+        let uid = auth.uid
+        let snapshot = await service.loadSnapshot(uid: uid)
         let weekly = snapshot.insights
+        let isFreshData = snapshot.loadErrorMessage == nil
 
-        // Save to Firestore only if authenticated and cloud sync is on
-        if !auth.uid.isEmpty && env.isCloudSyncOn, let repo = env.insightsRepo {
+        if isFreshData, !auth.uid.isEmpty, env.isCloudSyncOn, let repo = env.insightsRepo {
             Task { await repo.syncInsights(weekly) }
         }
 
         insights = weekly
         metricCoverage = snapshot.metricCoverage
+        if let loadError = snapshot.loadErrorMessage {
+            errorMessage = "Showing saved insights because the latest data couldn’t be loaded: \(loadError)"
+        }
+        if isFreshData {
+            RiskAlertScheduler.shared.scheduleIfNeeded(from: weekly)
+        }
+
         if includeRiskAssessment {
-            await loadRiskAssessment(using: snapshot)
+            await loadRiskAssessment(loadFailed: !isFreshData, loadError: snapshot.loadErrorMessage)
         } else {
             ppdRiskScore = nil
             riskAssessmentMessage = nil
         }
+        loadedUID = uid
         isLoading = false
     }
 
-    private func loadRiskAssessment(using snapshot: InsightDataSnapshot) async {
+    private func loadRiskAssessment(loadFailed: Bool, loadError: String?) async {
         ppdRiskScore = nil
         riskAssessmentMessage = nil
 
-        if let loadErrorMessage = snapshot.loadErrorMessage {
-            riskAssessmentMessage = "Model alert skipped because health data could not be loaded: \(loadErrorMessage)"
+        if loadFailed {
+            riskAssessmentMessage = "Model alert skipped because health data could not be loaded: \(loadError ?? "unknown error")"
             return
         }
 
@@ -80,10 +101,21 @@ final class InsightsViewModel: ObservableObject {
             }
         }
 
-        let calendar = Calendar.current
-        let dataDays = Set(snapshot.measurements.map {
-            calendar.startOfDay(for: $0.createdAt)
-        })
+        let window: [Measurement]
+        do {
+            let fromCloud = !auth.uid.isEmpty && env.isCloudSyncOn
+            let loader = PPDWindowLoader()
+            guard try await loader.hasMonthOfHistory(uid: auth.uid, fromCloud: fromCloud) else {
+                riskAssessmentMessage = PPDWindowLoader.notEnoughHistoryMessage
+                return
+            }
+            window = try await loader.load(uid: auth.uid, fromCloud: fromCloud)
+        } catch {
+            riskAssessmentMessage = "ML risk alert could not be calculated: \(error.localizedDescription)"
+            return
+        }
+
+        let dataDays = Set(window.map(\.dayKey))
         guard dataDays.count >= 5 else {
             riskAssessmentMessage = "ML risk alerts need at least five distinct days of health or check-in data in the past 30 days."
             return
@@ -95,7 +127,7 @@ final class InsightsViewModel: ObservableObject {
         }
 
         do {
-            let score = try runner.predictRisk(from: snapshot.measurements)
+            let score = try await Task.detached(priority: .utility) { try runner.predictRisk(from: window) }.value
             ppdRiskScore = score
             NotificationManager.shared.schedulePPDHighRiskAlertIfNeeded(score: score)
         } catch {

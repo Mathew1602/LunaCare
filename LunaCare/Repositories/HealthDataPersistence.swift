@@ -39,17 +39,21 @@ final class HealthDataPersistence {
             local.saveMany(changed)
         }
 
+        if !uid.isEmpty, !changed.isEmpty {
+            pendingDays = pendingDays.union(changed.map(\.dayKey))
+        }
+
+        await uploadPending(uid: uid)
+    }
+
+    func uploadPending(uid: String) async {
         guard !uid.isEmpty, SyncManager.shared.isCloudSyncOn else { return }
-
-        var pending = pendingDays
-        pending.formUnion(changed.map(\.dayKey))
-        pendingDays = pending
-
+        let pending = pendingDays
         guard !pending.isEmpty, !isUploading else { return }
         isUploading = true
         defer { isUploading = false }
 
-        let toUpload = local.loadAll().filter { pending.contains($0.dayKey) }
+        let toUpload = LocalMeasurementStore.shared.loadAll().filter { pending.contains($0.dayKey) }
         do {
             _ = try await repo.upsertMany(uid: uid, measurements: toUpload)
             pendingDays = pendingDays.subtracting(toUpload.map(\.dayKey))
@@ -59,8 +63,8 @@ final class HealthDataPersistence {
     }
 
     private var pendingDays: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: pendingKey) ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: pendingKey) }
+        get { Set(StorageScope.object(forKey: pendingKey) as? [String] ?? []) }
+        set { StorageScope.set(Array(newValue), forKey: pendingKey) }
     }
 
     private static func healthSignature(_ m: Measurement) -> [Double?] {

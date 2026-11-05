@@ -31,7 +31,7 @@ struct MoodCalendarView: View {
 
     var body: some View {
 
-        NavigationStack {
+        Group {
 
             ScrollView {
 
@@ -369,6 +369,7 @@ struct MoodCalendarView: View {
                     $vm.editingNote,
                 isSaving:
                     vm.isSavingEdit,
+                errorText: vm.errorText,
                 onSave: {
 
                     Task {
@@ -799,6 +800,7 @@ private struct EditMoodSheet: View {
     @Binding var note: String
 
     let isSaving: Bool
+    let errorText: String?
 
     let onSave: () -> Void
     let onCancel: () -> Void
@@ -812,6 +814,14 @@ private struct EditMoodSheet: View {
         NavigationStack {
 
             Form {
+
+                if let errorText {
+                    Section {
+                        Label(errorText, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundColor(.orange)
+                    }
+                }
 
                 // Mood
                 Section(

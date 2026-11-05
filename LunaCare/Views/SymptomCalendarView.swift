@@ -32,7 +32,7 @@ struct SymptomCalendarView: View {
 
     var body: some View {
 
-        NavigationStack {
+        Group {
 
             ScrollView {
 
@@ -341,15 +341,6 @@ struct SymptomCalendarView: View {
             )
         }
 
-
-        .onDisappear {
-
-            NotificationManager
-                .shared
-                .scheduleDemo(
-                    after: 5
-                )
-        }
     }
 }
 

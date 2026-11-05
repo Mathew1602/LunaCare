@@ -105,6 +105,13 @@ struct InsightsOverviewView: View {
                     alertsToolbarLink
                 }
 
+                if !vm.isLoading, let error = vm.errorMessage {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.footnote)
+                        .foregroundColor(.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 if vm.isLoading {
                     ProgressView("Analyzing your data…")
                         .frame(maxWidth: .infinity)
@@ -159,7 +166,8 @@ struct InsightsOverviewView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
-        .task { await vm.loadInsights(includeRiskAssessment: true) }
+        .task { await vm.loadIfNeeded() }
+        .refreshable { await vm.loadInsights(includeRiskAssessment: true) }
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -543,7 +551,7 @@ private struct InsightRiskScoreCard: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(tier.color, in: Capsule())
-                Text("\(Int((score * 100).rounded()))%")
+                Text("\(PPDRiskTier.percent(score))%")
                     .font(.system(.title3, design: .rounded, weight: .bold))
                     .foregroundColor(tier.color)
             }

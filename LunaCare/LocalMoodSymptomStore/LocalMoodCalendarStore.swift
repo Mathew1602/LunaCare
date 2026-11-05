@@ -18,7 +18,7 @@ final class LocalMoodCalendarStore {
 
     func save(_ log: CalendarDayLog) {
         var existing = loadAll()
-        existing.removeAll { $0.id == log.id }
+        existing.removeAll { $0.id == log.id || abs($0.createdAt.timeIntervalSince(log.createdAt)) < 1 }
         existing.append(log)
         persist(existing)
     }
@@ -64,7 +64,7 @@ final class LocalMoodCalendarStore {
     }
 
     func clearAll() {
-        UserDefaults.standard.removeObject(forKey: key)
+        StorageScope.removeObject(forKey: key)
     }
 
     // MARK: - Read
@@ -99,7 +99,7 @@ final class LocalMoodCalendarStore {
 
     private func loadAll() -> [CalendarDayLog] {
         guard
-            let data = UserDefaults.standard.data(forKey: key),
+            let data = StorageScope.data(forKey: key),
             let logs = try? JSONDecoder().decode([CalendarDayLog].self, from: data)
         else { return [] }
         return logs
@@ -107,7 +107,7 @@ final class LocalMoodCalendarStore {
 
     private func persist(_ logs: [CalendarDayLog]) {
         if let data = try? JSONEncoder().encode(logs) {
-            UserDefaults.standard.set(data, forKey: key)
+            StorageScope.set(data, forKey: key)
         }
     }
 }
