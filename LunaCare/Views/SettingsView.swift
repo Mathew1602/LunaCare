@@ -72,6 +72,18 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        NewbornTipsView()
+                    } label: {
+                        Label("Newborn Tips", systemImage: "figure.and.child.holdinghands")
+                    }
+                } header: {
+                    Text("Resources")
+                } footer: {
+                    Text("General baby care info: sleep, feeding, diapering, milestones.")
+                }
+
+                Section {
                     if !auth.displayName.isEmpty {
                         Text(isGuest
                              ? "Browsing as \(auth.displayName) (local only)"
