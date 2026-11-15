@@ -6,6 +6,13 @@
 //
 
 import Foundation
+import FirebaseAuth
+
+enum SyncOutcome {
+    case nothingToSync
+    case synced
+    case failed
+}
 
 final class SyncManager {
     static let shared = SyncManager()
@@ -16,38 +23,21 @@ final class SyncManager {
     private let moodCalRepo     = MoodCalendarRepository()
     private let symptomCalRepo  = SymptomCalendarRepository()
 
-    private let lastSyncKey = "lastCloudSyncDate"
-    private var lastCloudSyncDate: Date? {
-        get { UserDefaults.standard.object(forKey: lastSyncKey) as? Date }
-        set { UserDefaults.standard.set(newValue, forKey: lastSyncKey) }
-    }
+    private let uploadedKey = "uploadedLogVersions"
+    private let legacyLastSyncKey = "lastCloudSyncDate"
+    private var syncTask: Task<Void, Never>?
 
     private init() {}
 
     // MARK: - Preference
+
     func applyCloudSyncPreference(uid: String, isOn: Bool, env: AppEnvironment) {
         env.isCloudSyncOn = isOn
         UserDefaults.standard.set(isOn, forKey: "cloudSyncEnabled")
         guard !uid.isEmpty else { return }
         userRepository.setCloudSync(uid: uid, isOn: isOn)
         if isOn {
-            Task {
-                await MainActor.run {
-                    env.syncHasData = false
-                    env.isSyncing = true
-                    env.syncProgress = 0.0
-                }
-                await syncLocalToCloud(uid: uid) { progress in
-                    Task { @MainActor in
-                        env.syncHasData = true
-                        env.syncProgress = progress
-                    }
-                }
-                await MainActor.run {
-                    env.isSyncing = false
-                    env.syncProgress = 1.0
-                }
-            }
+            startUpload(uid: uid, env: env)
         }
     }
 
@@ -55,31 +45,78 @@ final class SyncManager {
         AppEnvironment.shared.isCloudSyncOn
     }
 
-    // MARK: - Sync
+    func startUpload(uid: String, env: AppEnvironment) {
+        syncTask?.cancel()
+        beginProgress(env: env)
+        syncTask = Task {
+            let outcome = await syncLocalToCloud(uid: uid) { progress in
+                env.syncHasData = true
+                env.syncProgress = progress
+            }
+            guard !Task.isCancelled else { return }
+            finishProgress(env: env, failed: outcome == .failed,
+                           message: "Some data couldn’t be uploaded. It will retry next time you turn on sync.")
+        }
+    }
 
-    /// Returns `true` if there was local data to sync, `false` if local and cloud are already in sync.
-    @discardableResult
-    func syncLocalToCloud(uid: String, onProgress: ((Double) -> Void)? = nil) async -> Bool {
-        guard !uid.isEmpty else { return false }
-        let cutoff = lastCloudSyncDate
+    func startDownload(uid: String, env: AppEnvironment, onFinish: @escaping () -> Void) {
+        syncTask?.cancel()
+        beginProgress(env: env)
+        syncTask = Task {
+            let ok = await syncCloudToLocal(uid: uid) { progress in
+                env.syncHasData = true
+                env.syncProgress = progress
+            }
+            guard !Task.isCancelled else { return }
+            finishProgress(env: env, failed: !ok,
+                           message: "Some cloud data couldn’t be downloaded. Check your connection and try again.")
+            onFinish()
+        }
+    }
+
+    func cancelSync(env: AppEnvironment) {
+        syncTask?.cancel()
+        syncTask = nil
+        env.isSyncing = false
+        env.syncProgress = 0
+    }
+
+    private func beginProgress(env: AppEnvironment) {
+        env.syncHasData = false
+        env.isSyncing = true
+        env.syncProgress = 0
+        env.lastSyncError = nil
+    }
+
+    private func finishProgress(env: AppEnvironment, failed: Bool, message: String) {
+        env.isSyncing = false
+        env.syncProgress = 1
+        env.lastSyncError = failed ? message : nil
+    }
+
+    private func isStillActive(uid: String) -> Bool {
+        !Task.isCancelled && Auth.auth().currentUser?.uid == uid
+    }
+
+    // MARK: - Local → Cloud
+
+    func syncLocalToCloud(uid: String, onProgress: ((Double) -> Void)? = nil) async -> SyncOutcome {
+        guard !uid.isEmpty else { return .nothingToSync }
+        seedUploadedVersionsIfNeeded()
+        var versions = uploadedVersions
         var encounteredError = false
 
         let moods = LocalMoodStore.shared.loadOfflineMoods().filter { log in
-            guard let date = log.createdAt else { return false }
-            // Skip entries that originated from the cloud — they are already in Firestore
-            // and re-uploading them would create duplicates.
-            if log.source == "cloud" { return false }
-            return cutoff == nil || date >= cutoff!
+            guard let id = log.id else { return false }
+            return versions[id].map { $0 < Self.version(of: log) } ?? true
         }
         let symptoms = LocalSymptomStore.shared.loadOfflineSymptomLogs().filter { log in
-            // Same guard: skip cloud-sourced entries to prevent re-upload duplicates.
-            if log.payload.source == "cloud" { return false }
-            return cutoff == nil || log.createdAt >= cutoff!
+            guard let id = log.id else { return false }
+            return versions[id].map { $0 < Self.version(of: log) } ?? true
         }
-
         let localAll = LocalMeasurementStore.shared.loadAll()
 
-        guard !moods.isEmpty || !symptoms.isEmpty || !localAll.isEmpty else { return false }
+        guard !moods.isEmpty || !symptoms.isEmpty || !localAll.isEmpty else { return .nothingToSync }
 
         let measurePhases = localAll.isEmpty ? 0 : 1
         let totalPhases = Double(moods.count + symptoms.count + measurePhases)
@@ -91,31 +128,46 @@ final class SyncManager {
         }
 
         for log in moods {
-            do { try await uploadMoodLog(uid: uid, log: log) }
-            catch { encounteredError = true }
+            guard isStillActive(uid: uid), let id = log.id else { return .failed }
+            do {
+                try await moodRepo.upsertMoodLog(log, uid: uid)
+                versions[id] = Self.version(of: log)
+                uploadedVersions = versions
+            } catch {
+                encounteredError = true
+            }
             completed += 1
             reportProgress()
         }
 
         for log in symptoms {
-            do { try await uploadSymptomLog(uid: uid, log: log) }
-            catch { encounteredError = true }
+            guard isStillActive(uid: uid), let id = log.id else { return .failed }
+            do {
+                try await symptomRepo.upsert(uid: uid, log: log)
+                versions[id] = Self.version(of: log)
+                uploadedVersions = versions
+            } catch {
+                encounteredError = true
+            }
             completed += 1
             reportProgress()
         }
 
-        if !localAll.isEmpty {
+        if !localAll.isEmpty, isStillActive(uid: uid) {
             let sorted = localAll.sorted { $0.createdAt < $1.createdAt }
-            let rangeStart = Calendar.current.startOfDay(for: sorted.first!.createdAt)
-            let rangeEnd   = Calendar.current.startOfDay(for: sorted.last!.createdAt)
+            let rangeStart = Calendar.current.startOfDay(for: sorted[0].createdAt)
+            let rangeEnd   = Calendar.current.startOfDay(for: sorted[sorted.count - 1].createdAt)
             do {
                 let cloudDates = Set(
                     try await measureRepo.fetchRange(uid: uid, from: rangeStart, to: rangeEnd)
                         .map(\.dayKey)
                 )
                 let missing = localAll.filter { !cloudDates.contains($0.dayKey) }
-                if !missing.isEmpty {
+                if !missing.isEmpty, isStillActive(uid: uid) {
                     _ = try await measureRepo.upsertMany(uid: uid, measurements: missing)
+                }
+                if isStillActive(uid: uid) {
+                    await HealthDataPersistence.shared.uploadPending(uid: uid)
                 }
             } catch {
                 encounteredError = true
@@ -124,15 +176,12 @@ final class SyncManager {
             reportProgress()
         }
 
-        if !encounteredError {
-            lastCloudSyncDate = Date()
-        }
-        return true
+        return encounteredError ? .failed : .synced
     }
 
     // MARK: - Cloud → Local
 
-    /// Pulls cloud data down into local stores. Returns `true` if any data was written.
+    /// Pulls cloud data down into local stores. Returns `false` if any part of the download failed.
     @discardableResult
     func syncCloudToLocal(uid: String, onProgress: ((Double) -> Void)? = nil) async -> Bool {
         guard !uid.isEmpty else { return false }
@@ -142,12 +191,11 @@ final class SyncManager {
         let to   = Date()
         var encounteredError = false
 
-        // Phase 1: Fetch from cloud (50% of progress)
         onProgress?(0.05)
 
         async let moodsFetch    = moodCalRepo.fetchRange(uid: uid, from: from, to: to)
         async let symptomsFetch = symptomCalRepo.fetchRange(uid: uid, from: from, to: to)
-        async let measuresFetch = measureRepo.fetchLastDays(uid: uid, lastDays: 365)
+        async let measuresFetch = measureRepo.fetchRange(uid: uid, from: from, to: to)
 
         var cloudMoods:        [CalendarDayLog]    = []
         var cloudSymptoms:     [SymptomLogSummary] = []
@@ -160,17 +208,18 @@ final class SyncManager {
         do { cloudMeasurements = try await measuresFetch } catch { encounteredError = true }
         onProgress?(0.5)
 
+        guard isStillActive(uid: uid) else { return false }
         guard !cloudMoods.isEmpty || !cloudSymptoms.isEmpty || !cloudMeasurements.isEmpty else {
             onProgress?(1.0)
-            return false
+            return !encounteredError
         }
 
-        // Phase 2: Save to local stores (remaining 50%)
         let hasMoods    = !cloudMoods.isEmpty
         let hasSymptoms = !cloudSymptoms.isEmpty
         let hasMeasures = !cloudMeasurements.isEmpty
         let saveSteps   = Double([hasMoods, hasSymptoms, hasMeasures].filter { $0 }.count)
         var savesDone   = 0.0
+        var versions    = uploadedVersions
 
         func saveProgress() {
             guard saveSteps > 0 else { return }
@@ -178,11 +227,13 @@ final class SyncManager {
         }
 
         if hasMoods {
-            // Bulk-save to calendar store (what MoodCalendarViewModel reads),
-            // deduplicating by createdAt to avoid duplicates from differing IDs.
-            LocalMoodCalendarStore.shared.saveMany(cloudMoods)
-            // Also save to raw mood store (used by watch sync and upload)
+            let localMoods = LocalMoodStore.shared.loadOfflineMoods()
             for log in cloudMoods {
+                let hasPendingEdit = localMoods.contains { local in
+                    guard let id = local.id, id == log.id else { return false }
+                    return versions[id].map { $0 < Self.version(of: local) } ?? true
+                }
+                if hasPendingEdit { continue }
                 let moodLog = MoodLog(
                     id: log.id,
                     mood: log.mood.score,
@@ -193,6 +244,7 @@ final class SyncManager {
                     updatedAt: nil
                 )
                 LocalMoodStore.shared.saveOfflineMood(moodLog)
+                versions[log.id] = Self.version(of: moodLog)
             }
             savesDone += 1
             saveProgress()
@@ -200,14 +252,17 @@ final class SyncManager {
 
         if hasSymptoms {
             for summary in cloudSymptoms {
-                let values  = Dictionary(uniqueKeysWithValues: summary.rows.map { ($0.name, $0.value) })
+                let values  = Dictionary(summary.rows.map { ($0.name, $0.value) }, uniquingKeysWith: { _, new in new })
                 let payload = SymptomLogPayload(values: values, notes: nil, tags: nil, source: "cloud")
-                let log     = LocalSymptomLog(payload: payload, createdAt: summary.createdAt)
+                let log     = LocalSymptomLog(id: summary.id, payload: payload, createdAt: summary.createdAt)
                 LocalSymptomStore.shared.save(log)
+                if let id = log.id { versions[id] = Self.version(of: log) }
             }
             savesDone += 1
             saveProgress()
         }
+
+        uploadedVersions = versions
 
         if hasMeasures {
             LocalMeasurementStore.shared.saveMany(cloudMeasurements)
@@ -218,34 +273,40 @@ final class SyncManager {
         return !encounteredError
     }
 
-    // MARK: - Private Bridges
+    // MARK: - Upload tracking
 
-    private func uploadMoodLog(uid: String, log: MoodLog) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            moodRepo.createMoodLog(
-                uid: uid,
-                mood: log.mood,
-                notes: log.notes,
-                tags: log.tags,
-                source: log.source ?? "local",
-                createdAt: log.createdAt ?? Date()
-            ) { error in
-                if let error { continuation.resume(throwing: error) }
-                else { continuation.resume() }
-            }
-        }
+    private var uploadedVersions: [String: Double] {
+        get { StorageScope.object(forKey: uploadedKey) as? [String: Double] ?? [:] }
+        set { StorageScope.set(newValue, forKey: uploadedKey) }
     }
 
-    private func uploadSymptomLog(uid: String, log: LocalSymptomLog) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            symptomRepo.create(
-                uid: uid,
-                payload: log.payload,
-                createdAt: log.createdAt
-            ) { error in
-                if let error { continuation.resume(throwing: error) }
-                else { continuation.resume() }
-            }
+    private static func version(of log: MoodLog) -> Double {
+        (log.updatedAt ?? log.createdAt ?? .distantPast).timeIntervalSince1970
+    }
+
+    private static func version(of log: LocalSymptomLog) -> Double {
+        (log.updatedAt ?? log.createdAt).timeIntervalSince1970
+    }
+
+    // Before per-log tracking, uploads were filtered by a single "last sync" time.
+    // Anything older than that, or downloaded from the cloud, is already in Firestore.
+    private func seedUploadedVersionsIfNeeded() {
+        guard StorageScope.object(forKey: uploadedKey) == nil else { return }
+        let cutoff = UserDefaults.standard.object(forKey: legacyLastSyncKey) as? Date
+        var versions: [String: Double] = [:]
+
+        for log in LocalMoodStore.shared.loadOfflineMoods() {
+            guard let id = log.id else { continue }
+            let alreadyUploaded = log.source == "cloud" || (cutoff.map { (log.createdAt ?? .distantFuture) < $0 } ?? false)
+            if alreadyUploaded { versions[id] = Self.version(of: log) }
         }
+        for log in LocalSymptomStore.shared.loadOfflineSymptomLogs() {
+            guard let id = log.id else { continue }
+            let alreadyUploaded = log.payload.source == "cloud" || (cutoff.map { log.createdAt < $0 } ?? false)
+            if alreadyUploaded { versions[id] = Self.version(of: log) }
+        }
+
+        uploadedVersions = versions
+        UserDefaults.standard.removeObject(forKey: legacyLastSyncKey)
     }
 }

@@ -14,20 +14,15 @@ struct HomeView: View {
     @EnvironmentObject var auth: AuthViewModel
     @EnvironmentObject var env: AppEnvironment
 
-
     var body: some View {
         TabView {
-            HomeContentView()
-                .environmentObject(env)
-                .environmentObject(auth)
+            HomeContentView(auth: auth, env: env)
                 .tabItem {
                     Image(systemName: "house")
                     Text("Home")
                 }
 
             SettingsView()
-                .environmentObject(auth)
-                .environmentObject(env)
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")
@@ -37,14 +32,12 @@ struct HomeView: View {
     }
 }
 
-import SwiftUI
-import FirebaseFirestore
-
 struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
-    @Environment(\.scenePhase) private var scenePhase //For changed scene
+    @StateObject private var insightsVM: InsightsViewModel
+    @Environment(\.scenePhase) private var scenePhase
     private var isSyncedToCloud: Bool { !auth.uid.isEmpty && env.isCloudSyncOn }
     @StateObject private var metricsStore = HomeMetricsStore.shared
     @State private var showEditMetrics = false
@@ -53,21 +46,19 @@ struct HomeContentView: View {
     @State private var showingMLTestAlert = false
     @State private var mlTestTitle = "Your Wellbeing Check"
     @State private var mlTestMessage = ""
-    
-    // Kept for later use with uploadFakeData(), not wired to the UI.
-    @State private var showingUploadAlert = false
-    @State private var uploadMessage = ""
-    @State private var isUploadingFakeData = false
+        @State private var isRunningMLTest = false
 
-    // repo instance
     private let repo = MeasurementRepository()
+
+    init(auth: AuthViewModel, env: AppEnvironment) {
+        _insightsVM = StateObject(wrappedValue: InsightsViewModel(auth: auth, env: env))
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
 
-                    // Greeting
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Hi \(auth.displayName.isEmpty ? "there" : auth.displayName),")
                             .font(.title)
@@ -87,7 +78,6 @@ struct HomeContentView: View {
                         .cornerRadius(8)
                     }
 
-                    // Log Mood Button
                     NavigationLink(destination: MoodTrackingView()) {
                         HStack {
                             Text("Log Mood")
@@ -101,7 +91,6 @@ struct HomeContentView: View {
                     }
                     .padding(.top, 10)
 
-                    // Key Health Metrics
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Key Health Metrics")
                             .font(.headline)
@@ -122,24 +111,31 @@ struct HomeContentView: View {
                     }
                     .padding(.top, 10)
 
-                    // Alerts
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Alerts")
-                            .font(.headline)
-                        HStack {
-                            Image(systemName: "bell.badge")
-                                .foregroundColor(Color(.systemIndigo))
-                            Text("Your sleep has been low for 2 nights")
-                            Spacer()
-                            Text("View Tips")
-                                .foregroundColor(Color(.systemIndigo))
+                    if !insightsVM.isLoading && insightsVM.alertCount > 0 {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Alerts")
+                                .font(.headline)
+                            NavigationLink {
+                                HealthAlertsView()
+                                    .environmentObject(insightsVM)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "bell.badge")
+                                        .foregroundColor(Color(.systemIndigo))
+                                    Text(alertSummary)
+                                        .foregroundColor(.primary)
+                                        .multilineTextAlignment(.leading)
+                                    Spacer()
+                                    Text("View")
+                                        .foregroundColor(Color(.systemIndigo))
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(10)
+                            }
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(10)
                     }
 
-                    // Quick Access
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Quick Access")
                             .font(.headline)
@@ -147,14 +143,10 @@ struct HomeContentView: View {
                         HStack(spacing: 20) {
                             NavigationLink {
                                 ReportsView()
-                                    .environmentObject(auth)
                             } label: {
-                                QuickActionTile(
-                                    icon: "doc.text.magnifyingglass",
-                                    title: "Reports",
-                                    tint: HomePalette.sky
-                                )
+                                QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
                             }
+                            .buttonStyle(.plain)
 
                             Button {
                                 runMLTest()
@@ -189,6 +181,7 @@ struct HomeContentView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    .padding(.top, 10)
 
                     // Trackers + Calendars
                     VStack(alignment: .leading, spacing: 10) {
@@ -230,14 +223,6 @@ struct HomeContentView: View {
                 .padding()
             }
             .navigationTitle("Home")
-
-            // ALERT for upload result
-            .alert("Fake Data Upload", isPresented: $showingUploadAlert) {
-                Button("OK", role: .cancel) { }
-            } message: {
-                Text(uploadMessage)
-            }
-
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -259,7 +244,6 @@ struct HomeContentView: View {
                     }
                 }
             }
-
             .onAppear {
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
@@ -284,6 +268,7 @@ struct HomeContentView: View {
             .task(id: auth.uid) {
                 metricsStore.load(uid: auth.uid)
                 await loadStoredMeasurements()
+                await insightsVM.loadIfNeeded()
             }
             .onChange(of: env.isCloudSyncOn) { _, on in
                 Task { await loadStoredMeasurements() }
@@ -292,8 +277,12 @@ struct HomeContentView: View {
                     Task { await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid) }
                 }
             }
-            //When the user exits the appliction (Refresh health data so it is new when they open it)
-            .onChange(of: scenePhase) { oldPhase, newPhase in
+            .onChange(of: env.isSyncing) { _, syncing in
+                if !syncing {
+                    Task { await loadStoredMeasurements() }
+                }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
                     Task {
                         await refreshHealth()
@@ -309,7 +298,15 @@ struct HomeContentView: View {
         await loadStoredMeasurements()
     }
 
+    private var alertSummary: String {
+        let count = insightsVM.alertCount
+        let names = insightsVM.alertMetricNames.joined(separator: ", ")
+        let lead = count == 1 ? "1 health alert" : "\(count) health alerts"
+        return names.isEmpty ? lead : "\(lead): \(names)"
+    }
+
     // MARK: - Stored measurement fallback (when HealthKit has no value)
+
     private func displayValue(for metric: HealthMetric) -> String {
         if health.isAuthorized {
             let live = metric.formattedValue(from: health.latestMeasurement)
@@ -333,92 +330,35 @@ struct HomeContentView: View {
     }
 
     // MARK: - ML Test (last 30 days)
-    private func runMLTest() {
+
+     private func runMLTest() {
+        guard !isRunningMLTest else { return }
+        isRunningMLTest = true
         Task {
-            do {
-                if !auth.uid.isEmpty,
-                   try await !PrivacyRepository().fetchConsent(uid: auth.uid).riskInsights {
-                    mlTestTitle = "Risk Insights Off"
-                    mlTestMessage = "Turn on Risk Insights in Settings → Data Privacy to see your wellbeing check."
-                    showingMLTestAlert = true
-                    return
-                }
+            defer { isRunningMLTest = false }
+            let result = await PPDRiskCheck.run(uid: auth.uid, fromCloud: isSyncedToCloud)
 
-                let records = try await PPDWindowLoader().load(uid: auth.uid, fromCloud: isSyncedToCloud)
+            if let score = result.score {
+                let tier = PPDRiskTier(score: score)
+                let advice = RiskLevel(score: score).advice
+                let days = result.dataDays == 1 ? "1 day" : "\(result.dataDays) days"
 
-                if records.isEmpty {
-                    mlTestTitle = "Not Enough Data Yet"
-                    mlTestMessage = "We need a few days of health data to give you an insight. Keep logging or sync your Apple Watch, then try again."
-                } else if let runner = PPDRiskModelRunner.shared {
-                    let score = try runner.predictRisk(from: records)
-                    let level = RiskLevel(score: score)
-                    let percent = Int((score * 100).rounded())
-                    let days = records.count == 1 ? "1 day" : "\(records.count) days"
+                mlTestTitle = "Your Wellbeing Check"
+                mlTestMessage = """
+                Risk level: \(tier.title) (\(PPDRiskTier.percent(score))%)
 
-                    mlTestTitle = "Your Wellbeing Check"
-                    mlTestMessage = """
-                    Risk level: \(level.title) (\(percent)%)
+                \(advice)
 
-                    \(level.advice)
-
-                    Based on \(days) of your data. This is not a diagnosis.
-                    """
-                } else {
-                    mlTestTitle = "Unavailable"
-                    mlTestMessage = "The prediction isn't available right now. Please try again later."
-                }
-            } catch {
-                mlTestTitle = "Something Went Wrong"
-                mlTestMessage = "We couldn't run your wellbeing check. Please try again later."
-                print("PPD prediction error:", error)
+                Based on \(days) of your data. This is not a diagnosis.
+                """
+            } else {
+                mlTestTitle = "Wellbeing Check"
+                mlTestMessage = result.message ?? "The prediction isn't available right now. Please try again later."
             }
 
             showingMLTestAlert = true
         }
     }
-    
-    // MARK: - Upload Fake Data
-    // depricated method use: uploads FakeStruct.extremeHighRisk30Days() to Firestore. Not wired to the UI.
-    @MainActor
-    private func uploadFakeData() {
-        guard !isUploadingFakeData else { return }
-
-        let fake30 = FakeStruct.extremeHighRisk30Days()
-
-        // Guest / local-only mode
-        guard !auth.uid.isEmpty else {
-            LocalMeasurementStore.shared.saveMany(fake30)
-            uploadMessage = "Saved \(fake30.count) fake measurements locally"
-            showingUploadAlert = true
-            return
-        }
-
-        isUploadingFakeData = true
-
-        Task { @MainActor in
-            defer { isUploadingFakeData = false }
-
-            do {
-                let count = try await repo.upsertMany(uid: auth.uid, measurements: fake30)
-                uploadMessage = "Uploaded \(count) fake day-measurements"
-            } catch {
-                let ns = error as NSError
-                if ns.domain == FirestoreErrorDomain,
-                   ns.code == FirestoreErrorCode.resourceExhausted.rawValue {
-                    uploadMessage = """
-                    Upload blocked by Firestore quota (resource exhausted).
-                    This isn't your code anymore — it's the project plan limit.
-                    """
-                } else {
-                    uploadMessage = "Upload failed: \(error.localizedDescription)"
-                }
-            }
-
-            showingUploadAlert = true
-        }
-    }
-}
-
 // MARK: - Home palette
 
 fileprivate enum HomePalette {

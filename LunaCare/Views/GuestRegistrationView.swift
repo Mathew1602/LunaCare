@@ -18,104 +18,99 @@ struct GuestRegistrationView: View {
     @State private var localError  = ""
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Spacer()
+        VStack(spacing: 20) {
+            Spacer()
 
-                VStack(spacing: 6) {
-                    Text("Continue Without Account")
-                        .font(.title)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Color(.systemIndigo))
-                        .multilineTextAlignment(.center)
+            VStack(spacing: 6) {
+                Text("Continue Without Account")
+                    .font(.title)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(.systemIndigo))
+                    .multilineTextAlignment(.center)
 
-                    Text("Your data stays on this device only.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 40)
+                Text("Your data stays on this device only.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 40)
 
-                HStack(spacing: 10) {
-                    Image(systemName: "internaldrive")
-                        .foregroundColor(.orange)
-                    Text("Local only — create an account to sync with cloud")
-                        .font(.footnote)
-                        .foregroundColor(.orange)
-                        .multilineTextAlignment(.leading)
-                }
-                .padding(12)
-                .background(Color.orange.opacity(0.10))
-                .cornerRadius(10)
-                .padding(.horizontal, 40)
+            HStack(spacing: 10) {
+                Image(systemName: "internaldrive")
+                    .foregroundColor(.orange)
+                Text("Local only — create an account to sync with cloud")
+                    .font(.footnote)
+                    .foregroundColor(.orange)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(12)
+            .background(Color.orange.opacity(0.10))
+            .cornerRadius(10)
+            .padding(.horizontal, 40)
 
-                // Only show the name fields when there is no saved local profile.
-                if !auth.hasLocalProfile {
-                    VStack(spacing: 15) {
-                        TextField("First Name", text: $firstName)
-                            .textFieldStyle(.roundedBorder)
-                            .autocapitalization(.words)
+            VStack(spacing: 15) {
+                TextField("First Name", text: $firstName)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.words)
 
-                        TextField("Last Name", text: $lastName)
-                            .textFieldStyle(.roundedBorder)
-                            .autocapitalization(.words)
-                    }
+                TextField("Last Name", text: $lastName)
+                    .textFieldStyle(.roundedBorder)
+                    .autocapitalization(.words)
+            }
+            .padding(.horizontal, 40)
+            .padding(.top, 20)
+
+            if !localError.isEmpty {
+                Text(localError)
+                    .font(.footnote)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
-                    .padding(.top, 20)
-                }
-
-                if !localError.isEmpty {
-                    Text(localError)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-
-                Button {
-                    guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                          !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                        localError = "Please enter your first and last name."
-                        return
-                    }
-                    localError = ""
-                    auth.signInAsGuest(firstName: firstName, lastName: lastName)
-                    syncManager.applyCloudSyncPreference(uid: "", isOn: false, env: env)
-
-                    // ContentView reacts to auth.noAccount becoming true
-                } label: {
-                    Text("Continue Locally")
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.systemIndigo))
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .padding(.horizontal, 40)
-                }
-
-                Button {
-                    dismiss()
-                } label: {
-                    Text("Back to Login")
-                        .underline()
-                        .foregroundColor(Color(.systemIndigo))
-                        .padding(.top, 6)
-                }
-
-                Spacer()
             }
-            .onAppear {
-                if auth.hasLocalProfile {
-                    syncManager.applyCloudSyncPreference(uid: "", isOn: false, env: env)
-                    auth.resumeLocalSession()
+
+            Button {
+                guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    localError = "Please enter your first and last name."
+                    return
                 }
+                localError = ""
+                syncManager.applyCloudSyncPreference(uid: "", isOn: false, env: env)
+                auth.signInAsGuest(firstName: firstName, lastName: lastName)
+            } label: {
+                Text("Continue Locally")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.systemIndigo))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                    .padding(.horizontal, 40)
             }
+
+            Button {
+                dismiss()
+            } label: {
+                Text("Back to Login")
+                    .underline()
+                    .foregroundColor(Color(.systemIndigo))
+                    .padding(.top, 6)
+            }
+
+            Spacer()
+        }
+        .onAppear {
+            let saved = auth.savedGuestName
+            if firstName.isEmpty { firstName = saved.first }
+            if lastName.isEmpty { lastName = saved.last }
         }
     }
 }
 
 #Preview {
-    GuestRegistrationView()
-        .environmentObject(AuthViewModel.previewGuest)
+    NavigationStack {
+        GuestRegistrationView()
+            .environmentObject(AuthViewModel.previewGuest)
+            .environmentObject(AppEnvironment.shared)
+    }
 }

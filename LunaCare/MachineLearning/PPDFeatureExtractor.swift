@@ -111,7 +111,7 @@ final class PPDFeaturePipeline {
         case "walking_heart_rate_avg_bpm": return m.walkingHeartRateAvgBpm
         case "hrv_sdnn_ms": return m.hrvSDNNms
         case "respiratory_rate_bpm": return m.respiratoryRateBpm
-        case "oxygen_saturation_pct": return m.oxygenSaturationPct
+        case "oxygen_saturation_pct": return m.oxygenSaturationPct.map(Measurement.spo2Percent)
         case "vo2max_ml_kg_min": return m.vo2Max
         case "steps": return m.steps.map(Double.init)
         case "distance_walked_km": return m.distanceWalkedKm

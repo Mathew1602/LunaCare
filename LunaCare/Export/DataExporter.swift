@@ -71,7 +71,7 @@ struct DataExporter {
             ("Walking HR (bpm)",        { num($0.walkingHeartRateAvgBpm, 0) }),
             ("HRV SDNN (ms)",           { num($0.hrvSDNNms, 1) }),
             ("Respiratory Rate (bpm)",  { num($0.respiratoryRateBpm, 1) }),
-            ("Blood Oxygen (%)",        { num($0.oxygenSaturationPct.map { $0 * 100 }, 1) }),
+            ("Blood Oxygen (%)",        { num($0.oxygenSaturationPct.map(Measurement.spo2Percent), 1) }),
             ("VO2 Max (ml/kg/min)",     { num($0.vo2Max, 1) }),
             ("Sleep (hrs)",             { num($0.sleepHours, 2) }),
             ("Deep Sleep (hrs)",        { num($0.deepSleepHours, 2) }),
@@ -177,7 +177,7 @@ struct DataExporter {
                         num(m.hrvSDNNms, 0),
                         num(m.activeEnergyKcal, 0),
                         num(m.exerciseMinutes, 0),
-                        num(m.oxygenSaturationPct.map { $0 * 100 }, 0)
+                        num(m.oxygenSaturationPct.map(Measurement.spo2Percent), 0)
                     ]
                 }
                 page.drawTable(

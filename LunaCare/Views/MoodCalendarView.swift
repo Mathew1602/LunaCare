@@ -103,7 +103,7 @@ struct MoodCalendarView: View {
 
     var body: some View {
 
-        NavigationStack {
+        Group {
 
             ScrollView {
 
@@ -174,9 +174,19 @@ struct MoodCalendarView: View {
         ) {
 
             EditMoodSheet(
+<<<<<<< HEAD
                 mood: $vm.editingMood,
                 note: $vm.editingNote,
                 isSaving: vm.isSavingEdit,
+=======
+                mood:
+                    $vm.editingMood,
+                note:
+                    $vm.editingNote,
+                isSaving:
+                    vm.isSavingEdit,
+                errorText: vm.errorText,
+>>>>>>> origin/main
                 onSave: {
                     Task {
                         await vm.saveEdit(uid: auth.uid)
@@ -608,6 +618,7 @@ private struct EditMoodSheet: View {
     @Binding var note: String
 
     let isSaving: Bool
+    let errorText: String?
 
     let onSave: () -> Void
     let onCancel: () -> Void
@@ -630,7 +641,17 @@ private struct EditMoodSheet: View {
 
             ScrollView {
 
-                VStack(alignment: .leading, spacing: 24) {
+                                    if let errorText {
+                        Label(errorText, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(MoodCalendarTheme.danger)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(MoodCalendarTheme.danger.opacity(0.1))
+                            )
+                    }
 
                     // Mood
                     VStack(alignment: .leading, spacing: 14) {
@@ -641,7 +662,6 @@ private struct EditMoodSheet: View {
 
                         MoodPickerGrid(selectedMood: optionalMood)
                     }
-
 
                     // Note
                     VStack(alignment: .leading, spacing: 12) {

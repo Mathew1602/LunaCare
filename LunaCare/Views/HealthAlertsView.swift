@@ -1,11 +1,9 @@
-
 //
 //  HealthAlertsView.swift
 //  LunaCare
 //
 //  Created by Fernanda Battig on 2025-11-07.
 //
-
 
 import SwiftUI
 
@@ -15,9 +13,6 @@ private extension Color {
     static let lcCardShadow    = Color.black.opacity(0.10)
     static let lcWarningRed    = Color(red: 0.93, green: 0.34, blue: 0.34)
 }
-
-// simple flag so demo notifications only fire once
-private let demoAlertsScheduledKey = "LC_DemoAlertsScheduled"
 
 struct HealthAlertsView: View {
     @EnvironmentObject var vm: InsightsViewModel
@@ -41,11 +36,7 @@ struct HealthAlertsView: View {
                             AlertCard(insight: insight)
                         }
                         if let score = vm.ppdRiskScore {
-                            PPDModelAlertCard(
-                                score: score,
-                                thresholdPercent: vm.highPPDScoreThresholdPercent,
-                                isHighScore: vm.highPPDRiskScore != nil
-                            )
+                            PPDModelAlertCard(score: score, tier: PPDRiskTier(score: score))
                         }
                     }
                 }
@@ -61,23 +52,6 @@ struct HealthAlertsView: View {
         }
         .navigationTitle("Alerts")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            scheduleDemoNotificationsIfNeeded()
-        }
-    }
-
-    // MARK: - Demo notification trigger
-
-    private func scheduleDemoNotificationsIfNeeded() {
-        // Only schedule once for this demo
-        let defaults = UserDefaults.standard
-        guard defaults.bool(forKey: demoAlertsScheduledKey) == false else { return }
-        guard !vm.alertInsights.isEmpty else { return }
-
-        // Use your existing notification manager (already used in InsightsOverviewView)
-        NotificationManager.shared.scheduleHealthAlertsIfNeeded(from: vm.alertInsights)
-
-        defaults.set(true, forKey: demoAlertsScheduledKey)
     }
 
     // MARK: - UI Sections
@@ -88,7 +62,7 @@ struct HealthAlertsView: View {
                 .font(.system(.title, design: .rounded).bold())
                 .multilineTextAlignment(.center)
 
-            Text("Red flags use weekly trend rules. ML alerts appear at model scores of \(vm.highPPDScoreThresholdPercent)% or higher.")
+            Text("Red flags use weekly trend rules. ML alerts appear in the High risk tier (\(PPDRiskTier.highPercent)% or higher).")
                 .font(.system(size: 14))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -102,7 +76,7 @@ struct HealthAlertsView: View {
                 .font(.system(size: 42))
                 .foregroundColor(.green)
 
-            Text("No active alerts 🎉")
+            Text("No active alerts")
                 .font(.system(size: 17, weight: .semibold))
 
             Text("No data-based red flags or high model-score alerts are active. Trend checks need at least five days of data in each of the two complete weeks.")
@@ -181,28 +155,36 @@ private struct AlertCard: View {
 
 private struct PPDModelAlertCard: View {
     let score: Double
-    let thresholdPercent: Int
-    let isHighScore: Bool
+    let tier: PPDRiskTier
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("PPD model score", systemImage: "brain.head.profile")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(isHighScore ? .lcWarningRed : .primary)
+                    .foregroundColor(tier == .low ? .primary : tier.color)
                 Spacer()
-                Text("\(Int((score * 100).rounded()))%")
+                Text(tier.title)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(tier.color)
+                    .clipShape(Capsule())
+                Text("\(PPDRiskTier.percent(score))%")
                     .font(.system(.title3, design: .rounded, weight: .bold))
             }
 
             ProgressView(value: score, total: 1)
-                .tint(isHighScore ? .lcWarningRed : .lcLavender)
+                .tint(tier.color)
 
-            Text(isHighScore
-                 ? "High-score alert: at or above the \(thresholdPercent)% cutoff."
-                 : "Below the \(thresholdPercent)% alert cutoff.")
+            Text(tier.summary)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(isHighScore ? .lcWarningRed : .secondary)
+                .foregroundColor(tier == .low ? .secondary : tier.color)
+
+            Text(PPDRiskTier.rangeDescription)
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
 
             Text("Raw model output: \(String(format: "%.3f", score)) on a 0–1 scale. This is not verified confidence, a calibrated probability, or a diagnosis.")
                 .font(.system(size: 14))

@@ -17,7 +17,6 @@ struct LunaCareApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        // This activates connectivity to watchOS
         WatchConnectivityManager.shared.activate()
         _ = WatchSyncService.shared
 

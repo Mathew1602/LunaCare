@@ -9,15 +9,49 @@ import Foundation
 
 enum RecommendationEngine {
 
-    static let highPPDScoreThreshold = 0.90
     static let screeningRecommendationTitle = "Consider a supportive check-in"
+    static let monitorRecommendationTitle = "Keep an eye on how you’re feeling"
+    static let screeningSupportID = "screening-support"
+    static let screeningMonitorID = "screening-monitor"
+
+    enum Kind {
+        case sleep, movement, mood, symptom, vitals, screeningSupport, screeningMonitor, other
+    }
 
     struct RecommendationItem: Identifiable, Codable {
-        var id: String? // Firestore doc ID
+        var id: String?
         let title: String
         let subtitle: String
         let reason: String
         var timestamp: Date = Date()
+
+        var isScreening: Bool {
+            id == RecommendationEngine.screeningSupportID || id == RecommendationEngine.screeningMonitorID
+        }
+
+        var kind: Kind {
+            guard let id else { return .other }
+            if id == RecommendationEngine.screeningSupportID { return .screeningSupport }
+            if id == RecommendationEngine.screeningMonitorID { return .screeningMonitor }
+            guard id.hasPrefix("trend-") else { return .other }
+            switch String(id.dropFirst("trend-".count)) {
+            case "sleep hours", "deep sleep hours", "rem sleep hours", "core sleep hours",
+                 "sleep efficiency", "sleep trouble", "wake after sleep onset":
+                return .sleep
+            case "steps", "walking distance", "exercise minutes", "flights climbed",
+                 "active energy", "stand hours", "vo2 max":
+                return .movement
+            case "mood score":
+                return .mood
+            case "fatigue", "bleeding", "hair loss", "appetite issues":
+                return .symptom
+            case "resting heart rate", "average heart rate", "walking heart rate",
+                 "heart rate variability", "respiratory rate", "blood oxygen":
+                return .vitals
+            default:
+                return .other
+            }
+        }
     }
 
     static func build(
@@ -28,13 +62,26 @@ enum RecommendationEngine {
             .sorted { $0.priority < $1.priority }
         var items = Array(trendIdeas.prefix(6).map(\.item))
 
-        if let ppdRiskScore, ppdRiskScore >= highPPDScoreThreshold {
-            items.append(.init(
-                id: "screening-support",
-                title: screeningRecommendationTitle,
-                subtitle: "If you have concerns about your mood or well-being, reach out to your healthcare provider.",
-                reason: "The screening model returned a high raw score (\(Int((ppdRiskScore * 100).rounded()))%). This is not a diagnosis or a verified probability."
-            ))
+        if let ppdRiskScore {
+            let pct = PPDRiskTier.percent(ppdRiskScore)
+            switch PPDRiskTier(score: ppdRiskScore) {
+            case .high:
+                items.append(.init(
+                    id: screeningSupportID,
+                    title: screeningRecommendationTitle,
+                    subtitle: "If you have concerns about your mood or well-being, reach out to your healthcare provider.",
+                    reason: "The screening model placed you in the High risk tier (\(pct)%, cutoff \(PPDRiskTier.highPercent)%). This is not a diagnosis or a verified probability."
+                ))
+            case .medium:
+                items.append(.init(
+                    id: screeningMonitorID,
+                    title: monitorRecommendationTitle,
+                    subtitle: "Keep logging your mood and sleep, and mention how you’ve been feeling at your next check-up.",
+                    reason: "The screening model placed you in the Medium risk tier (\(pct)%, \(PPDRiskTier.mediumPercent)–\(PPDRiskTier.highPercent - 1)%). This is not a diagnosis or a verified probability."
+                ))
+            case .low:
+                break
+            }
         }
 
         return items
@@ -206,7 +253,9 @@ enum RecommendationEngine {
             return nil
         }
 
-        let context = "Your \(insight.metric) was \(insight.direction) compared with last week (\(pctStr(insight.percentChange)))."
+        let context = insight.percentChange.map {
+            "Your \(insight.metric) was \(insight.direction) compared with last week (\(pctStr($0)))."
+        } ?? "Your \(insight.metric) was \(insight.direction) compared with last week."
         return (
             priority,
             .init(

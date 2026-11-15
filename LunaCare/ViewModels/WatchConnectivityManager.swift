@@ -10,15 +10,20 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     @Published var lastProfile: UserProfile? = nil {
         didSet { persistProfile(lastProfile) }
     }
+    @Published var lastRisk: WatchRiskSummary? = nil {
+        didSet { persistRisk(lastRisk) }
+    }
     @Published var errorMessage: String?
 
     private var session: WCSession?
 
     private let profileCacheKey = "lc_lastProfile_cache"
+    private let riskCacheKey = "lc_lastRisk_cache"
 
     private override init() {
         super.init()
         loadCachedProfile()
+        loadCachedRisk()
         startSession()
     }
 
@@ -36,7 +41,6 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         session?.delegate = self
         session?.activate()
 
-        // If iPhone already set context, grab it now
         if let context = session?.receivedApplicationContext, !context.isEmpty {
             handleIncoming(context)
         }
@@ -71,7 +75,6 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         print("- Payload: \(string)")
         print("- Reachable: \(session.isReachable)")
 
-        //If sending profile, also have to update application context on iOS
         #if os(iOS)
         if type == .profile {
             do {
@@ -85,8 +88,9 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
 
         if session.isReachable {
             session.sendMessage(message, replyHandler: nil) { error in
-                self.errorMessage = "Failed to send message: \(error.localizedDescription)"
-                print(self.errorMessage ?? "")
+                let text = "Failed to send message: \(error.localizedDescription)"
+                print(text)
+                Task { @MainActor in self.errorMessage = text }
             }
         } else {
             session.transferUserInfo(message)
@@ -173,24 +177,44 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
                     self.lastReceived = SyncMessage(type: type, getSymptomResponse: logs)
                 }
             }
+
+        case .getRiskRequest:
+            DispatchQueue.main.async {
+                self.lastReceived = SyncMessage(type: type)
+            }
+
+        case .getRiskResponse:
+            if let risk = try? decoder.decode(WatchRiskSummary.self, from: data) {
+                DispatchQueue.main.async {
+                    self.lastRisk = risk
+                    self.lastReceived = SyncMessage(type: type, getRiskResponse: risk)
+                }
+            }
         }
     }
 
     // MARK: - WCSessionDelegate
 
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        handleIncoming(message)
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        receive(message)
     }
 
-    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
-        handleIncoming(userInfo)
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any]) {
+        receive(userInfo)
     }
 
-    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
-        handleIncoming(applicationContext)
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        receive(applicationContext)
     }
 
-    func session(_ session: WCSession,
+    private nonisolated func receive(_ message: [String: Any]) {
+        nonisolated(unsafe) let message = message
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { WatchConnectivityManager.shared.handleIncoming(message) }
+        }
+    }
+
+    nonisolated func session(_ session: WCSession,
                  activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
         if let error = error {
@@ -199,8 +223,8 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
     }
 
     #if os(iOS)
-    func sessionDidBecomeInactive(_ session: WCSession) {}
-    func sessionDidDeactivate(_ session: WCSession) {
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+    nonisolated func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
     }
     #endif
@@ -211,6 +235,19 @@ final class WatchConnectivityManager: NSObject, ObservableObject, WCSessionDeleg
         if let data = try? JSONEncoder().encode(profile) {
             UserDefaults.standard.set(data, forKey: profileCacheKey)
         }
+    }
+
+    private func persistRisk(_ risk: WatchRiskSummary?) {
+        guard let risk, let data = try? JSONEncoder().encode(risk) else { return }
+        UserDefaults.standard.set(data, forKey: riskCacheKey)
+    }
+
+    private func loadCachedRisk() {
+        guard let data = UserDefaults.standard.data(forKey: riskCacheKey),
+              let risk = try? JSONDecoder().decode(WatchRiskSummary.self, from: data) else {
+            return
+        }
+        lastRisk = risk
     }
 
     private func loadCachedProfile() {

@@ -24,3 +24,6 @@ federated-learning/**/node_modules/
 federated-learning/**/.pytest_cache/
 firebase-debug.log
 firestore-debug.log
+
+# Local risk-tier rationale doc
+RISK_TIERS.md

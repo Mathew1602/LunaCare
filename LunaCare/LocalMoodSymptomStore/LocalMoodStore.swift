@@ -19,7 +19,6 @@ final class LocalMoodStore {
         if normalized.createdAt == nil {
             normalized.createdAt = Date()
         }
-        // Assign an ID if missing so future edits can match by ID
         if normalized.id == nil {
             normalized.id = UUID().uuidString
         }
@@ -32,22 +31,46 @@ final class LocalMoodStore {
             (abs(($0.createdAt ?? .distantPast).timeIntervalSince(normalized.createdAt ?? .distantFuture)) < 1)
         }
         existing.append(normalized)
+        persist(existing)
 
-        if let data = try? JSONEncoder().encode(existing) {
-            UserDefaults.standard.set(data, forKey: key)
+        if let id = normalized.id, let createdAt = normalized.createdAt {
+            LocalMoodCalendarStore.shared.save(CalendarDayLog(
+                id: id,
+                mood: Mood(score: normalized.mood),
+                note: normalized.notes,
+                createdAt: createdAt
+            ))
         }
     }
 
     func loadOfflineMoods() -> [MoodLog] {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let logs = try? JSONDecoder().decode([MoodLog].self, from: data) else {
+        guard let data = StorageScope.data(forKey: key),
+              var logs = try? JSONDecoder().decode([MoodLog].self, from: data) else {
             return []
+        }
+        if logs.contains(where: { $0.id == nil }) {
+            for i in logs.indices where logs[i].id == nil {
+                logs[i].id = UUID().uuidString
+            }
+            persist(logs)
         }
         return logs
     }
 
+    private func persist(_ logs: [MoodLog]) {
+        if let data = try? JSONEncoder().encode(logs) {
+            StorageScope.set(data, forKey: key)
+        }
+    }
+
+    func deleteOfflineMood(id: String) {
+        var existing = loadOfflineMoods()
+        existing.removeAll { $0.id == id }
+        persist(existing)
+    }
+
     func clearOfflineMoods() {
-        UserDefaults.standard.removeObject(forKey: key)
+        StorageScope.removeObject(forKey: key)
     }
 
     /// Returns CalendarDayLog objects between the given dates, newest first.
@@ -63,12 +86,8 @@ final class LocalMoodStore {
                 return nil
             }
 
-            // Use stored ID — it is now always guaranteed to exist
-            // because saveOfflineMood assigns one when missing.
-            let calendarId = log.id ?? UUID().uuidString
-
             return CalendarDayLog(
-                id: calendarId,
+                id: log.id ?? UUID().uuidString,
                 mood: Mood(score: log.mood),
                 note: log.notes,
                 createdAt: createdAt

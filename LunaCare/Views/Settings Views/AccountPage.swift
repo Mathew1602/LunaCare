@@ -15,202 +15,210 @@ struct AccountPage: View {
     @State private var editFirstName = ""
     @State private var editLastName = ""
     @State private var isSaving = false
-    
+    @State private var saveError: String?
+
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                VStack(spacing: 8) {
-                    Text("Account Settings")
-                        .font(.system(size: 28, weight: .bold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 0) {
+            VStack(spacing: 8) {
+                Text("Account Settings")
+                    .font(.system(size: 28, weight: .bold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Text("Manage your profile and security")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundColor(.gray)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 16) {
+                        Text("Profile Information")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("First Name")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.gray)
+                            
+                            TextField("First name", text: $editFirstName)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .padding(.vertical, 4)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Last Name")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.gray)
+                            
+                            TextField("Last name", text: $editLastName)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .padding(.vertical, 4)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Email")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.gray)
+                            
+                            HStack {
+                                Text(authViewModel.email)
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 14))
+                            }
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(16)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
                     
-                    Text("Manage your profile and security")
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.gray)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(spacing: 12) {
+                        Text("Security")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        Button(action: {
+                            showPasswordResetSheet = true
+                        }) {
+                            HStack {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 16))
+                                
+                                Text("Reset Password")
+                                    .fontWeight(.semibold)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(.systemIndigo))
+                            .cornerRadius(10)
+                        }
+                    }
+                    
+                    Spacer()
+                        .frame(height: 20)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        VStack(spacing: 16) {
-                            Text("Profile Information")
-                                .font(.system(size: 16, weight: .semibold))
-                                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            
+            VStack(spacing: 12) {
+                Button(action: saveProfile) {
+                    if isSaving {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .tint(.white)
                             
-                            // First Name
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("First Name")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.gray)
-                                
-                                TextField("First name", text: $editFirstName)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .padding(.vertical, 4)
-                            }
-                            
-                            // Last Name
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Last Name")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.gray)
-                                
-                                TextField("Last name", text: $editLastName)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .padding(.vertical, 4)
-                            }
-                            
-                            // Email (Read-only)
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Email")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(.gray)
-                                
-                                HStack {
-                                    Text(authViewModel.email)
-                                        .foregroundColor(.black)
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.green)
-                                        .font(.system(size: 14))
-                                }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                            }
-                        }
-                        .padding(16)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                        
-                        // MARK: - Security Section
-                        VStack(spacing: 12) {
-                            Text("Security")
-                                .font(.system(size: 16, weight: .semibold))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            
-                            Button(action: {
-                                showPasswordResetSheet = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "lock.fill")
-                                        .font(.system(size: 16))
-                                    
-                                    Text("Reset Password")
-                                        .fontWeight(.semibold)
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .semibold))
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(.systemIndigo))
-                                .cornerRadius(10)
-                            }
-                        }
-                        
-                        Spacer()
-                            .frame(height: 20)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 16)
-                }
-                
-                // MARK: - Save Button
-                VStack(spacing: 12) {
-                    Button(action: saveProfile) {
-                        if isSaving {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                    .tint(.white)
-                                
-                                Text("Saving...")
-                                    .fontWeight(.semibold)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(.systemIndigo).opacity(0.7))
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                        } else {
-                            Text("Save Changes")
+                            Text("Saving...")
                                 .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(.systemIndigo))
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
                         }
-                    }
-                    .disabled(isSaving)
-                    
-                    Button(action: { authViewModel.signOut() }) {
-                        Text("Sign Out")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemIndigo).opacity(0.7))
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    } else {
+                        Text("Save Changes")
                             .fontWeight(.semibold)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color(.systemGray6))
-                            .foregroundColor(.red)
+                            .background(Color(.systemIndigo).opacity(canSave ? 1 : 0.4))
+                            .foregroundColor(.white)
                             .cornerRadius(10)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .background(Color(.systemBackground))
-            .sheet(isPresented: $showPasswordResetSheet) {
-                PasswordResetPage(isPresented: $showPasswordResetSheet)
-            }
-            .alert("Profile Updated", isPresented: $showSaveConfirmation) {
-                Button("OK") { }
-            } message: {
-                Text("Your profile has been saved successfully.")
-            }
-            .onAppear {
-                editFirstName = authViewModel.firstName
-                editLastName = authViewModel.lastName
-            }
-            .onChange(of: authViewModel.firstName) { _, newValue in
-                editFirstName = newValue
-            }
-            .onChange(of: authViewModel.lastName) { _, newValue in
-                editLastName = newValue
-            }
-        }
-    }
-    
-    
-    private func saveProfile() {
-        isSaving = true
-        
-        // Update view model
-        authViewModel.firstName = editFirstName.trimmingCharacters(in: .whitespaces)
-        authViewModel.lastName = editLastName.trimmingCharacters(in: .whitespaces)
-        
-        // Save to Firestore
-        UserRepository().updateUserProfile(
-            uid: authViewModel.uid,
-            firstName: editFirstName,
-            lastName: editLastName
-        ) { error in
-            DispatchQueue.main.async {
-                isSaving = false
-                if error == nil {
-                    showSaveConfirmation = true
-                } else {
-                    authViewModel.errorMessage = "Failed to save profile. Please try again."
+                .disabled(!canSave)
+
+                if let saveError {
+                    Text(saveError)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                
+                Button(action: { authViewModel.signOut() }) {
+                    Text("Sign Out")
+                        .fontWeight(.semibold)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .foregroundColor(.red)
+                        .cornerRadius(10)
                 }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .background(Color(.systemBackground))
+        .sheet(isPresented: $showPasswordResetSheet) {
+            PasswordResetPage(isPresented: $showPasswordResetSheet)
+        }
+        .alert("Profile Updated", isPresented: $showSaveConfirmation) {
+            Button("OK") { }
+        } message: {
+            Text("Your profile has been saved successfully.")
+        }
+        .onAppear {
+            editFirstName = authViewModel.firstName
+            editLastName = authViewModel.lastName
+        }
+        .onChange(of: authViewModel.firstName) { _, newValue in
+            editFirstName = newValue
+        }
+        .onChange(of: authViewModel.lastName) { _, newValue in
+            editLastName = newValue
+        }
+    }
+
+    private var trimmedFirst: String { editFirstName.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedLast: String { editLastName.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private var canSave: Bool {
+        !isSaving && !trimmedFirst.isEmpty && !trimmedLast.isEmpty
+            && (trimmedFirst != authViewModel.firstName || trimmedLast != authViewModel.lastName)
+    }
+
+    private func saveProfile() {
+        guard canSave else { return }
+        let first = trimmedFirst
+        let last = trimmedLast
+        isSaving = true
+        saveError = nil
+
+        Task {
+            do {
+                try await UserRepository().updateUserProfile(uid: authViewModel.uid, firstName: first, lastName: last)
+                authViewModel.firstName = first
+                authViewModel.lastName = last
+                authViewModel.refreshProfile()
+                showSaveConfirmation = true
+            } catch {
+                saveError = "Couldn’t save your profile: \(error.localizedDescription)"
+            }
+            isSaving = false
         }
     }
 }
 
 #Preview {
-    AccountPage()
+    NavigationStack {
+        AccountPage()
+            .environmentObject(AuthViewModel.preview)
+    }
 }

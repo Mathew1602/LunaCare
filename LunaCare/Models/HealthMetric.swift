@@ -116,7 +116,7 @@ enum HealthMetric: String, CaseIterable, Identifiable, Codable {
         case .walkingHR: return int(m.walkingHeartRateAvgBpm, "bpm")
         case .hrv: return int(m.hrvSDNNms, "ms")
         case .respiratoryRate: return format(m.respiratoryRateBpm, "%.0f br/min")
-        case .bloodOxygen: return format(m.oxygenSaturationPct.map { $0 * 100 }, "%.0f%%")
+        case .bloodOxygen: return format(m.oxygenSaturationPct.map(Measurement.spo2Percent), "%.0f%%")
         case .vo2Max: return format(m.vo2Max, "%.1f")
         case .weight: return format(m.weightKg, "%.1f kg")
         }

@@ -30,21 +30,7 @@ struct PasswordResetPage: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // MARK: - Header
                 VStack(spacing: 8) {
-                    HStack {
-                        Button(action: { isPresented = false }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 16, weight: .semibold))
-                                
-                                Text("Back")
-                            }
-                        }
-                        
-                        Spacer()
-                    }
-                    
                     Text("Reset Password")
                         .font(.system(size: 28, weight: .bold))
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,7 +45,6 @@ struct PasswordResetPage: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // MARK: - Email Display
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Email")
                                 .font(.system(size: 12, weight: .semibold))
@@ -83,7 +68,6 @@ struct PasswordResetPage: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(12)
                         
-                        // MARK: - Current Password Section
                         VStack(spacing: 16) {
                             Text("Verify Current Password")
                                 .font(.system(size: 16, weight: .semibold))
@@ -113,7 +97,6 @@ struct PasswordResetPage: View {
                             }
                         }
                         
-                        // MARK: - New Password Section
                         VStack(spacing: 16) {
                             Text("New Password")
                                 .font(.system(size: 16, weight: .semibold))
@@ -191,19 +174,14 @@ struct PasswordResetPage: View {
                             .cornerRadius(8)
                         }
                         
-                        // MARK: - Error Message
                         if !resetError.isEmpty {
                             HStack(spacing: 8) {
                                 Image(systemName: "exclamationmark.circle.fill")
                                     .foregroundColor(.red)
                                 
-                                if(resetError == "The supplied auth credential is malformed or has expired."){
-                                    Text("You current passowrd is inncorect. Please try again.")
-                                } else {
-                                    Text(resetError)
-                                        .font(.system(size: 13, weight: .regular))
-                                        .foregroundColor(.red)
-                                }
+                                Text(resetError)
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(.red)
                                 
                                 Spacer()
                             }
@@ -219,7 +197,6 @@ struct PasswordResetPage: View {
                     .padding(.vertical, 16)
                 }
                 
-                // MARK: - Action Buttons
                 VStack(spacing: 12) {
                     Button(action: resetPassword) {
                         if isResetting {
@@ -253,7 +230,7 @@ struct PasswordResetPage: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(.systemGray6))
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)
                             .cornerRadius(10)
                     }
                 }

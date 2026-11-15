@@ -17,13 +17,12 @@ struct RegistrationView: View {
     @State private var username        = ""
     @State private var password        = ""
     @State private var confirmPassword = ""
-    @State private var navigateToHome  = false
 
     @State private var localError = ""
     @State private var isLoading  = false
 
-    /// When `true` the view was pushed from Settings (inside an existing HomeView).
-    /// On successful sign-up it dismisses rather than pushing another HomeView.
+    /// When `true` the view was pushed from Settings (inside an existing HomeView),
+    /// so a successful sign-up pops back instead of relying on ContentView's root swap.
     private let isFromSettings: Bool
 
     init(firstName: String = "", lastName: String = "", isFromSettings: Bool = false) {
@@ -67,11 +66,12 @@ struct RegistrationView: View {
             }
 
             Button {
-                guard !firstName.isEmpty, !lastName.isEmpty else {
+                guard !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     localError = "Please enter your first and last name."
                     return
                 }
-                guard !username.isEmpty, !password.isEmpty else {
+                guard !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !password.isEmpty else {
                     localError = "Please fill in email and password."
                     return
                 }
@@ -84,7 +84,12 @@ struct RegistrationView: View {
                 auth.signUp(email: username,
                             password: password,
                             firstName: firstName,
-                            lastName: lastName)
+                            lastName: lastName) { success in
+                    isLoading = false
+                    if success && isFromSettings {
+                        dismiss()
+                    }
+                }
             } label: {
                 HStack {
                     if isLoading { ProgressView().tint(.white) }
@@ -99,24 +104,10 @@ struct RegistrationView: View {
                 .padding(.horizontal, 40)
             }
             .disabled(isLoading)
-            .navigationDestination(isPresented: $navigateToHome) { HomeView() }
 
             Spacer()
         }
-        .onChange(of: auth.isAuthenticated) { _, newValue in
-            isLoading = false
-            if newValue {
-                if isFromSettings {
-                    // Already inside HomeView — just pop back to Settings.
-                    dismiss()
-                } else {
-                    navigateToHome = true
-                }
-            }
-        }
-        .onChange(of: auth.errorMessage) { _, _ in
-            if !auth.errorMessage.isEmpty { isLoading = false }
-        }
+        .onAppear { auth.errorMessage = "" }
     }
 }
 

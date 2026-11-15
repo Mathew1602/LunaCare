@@ -7,7 +7,6 @@
 
 import Foundation
 
-// The type of data being synced
 enum SyncType: String, Codable {
     case moodLog
     case symptomLog
@@ -20,9 +19,11 @@ enum SyncType: String, Codable {
 
     case getSymptomRequest
     case getSymptomResponse
+
+    case getRiskRequest
+    case getRiskResponse
 }
 
-// Wrapper for incoming sync messages
 struct SyncMessage: Identifiable {
     let id = UUID()
     let type: SyncType
@@ -38,6 +39,14 @@ struct SyncMessage: Identifiable {
 
     var getSymptomRequest: GetRequest? = nil
     var getSymptomResponse: [SymptomLogSummary]? = nil
+
+    var getRiskResponse: WatchRiskSummary? = nil
+}
+
+struct WatchRiskSummary: Codable {
+    let score: Double?
+    let message: String?
+    let computedAt: Date
 }
 
 struct GetRequest: Codable {
@@ -47,6 +56,23 @@ struct GetRequest: Codable {
 
 /// Used only for offline storage of symptoms.
 struct LocalSymptomLog: Codable {
+    var id: String?
     let payload: SymptomLogPayload
     let createdAt: Date
+    var updatedAt: Date?
+
+    init(id: String? = nil, payload: SymptomLogPayload, createdAt: Date, updatedAt: Date? = nil) {
+        self.id = id ?? Self.dayID(for: createdAt)
+        self.payload = payload
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    static func dayID(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
 }

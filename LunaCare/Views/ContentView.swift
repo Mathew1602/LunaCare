@@ -14,7 +14,6 @@ struct ContentView: View {
     var body: some View {
         Group {
             if !auth.didResolveAuthState {
-                // Splash while Firebase auth listener (or local check) resolves
                 VStack {
                     Spacer()
                     ProgressView("Loading…")
@@ -23,7 +22,6 @@ struct ContentView: View {
                 }
 
             } else if auth.isAuthenticated || auth.noAccount {
-                // Both full accounts AND guest/local-only users land here
                 HomeView()
 
             } else {

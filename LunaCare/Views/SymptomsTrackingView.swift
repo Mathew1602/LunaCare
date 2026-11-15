@@ -113,16 +113,22 @@ struct SymptomsTrackingView: View {
 
                 saveButton
 
-                // =====================================================
-                // Backend Status
-                // =====================================================
-
-                if let status = vm.backendStatus {
-                    InfoRow(
-                        systemImage: "icloud.and.arrow.up",
-                        text: status
+                if let error = vm.errorMessage {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color.orange.opacity(0.12))
                     )
                 }
+
 
                 // =====================================================
                 // Privacy Note
@@ -166,12 +172,7 @@ struct SymptomsTrackingView: View {
             Button("Stay Here", role: .cancel) { }
 
         } message: {
-
-            if let status = vm.backendStatus {
-                Text(status)
-            } else {
-                Text("Your symptom check-in has been saved successfully.")
-            }
+            Text("Your symptom check-in has been saved successfully.")
         }
     }
 
@@ -285,7 +286,7 @@ struct SymptomsTrackingView: View {
     }
 
     private var saveDisabled: Bool {
-        vm.loading || loggedCount == 0
+        !vm.canSave
     }
 }
 

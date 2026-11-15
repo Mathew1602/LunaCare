@@ -33,7 +33,7 @@ final class LocalMeasurementStore {
     }
 
     func clearAll() {
-        UserDefaults.standard.removeObject(forKey: key)
+        StorageScope.removeObject(forKey: key)
     }
 
     // MARK: - Read
@@ -59,7 +59,7 @@ final class LocalMeasurementStore {
 
     func loadAll() -> [Measurement] {
         guard
-            let data = UserDefaults.standard.data(forKey: key),
+            let data = StorageScope.data(forKey: key),
             let measurements = try? JSONDecoder().decode([Measurement].self, from: data)
         else { return [] }
         return measurements
@@ -67,7 +67,7 @@ final class LocalMeasurementStore {
 
     func persist(_ measurements: [Measurement]) {
         if let data = try? JSONEncoder().encode(measurements) {
-            UserDefaults.standard.set(data, forKey: key)
+            StorageScope.set(data, forKey: key)
         }
     }
 }

@@ -58,6 +58,29 @@ struct PPDWindowLoader {
         return Self.merge(try await measurements, moods: moods, symptoms: symptoms)
     }
 
+    static let notEnoughHistoryMessage = "The PPD risk check needs at least one month of data. Keep logging your mood, symptoms or health data and check back once you’ve been using LunaCare for 30 days."
+
+    func hasMonthOfHistory(uid: String, fromCloud: Bool, now: Date = Date()) async throws -> Bool {
+        let cal = Calendar.current
+        let threshold = cal.date(byAdding: .day, value: -(PPDFeaturePipeline.windowDays - 2),
+                                 to: cal.startOfDay(for: now)) ?? now
+
+        guard fromCloud else {
+            return LocalMeasurementStore.shared.loadAll().contains { $0.createdAt < threshold }
+                || LocalMoodStore.shared.loadOfflineMoods().contains { ($0.createdAt ?? .distantFuture) < threshold }
+                || LocalSymptomStore.shared.loadOfflineSymptomLogs().contains { $0.createdAt < threshold }
+        }
+
+        for path in [FSPath.measurements(uid), FSPath.moodLogs(uid), FSPath.symptomLogs(uid)] {
+            let snapshot = try await Firestore.firestore().collection(path)
+                .whereField("createdAt", isLessThan: threshold)
+                .limit(to: 1)
+                .getDocuments()
+            if !snapshot.isEmpty { return true }
+        }
+        return false
+    }
+
     static func merge(_ measurements: [Measurement],
                       moods: [(date: Date, score: Int)],
                       symptoms: [(date: Date, values: [String: Int])]) -> [Measurement] {

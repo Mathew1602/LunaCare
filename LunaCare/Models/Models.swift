@@ -75,21 +75,21 @@ struct InsightResult: Codable {
     let last7Avg: Double
     let prev7Avg: Double
     let delta: Double
-    let percentChange: Double
+    let percentChange: Double?
     let direction: String
 }
 
 struct WeeklyInsight: Identifiable, Codable {
-    var id: String?              // Firebase doc ID OR local UUID
-    var metric: String           // “sleep hours”
-    var text: String             // Full insight text
+    var id: String?
+    var metric: String
+    var text: String
     var last7Avg: Double
     var prev7Avg: Double
     var delta: Double
-    var percentChange: Double
+    var percentChange: Double?
     var direction: String
     var createdAt: Date
-    var localOnly: Bool?         // true if only stored locally
+    var localOnly: Bool?
 }
 
 struct MoodLog: Codable, Identifiable {
@@ -175,7 +175,7 @@ struct Measurement: Codable, Identifiable {
     var hairLoss1to10: Double?
     var appetiteIssue1to10: Double?
     var sleepTrouble1to10: Double?
-    var fatigue1to10: Double?   // <-- NEW property added
+    var fatigue1to10: Double?
 
     // Activity / movement bases
     var steps: Int?
@@ -233,5 +233,12 @@ extension Measurement {
 
     var sleepMinutes: Int? {
         sleepHours.map { Int($0 * 60.0) }
+    }
+}
+
+extension Measurement {
+    // HealthKit stores SpO2 as a 0–1 fraction; the model and insights work in percent.
+    static func spo2Percent(_ value: Double) -> Double {
+        value <= 1 ? value * 100 : value
     }
 }

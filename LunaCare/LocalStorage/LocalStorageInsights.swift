@@ -14,7 +14,7 @@ final class LocalStorageInsights {
 
     private var fileURL: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return docs.appendingPathComponent("weekly_insights.json")
+        return docs.appendingPathComponent("weekly_insights.\(StorageScope.current).json")
     }
 
     func save(_ insights: [WeeklyInsight]) {

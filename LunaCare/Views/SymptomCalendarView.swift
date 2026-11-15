@@ -80,7 +80,7 @@ struct SymptomCalendarView: View {
 
     var body: some View {
 
-        NavigationStack {
+        Group {
 
             ScrollView {
 

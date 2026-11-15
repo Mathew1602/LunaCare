@@ -122,7 +122,7 @@ final class AppleWatchDataRepository {
              async let vo2 = latestInRange(.vo2Max, start, end, HKUnit(from: "ml/kg*min"))
 
              async let weightKg = latestInRange(.bodyMass, start, end, .gramUnit(with: .kilo))
-             async let sleep = fetchSleepMetrics(nightEnding: end)
+             async let sleep = fetchSleepMetrics(nightEnding: start)
 
              let sleepMetrics = await sleep
 
@@ -212,17 +212,19 @@ final class AppleWatchDataRepository {
         let wasoMin: Double?
     }
 
-    /// Gets sleep for the "night window" ending at `nightEnding`:
+    /// Sleep for the night that ends on the morning of `nightEnding` (previous day 18:00 to 12:00),
+    /// so last night's sleep is filed under today.
     private func fetchSleepMetrics(nightEnding: Date) async -> SleepMetrics {
         guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
             return SleepMetrics(sleepHours: nil, deepHours: nil, remHours: nil, coreHours: nil, efficiencyPct: nil, wasoMin: nil)
         }
 
         let cal = Calendar.current
-        let start = cal.date(bySettingHour: 18, minute: 0, second: 0,
-                             of: nightEnding.addingTimeInterval(-86400))!
-        let end   = cal.date(bySettingHour: 12, minute: 0, second: 0,
-                             of: nightEnding)!
+        guard let previousDay = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: nightEnding)),
+              let start = cal.date(bySettingHour: 18, minute: 0, second: 0, of: previousDay),
+              let end = cal.date(bySettingHour: 12, minute: 0, second: 0, of: nightEnding) else {
+            return SleepMetrics(sleepHours: nil, deepHours: nil, remHours: nil, coreHours: nil, efficiencyPct: nil, wasoMin: nil)
+        }
 
         let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
 
@@ -234,8 +236,23 @@ final class AppleWatchDataRepository {
 
                 let cat = samples as? [HKCategorySample] ?? []
 
+                // iPhone and Watch can both record the same night; count overlapping time once.
                 func duration(_ filter: (HKCategorySample) -> Bool) -> Double {
-                    cat.filter(filter).reduce(0.0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+                    let intervals = cat.filter(filter)
+                        .map { ($0.startDate, $0.endDate) }
+                        .sorted { $0.0 < $1.0 }
+                    var total = 0.0
+                    var current: (Date, Date)?
+                    for interval in intervals {
+                        if let open = current, interval.0 <= open.1 {
+                            current = (open.0, max(open.1, interval.1))
+                        } else {
+                            if let open = current { total += open.1.timeIntervalSince(open.0) }
+                            current = interval
+                        }
+                    }
+                    if let open = current { total += open.1.timeIntervalSince(open.0) }
+                    return total
                 }
 
                 let asleepSeconds = duration {

@@ -7,90 +7,8 @@
 
 import Foundation
 import FirebaseFirestore
-import HealthKit
 
 final class MeasurementRepository {
-
-    private let hkManager = HealthKitManager.shared
-
-    // MARK: - HealthKit Integration
-
-    /// Fetches live HealthKit metrics (heart rate, steps, active energy) for today and merges them into a Measurement.
-    /// Falls back to local/Firestore data if HealthKit is unauthorized or unavailable.
-    func fetchTodayRealMeasurement(uid: String) async -> Measurement? {
-        return await withCheckedContinuation { continuation in
-            hkManager.requestAuthorization { [weak self] authorized, _ in
-                guard authorized, let self = self else {
-                    Task {
-                        let days = (try? await self?.fetchLastDays(uid: uid, lastDays: 1)) ?? []
-                        let fallback = days.first
-                        continuation.resume(returning: fallback)
-                    }
-                    return
-                }
-
-                // Fetch current metrics asynchronously
-                let group = DispatchGroup()
-                var currentHeartRate: Double?
-                var currentSteps: Double?
-                var currentActiveEnergy: Double?
-
-                group.enter()
-                self.hkManager.fetchRecentQuantity(for: .heartRate, unit: HKUnit(from: "count/min")) { hr in
-                    currentHeartRate = hr
-                    group.leave()
-                }
-
-                group.enter()
-                self.hkManager.fetchRecentQuantity(for: .stepCount, unit: .count()) { steps in
-                    currentSteps = steps
-                    group.leave()
-                }
-
-                group.enter()
-                self.hkManager.fetchRecentQuantity(for: .activeEnergyBurned, unit: .kilocalorie()) { energy in
-                    currentActiveEnergy = energy
-                    group.leave()
-                }
-
-                group.notify(queue: .main) {
-                    let liveMeasurement = Measurement(
-                        id: nil,
-                        createdAt: Date(),
-                        mood1to5: nil,
-                        bleeding1to10: nil,
-                        hairLoss1to10: nil,
-                        appetiteIssue1to10: nil,
-                        sleepTrouble1to10: nil,
-                        steps: currentSteps != nil ? Int(currentSteps!) : nil,
-                        distanceWalkedKm: nil,
-                        flightsClimbed: nil,
-                        activeEnergyKcal: currentActiveEnergy,
-                        basalEnergyKcal: nil,
-                        exerciseMinutes: nil,
-                        standHours: nil,
-                        sunlightHours: nil,
-                        avgHeartRateBpm: currentHeartRate,
-                        restingHRBpm: nil,
-                        walkingHeartRateAvgBpm: nil,
-                        hrvSDNNms: nil,
-                        respiratoryRateBpm: nil,
-                        oxygenSaturationPct: nil,
-                        vo2Max: nil,
-                        sleepHours: nil,
-                        deepSleepHours: nil,
-                        remSleepHours: nil,
-                        coreSleepHours: nil,
-                        sleepEfficiencyPct: nil,
-                        wakeAfterSleepOnsetMin: nil,
-                        weightKg: nil,
-                        source: "HealthKit"
-                    )
-                    continuation.resume(returning: liveMeasurement)
-                }
-            }
-        }
-    }
 
     // MARK: - Public
 
@@ -106,11 +24,9 @@ final class MeasurementRepository {
             .document(uid)
             .collection("measurements")
 
-        // 1) Collapse to latest per day
         let latestPerDay: [Date: Measurement] = measurements.reduce(into: [:]) { acc, m in
             let dayStart = cal.startOfDay(for: m.createdAt)
             if let existing = acc[dayStart] {
-                // keep the later one
                 if m.createdAt > existing.createdAt {
                     acc[dayStart] = m
                 }
@@ -122,7 +38,7 @@ final class MeasurementRepository {
         let uniqueDays = latestPerDay.keys.sorted()
         let dayMeasurements = uniqueDays.compactMap { latestPerDay[$0] }
 
-        // 2) Firestore batches max 500 writes
+        // Firestore batches allow at most 500 writes
         var written = 0
         var index = 0
 
@@ -247,7 +163,6 @@ final class MeasurementRepository {
     private static func decodeMeasurement(_ doc: QueryDocumentSnapshot) -> Measurement? {
         let d = doc.data()
 
-        // createdAt required
         let createdAt: Date
         if let ts = d["createdAt"] as? Timestamp {
             createdAt = ts.dateValue()

@@ -67,6 +67,7 @@
 				Models/Models.swift,
 				Models/SyncModels.swift,
 				Models/themeEnum.swift,
+				Recommendations/PPDRiskTier.swift,
 				Repositories/AppleWatchDataRepository.swift,
 				Repositories/AppleWatchDataStore.swift,
 				ViewModels/WatchConnectivityManager.swift,

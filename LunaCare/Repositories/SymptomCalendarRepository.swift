@@ -393,17 +393,7 @@ final class SymptomCalendarRepository {
 
     // MARK: - Delete
 
-    func deleteLog(
-        uid: String,
-        logId: String
-    ) async throws {
-
-        try await Firestore
-            .firestore()
-            .collection("users")
-            .document(uid)
-            .collection("symptom_logs")
-            .document(logId)
-            .delete()
+    func deleteLog(uid: String, logId: String) async throws {
+        try await FirestoreManager.shared.deleteDocument(path: "\(FSPath.symptomLogs(uid))/\(logId)")
     }
 }

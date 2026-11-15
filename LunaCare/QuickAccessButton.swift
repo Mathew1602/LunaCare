@@ -12,15 +12,19 @@ struct QuickAccessButton: View {
     var title: String
     
     var body: some View {
-        VStack {
+        VStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.title2)
             Text(title)
-                .font(.subheadline)
+                .font(.subheadline.weight(.medium))
         }
+        .foregroundColor(Color(.systemIndigo))
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
+        .background(Color(.systemIndigo).opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemIndigo).opacity(0.35), lineWidth: 1)
+        }
     }
 }

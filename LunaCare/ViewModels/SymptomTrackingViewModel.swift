@@ -12,131 +12,53 @@ import SwiftUI
 final class SymptomTrackingViewModel: ObservableObject {
 
     @Published var symptoms: [SymptomEntry]
-
     @Published var showSavedAlert = false
-
-    @Published var backendStatus: String? = nil
-
-    // Added for Save button loading state
-    @Published var loading = false
-
-    private var syncManager: SyncManager = .shared
+    @Published var errorMessage: String?
+    @Published var isSaving = false
+    private let syncManager: SyncManager = .shared
 
     private let repo: SymptomLogRepository
 
+    private static let symptomNames = ["Fatigue", "Bleeding", "Hair Loss", "Appetite", "Sleep Trouble"]
 
-    init(
-        repo: SymptomLogRepository =
-            SymptomLogRepository()
-    ) {
-
+    init(repo: SymptomLogRepository = SymptomLogRepository()) {
         self.repo = repo
-
-        syncManager = .shared
-
-        self.symptoms = [
-            .init(name: "Fatigue"),
-            .init(name: "Bleeding"),
-            .init(name: "Hair Loss"),
-            .init(name: "Appetite"),
-            .init(name: "Sleep Trouble"),
-        ]
+        self.symptoms = Self.symptomNames.map { SymptomEntry(name: $0) }
     }
 
+    var canSave: Bool {
+        !isSaving && symptoms.contains { $0.level != nil }
+    }
 
     func save(uid: String) async {
+        guard canSave else { return }
+        errorMessage = nil
 
-        // Prevent double tap
-        guard !loading else {
+        let values = Dictionary(
+            symptoms.map { ($0.name, Int($0.value)) },
+            uniquingKeysWith: { _, new in new }
+        )
+        let payload = SymptomLogPayload(values: values, notes: nil, tags: ["manual"], source: "manual")
+        let log = LocalSymptomLog(payload: payload, createdAt: Date())
+
+        guard syncManager.isCloudSyncOn, !uid.isEmpty else {
+            LocalSymptomStore.shared.save(log)
+            didSave()
             return
         }
 
-        loading = true
-        backendStatus = nil
-
-
-        // ==================================================
-        // Local save
-        // ==================================================
-
-        if !syncManager.isCloudSyncOn ||
-            uid.isEmpty {
-
-            let values =
-                Dictionary(
-                    uniqueKeysWithValues:
-                        symptoms.map {
-                            (
-                                $0.name,
-                                Int($0.value)
-                            )
-                        }
-                )
-
-
-            let payload =
-                SymptomLogPayload(
-                    values: values,
-                    notes: nil,
-                    tags: ["manual"],
-                    source: "manual"
-                )
-
-
-            LocalSymptomStore.shared
-                .saveOfflineSymptomLog(
-                    payload
-                )
-
-
-            print(
-                "Symptoms saved locally: \(values)"
-            )
-
-
-            backendStatus =
-                "Symptoms saved locally."
-
-            loading = false
-
-            showSavedAlert = true
-
-            return
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            try await repo.upsert(uid: uid, log: log)
+            didSave()
+        } catch {
+            errorMessage = "Couldn’t save your symptoms: \(error.localizedDescription)"
         }
+    }
 
-
-        // ==================================================
-        // Firebase save
-        // ==================================================
-
-        repo.create(
-            uid: uid,
-            entries: symptoms,
-            notes: nil,
-            tags: ["manual"],
-            source: "manual"
-        ) { [weak self] err in
-
-            guard let self else {
-                return
-            }
-
-            Task { @MainActor in
-
-                if let err {
-
-                    self.backendStatus =
-                        "Symptom save error: \(err.localizedDescription)"
-
-                } else {
-
-                    self.backendStatus =
-                        "Symptoms saved."
-                }
-
-                self.loading = false
-                self.showSavedAlert = true
-            }
-        }
+    private func didSave() {
+        symptoms = Self.symptomNames.map { SymptomEntry(name: $0) }
+        showSavedAlert = true
     }
 }
