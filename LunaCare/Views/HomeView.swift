@@ -144,9 +144,12 @@ struct HomeContentView: View {
                             NavigationLink {
                                 ReportsView()
                             } label: {
-                                QuickAccessButton(icon: "doc.text.magnifyingglass", title: "Reports")
+                                QuickActionTile(
+                                    icon: "doc.text.magnifyingglass",
+                                    title: "Reports",
+                                    tint: HomePalette.sky
+                                )
                             }
-                            .buttonStyle(.plain)
 
                             Button {
                                 runMLTest()
@@ -157,6 +160,7 @@ struct HomeContentView: View {
                                     tint: HomePalette.lilac
                                 )
                             }
+                            .disabled(isRunningMLTest)
                             .alert(
                                 mlTestTitle,
                                 isPresented: $showingMLTestAlert
@@ -168,9 +172,7 @@ struct HomeContentView: View {
 
                             NavigationLink {
                                 InsightsOverviewView()
-                                    .environmentObject(auth)
-                                    .environmentObject(env)
-                                    .environmentObject(InsightsViewModel(auth: auth, env: env))
+                                       .environmentObject(insightsVM)
                             } label: {
                                 QuickActionTile(
                                     icon: "chart.bar.xaxis",
