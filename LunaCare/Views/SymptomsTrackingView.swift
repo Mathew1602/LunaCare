@@ -230,7 +230,7 @@ struct SymptomsTrackingView: View {
 
             HStack(spacing: 10) {
 
-                if vm.loading {
+                if vm.isSaving {
 
                     ProgressView()
                         .tint(SymptomTheme.lime)

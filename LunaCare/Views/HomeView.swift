@@ -359,6 +359,7 @@ struct HomeContentView: View {
             showingMLTestAlert = true
         }
     }
+}
 // MARK: - Home palette
 
 fileprivate enum HomePalette {

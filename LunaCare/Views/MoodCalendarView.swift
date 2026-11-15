@@ -174,11 +174,6 @@ struct MoodCalendarView: View {
         ) {
 
             EditMoodSheet(
-<<<<<<< HEAD
-                mood: $vm.editingMood,
-                note: $vm.editingNote,
-                isSaving: vm.isSavingEdit,
-=======
                 mood:
                     $vm.editingMood,
                 note:
@@ -186,7 +181,6 @@ struct MoodCalendarView: View {
                 isSaving:
                     vm.isSavingEdit,
                 errorText: vm.errorText,
->>>>>>> origin/main
                 onSave: {
                     Task {
                         await vm.saveEdit(uid: auth.uid)
@@ -641,7 +635,9 @@ private struct EditMoodSheet: View {
 
             ScrollView {
 
-                                    if let errorText {
+                VStack(alignment: .leading, spacing: 24) {
+
+                    if let errorText {
                         Label(errorText, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
                             .foregroundStyle(MoodCalendarTheme.danger)
@@ -710,7 +706,6 @@ private struct EditMoodSheet: View {
         }
     }
 }
-
 
 // =============================================================
 // MARK: - Date Formatters

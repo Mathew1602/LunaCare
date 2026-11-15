@@ -123,11 +123,6 @@ struct SymptomCalendarView: View {
         } message: {
             Text("This symptom record will be permanently deleted.")
         }
-
-
-        .onDisappear {
-            NotificationManager.shared.scheduleDemo(after: 5)
-        }
     }
 
 
