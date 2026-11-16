@@ -13,6 +13,10 @@ struct CaregiverTodayView: View {
     var body: some View {
         CaregiverTab(vm: vm, title: "Today") { mother in
             List {
+                if let alert = vm.recentAlert {
+                    Section { alertBanner(alert, for: mother) }
+                }
+
                 Section {
                     statusCard(for: mother)
                 }
@@ -27,6 +31,29 @@ struct CaregiverTodayView: View {
             }
             .listStyle(.insetGrouped)
         }
+    }
+
+    private func alertBanner(_ alert: RiskAlert, for mother: LinkedMother) -> some View {
+        Button { vm.isShowingAlerts = true } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundColor(.red)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(mother.name) may need extra support")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Text(alert.createdAt, format: .relative(presentation: .named))
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Text("See how to help")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.red)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .listRowBackground(Color.red.opacity(0.12))
     }
 
     private func statusCard(for mother: LinkedMother) -> some View {

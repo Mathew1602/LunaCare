@@ -13,10 +13,21 @@ final class CaregiverReportRepository {
 
     private let db = Firestore.firestore()
 
-    func isCaregiver(uid: String) async -> Bool {
-        guard !uid.isEmpty else { return false }
-        let doc = try? await db.collection(FSPath.caregivers).document(uid).getDocument()
-        return doc?.exists ?? false
+    /// The caregiver's own name, or nil if this user isn't a caregiver.
+    func fetchCaregiverProfile(uid: String) async -> (firstName: String, lastName: String)? {
+        guard !uid.isEmpty,
+              let data = try? await db.collection(FSPath.caregivers).document(uid).getDocument().data()
+        else { return nil }
+        return (data["firstName"] as? String ?? "", data["lastName"] as? String ?? "")
+    }
+
+    func updateCaregiverProfile(uid: String, firstName: String, lastName: String) async throws {
+        try await db.collection(FSPath.caregivers).document(uid).updateData([
+            "firstName": firstName,
+            "lastName": lastName,
+            "displayName": "\(firstName) \(lastName)",
+            "updatedAt": FieldValue.serverTimestamp()
+        ])
     }
 
     /// Mothers this caregiver is linked to and still has an active grant from.
@@ -77,7 +88,7 @@ final class CaregiverReportRepository {
         let contacts = (data["doctorContacts"] as? [[String: Any]] ?? []).compactMap(DoctorContact.init(data:))
         return LinkedMother(
             id: motherUid,
-            name: data["motherName"] as? String ?? "Mom",
+            name: data["motherName"] as? String ?? "Your loved one",
             permissions: CaregiverPermissions(data: data["permissions"] as? [String: Bool] ?? [:]),
             doctorContacts: contacts
         )

@@ -47,9 +47,9 @@ final class CaregiverRepository {
     func updatePermissions(uid: String, motherName: String, caregiverId: String, permissions: CaregiverPermissions) async throws {
         var data: [String: Any] = [
             "permissions": permissions.data,
-            "motherName": motherName,
             "updatedAt": FieldValue.serverTimestamp()
         ]
+        if !motherName.isEmpty { data["motherName"] = motherName }
         if permissions.doctorContact {
             let doctors = try await doctorRepo.fetchDoctors(uid: uid)
             data["doctorContacts"] = doctors.map { DoctorContact(doctor: $0).data }

@@ -25,6 +25,8 @@ enum FSPath {
     static let caregivers = "caregivers"
     /// Permissions the mother granted, one doc per caregiver uid.
     static func caregiverLinks(_ uid: String) -> String { "users/\(uid)/caregivers" }
+    /// High PPD risk detections, one doc per day. Readable by caregivers granted `riskAlerts`.
+    static func riskAlerts(_ uid: String) -> String { "users/\(uid)/alerts" }
     static let flContributions = "fl_contributions"
     static func snapshots(_ pid: String) -> String { "fl_contributions/\(pid)/snapshots" }
 

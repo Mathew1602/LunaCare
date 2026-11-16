@@ -110,3 +110,9 @@ struct DailyReport: Identifiable, Hashable {
             .sorted { $0.level.rawValue > $1.level.rawValue }
     }
 }
+
+/// A high PPD risk detection from the mother's app. Stores no score, only that it happened.
+struct RiskAlert: Identifiable, Hashable {
+    let id: String
+    let createdAt: Date
+}

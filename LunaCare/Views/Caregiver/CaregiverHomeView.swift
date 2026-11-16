@@ -10,6 +10,7 @@ import SwiftUI
 /// Root of the caregiver app. Shown instead of `HomeView` when the signed-in user is a caregiver.
 struct CaregiverHomeView: View {
     @EnvironmentObject var auth: AuthViewModel
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var vm = CaregiverHomeViewModel()
 
     var body: some View {
@@ -22,9 +23,16 @@ struct CaregiverHomeView: View {
 
             CaregiverSupportView(vm: vm)
                 .tabItem { Label("Support", systemImage: "heart.text.square") }
+
+            CaregiverSettingsView(vm: vm)
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(Color(.systemIndigo))
         .task { await vm.load(caregiverUid: auth.uid) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await vm.load(caregiverUid: auth.uid) } }
+        }
+        .sheet(isPresented: $vm.isShowingAlerts) { CaregiverAlertsView(vm: vm) }
         .alert("Something went wrong", isPresented: Binding(get: { vm.errorMessage != nil }, set: { if !$0 { vm.errorMessage = nil } })) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -33,7 +41,7 @@ struct CaregiverHomeView: View {
     }
 }
 
-/// Shared tab chrome: navigation title, mother switcher, refresh, and the "not linked" state.
+/// Shared tab chrome: navigation title, alerts bell, mother switcher, refresh, and the "not linked" state.
 struct CaregiverTab<Content: View>: View {
     @EnvironmentObject var auth: AuthViewModel
     @ObservedObject var vm: CaregiverHomeViewModel
@@ -58,11 +66,22 @@ struct CaregiverTab<Content: View>: View {
             .navigationTitle(title)
             .toolbar {
                 if vm.mothers.count > 1 {
-                    ToolbarItem(placement: .topBarTrailing) { motherPicker }
+                    ToolbarItem(placement: .topBarLeading) { motherPicker }
+                }
+                if vm.selectedMother != nil {
+                    ToolbarItem(placement: .topBarTrailing) { alertsButton }
                 }
             }
             .refreshable { await vm.load(caregiverUid: auth.uid) }
         }
+    }
+
+    private var alertsButton: some View {
+        Button { vm.isShowingAlerts = true } label: {
+            Image(systemName: vm.unseenAlertCount > 0 ? "bell.badge.fill" : "bell")
+                .symbolRenderingMode(.multicolor)
+        }
+        .accessibilityLabel(vm.unseenAlertCount > 0 ? "Alerts, \(vm.unseenAlertCount) new" : "Alerts")
     }
 
     private var motherPicker: some View {
@@ -79,4 +98,5 @@ struct CaregiverTab<Content: View>: View {
 #Preview {
     CaregiverHomeView()
         .environmentObject(AuthViewModel.preview)
+        .environmentObject(AppEnvironment.shared)
 }

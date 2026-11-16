@@ -130,8 +130,19 @@ final class InsightsViewModel: ObservableObject {
             let score = try await Task.detached(priority: .utility) { try runner.predictRisk(from: window) }.value
             ppdRiskScore = score
             NotificationManager.shared.schedulePPDHighRiskAlertIfNeeded(score: score)
+            await shareHighRiskWithCaregiversIfNeeded(score: score)
         } catch {
             riskAssessmentMessage = "ML risk alert could not be calculated: \(error.localizedDescription)"
+        }
+    }
+
+    /// Records a high-risk day in the cloud so granted caregivers see it. Skipped in local-only mode.
+    private func shareHighRiskWithCaregiversIfNeeded(score: Double) async {
+        guard PPDRiskTier(score: score) == .high, env.isCloudSyncOn, !auth.uid.isEmpty else { return }
+        do {
+            try await RiskAlertRepository().recordHighRisk(uid: auth.uid)
+        } catch {
+            print("Failed to share risk alert with caregivers:", error)
         }
     }
 

@@ -203,10 +203,14 @@ struct AccountPage: View {
 
         Task {
             do {
-                try await UserRepository().updateUserProfile(uid: authViewModel.uid, firstName: first, lastName: last)
+                if authViewModel.isCaregiver {
+                    try await CaregiverReportRepository().updateCaregiverProfile(uid: authViewModel.uid, firstName: first, lastName: last)
+                } else {
+                    try await UserRepository().updateUserProfile(uid: authViewModel.uid, firstName: first, lastName: last)
+                    authViewModel.refreshProfile()
+                }
                 authViewModel.firstName = first
                 authViewModel.lastName = last
-                authViewModel.refreshProfile()
                 showSaveConfirmation = true
             } catch {
                 saveError = "Couldn’t save your profile: \(error.localizedDescription)"

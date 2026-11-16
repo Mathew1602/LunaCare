@@ -79,6 +79,9 @@ service cloud.firestore {
       match /symptom_logs/{doc} {
         allow read: if caregiverCan('symptoms');
       }
+      match /alerts/{doc} {
+        allow read: if caregiverCan('riskAlerts');
+      }
     }
 
     // Caregiver profiles. Doc ID must be the caregiver's auth uid.

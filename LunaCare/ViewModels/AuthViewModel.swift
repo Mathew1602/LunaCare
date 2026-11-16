@@ -47,12 +47,13 @@ final class AuthViewModel: ObservableObject {
 
                 UserRepository().fetchUserProfile(uid: user.uid) { first, last in
                     Task { @MainActor in
-                        let isCaregiver = await CaregiverReportRepository().isCaregiver(uid: user.uid)
+                        let caregiver = await CaregiverReportRepository().fetchCaregiverProfile(uid: user.uid)
                         guard Auth.auth().currentUser?.uid == user.uid else { return }
-                        if let first { self.firstName = first }
-                        if let last { self.lastName = last }
-                        self.isCaregiver = isCaregiver
-                        if !isCaregiver { self.sendProfileToWatch() }
+                        // Caregivers keep their name on their caregiver profile, not users/{uid}.
+                        if let first = caregiver?.firstName ?? first { self.firstName = first }
+                        if let last = caregiver?.lastName ?? last { self.lastName = last }
+                        self.isCaregiver = caregiver != nil
+                        if caregiver == nil { self.sendProfileToWatch() }
                         self.didResolveAuthState = true
                     }
                 }
