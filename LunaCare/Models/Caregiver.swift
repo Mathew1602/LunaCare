@@ -1,0 +1,118 @@
+//
+//  Caregiver.swift
+//  LunaCare
+//
+//  Created by Xiaoya Zou on 2026-11-15.
+//
+
+import Foundation
+
+/// A family member linked to a mother. Profile lives in `caregivers/{caregiverUid}`.
+struct Caregiver: Identifiable, Hashable {
+    let id: String
+    let firstName: String
+    let lastName: String
+    let email: String
+    let phone: String?
+    var permissions: CaregiverPermissions
+
+    var displayName: String { "\(firstName) \(lastName)" }
+}
+
+/// What the mother allows a caregiver to see. Stored in `users/{uid}/caregivers/{caregiverUid}`.
+/// Missing keys default to `false`, matching the security rules (no grant = no access).
+struct CaregiverPermissions: Hashable {
+    var mood = false
+    var symptoms = false
+    var riskAlerts = false
+    var doctorContact = false
+
+    init(mood: Bool = false, symptoms: Bool = false, riskAlerts: Bool = false, doctorContact: Bool = false) {
+        self.mood = mood
+        self.symptoms = symptoms
+        self.riskAlerts = riskAlerts
+        self.doctorContact = doctorContact
+    }
+
+    init(data: [String: Bool]) {
+        mood = data["mood"] ?? false
+        symptoms = data["symptoms"] ?? false
+        riskAlerts = data["riskAlerts"] ?? false
+        doctorContact = data["doctorContact"] ?? false
+    }
+
+    var data: [String: Bool] {
+        [
+            "mood": mood,
+            "symptoms": symptoms,
+            "riskAlerts": riskAlerts,
+            "doctorContact": doctorContact
+        ]
+    }
+}
+
+// MARK: - Caregiver-side models
+
+/// A mother the signed-in caregiver is linked to, with what she has shared.
+struct LinkedMother: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let permissions: CaregiverPermissions
+    let doctorContacts: [DoctorContact]
+}
+
+/// Contact info the mother chose to share. Copied into her grant doc because caregivers can't read `doctors`.
+struct DoctorContact: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let specialty: String
+    let phone: String
+    let email: String
+
+    init(id: String, name: String, specialty: String, phone: String, email: String) {
+        self.id = id
+        self.name = name
+        self.specialty = specialty
+        self.phone = phone
+        self.email = email
+    }
+
+    init(doctor: Doctor) {
+        self.init(id: doctor.id, name: doctor.displayName, specialty: doctor.specialty,
+                  phone: doctor.phone, email: doctor.email)
+    }
+
+    init?(data: [String: Any]) {
+        guard let id = data["id"] as? String, let name = data["name"] as? String else { return nil }
+        self.init(id: id, name: name,
+                  specialty: data["specialty"] as? String ?? "",
+                  phone: data["phone"] as? String ?? "",
+                  email: data["email"] as? String ?? "")
+    }
+
+    var data: [String: String] {
+        ["id": id, "name": name, "specialty": specialty, "phone": phone, "email": email]
+    }
+}
+
+/// One day of the mother's check-ins, limited to what she shared.
+struct DailyReport: Identifiable, Hashable {
+    let day: Date
+    var mood: Mood?
+    var symptoms: [String: Int] = [:]
+
+    var id: Date { day }
+
+    /// Symptoms she rated, strongest first.
+    var reportedSymptoms: [(name: String, level: SymptomLevel)] {
+        symptoms
+            .compactMap { name, value in SymptomLevel(rawValue: value).map { (name, $0) } }
+            .sorted { $0.level.rawValue > $1.level.rawValue }
+    }
+}
+
+/// A high PPD risk detection from the mother's app. Stores no score, only that it happened.
+struct RiskAlert: Identifiable, Hashable {
+    let id: String
+    let createdAt: Date
+}

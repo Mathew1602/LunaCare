@@ -21,6 +21,9 @@ struct ContentView: View {
                     Spacer()
                 }
 
+            } else if auth.isAuthenticated && auth.isCaregiver {
+                CaregiverHomeView()
+
             } else if auth.isAuthenticated || auth.noAccount {
                 HomeView()
 

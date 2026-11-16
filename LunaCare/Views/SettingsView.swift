@@ -23,6 +23,7 @@ struct SettingsView: View {
                     if !isGuest {
                         NavigationLink("Account") { AccountPage() }
                         NavigationLink("My Care Team") { CareTeamView() }
+                        NavigationLink("Family & Caregivers") { CaregiversView() }
                     } else {
                         HStack {
                             Image(systemName: "person.crop.circle")
