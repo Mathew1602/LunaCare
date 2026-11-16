@@ -62,6 +62,47 @@ service cloud.firestore {
       match /{collection}/{path=**} {
         allow read, write: if isOwner(uid);
       }
+
+      // Caregiver read access. The mother's grant doc is the source of truth; owner access comes from above.
+      function caregiverCan(perm) {
+        let link = /databases/$(database)/documents/users/$(uid)/caregivers/$(request.auth.uid);
+        return signedIn() && exists(link)
+          && get(link).data.get('permissions', {}).get(perm, false) == true;
+      }
+
+      match /caregivers/{caregiverId} {
+        allow read: if isOwner(caregiverId);
+      }
+      match /mood_logs/{doc} {
+        allow read: if caregiverCan('mood');
+      }
+      match /symptom_logs/{doc} {
+        allow read: if caregiverCan('symptoms');
+      }
+    }
+
+    // Caregiver profiles. Doc ID must be the caregiver's auth uid.
+    // userIds is only granted server-side (Admin SDK); a caregiver can never link themselves.
+    match /caregivers/{caregiverId} {
+      function linked(d) { return d.get('userIds', []).toSet(); }
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+      allow read: if isOwner(caregiverId)
+        || (signedIn() && request.auth.uid in resource.data.get('userIds', []));
+
+      allow create: if isOwner(caregiverId) && linked(request.resource.data).size() == 0;
+
+      allow update: if
+        // Caregiver edits own profile, notifications, fcmTokens; never userIds
+        (isOwner(caregiverId) && !changed().hasAny(['userIds']))
+        ||
+        // A linked mother removes herself
+        (signedIn()
+          && request.auth.uid in resource.data.get('userIds', [])
+          && changed().hasOnly(['userIds'])
+          && linked(request.resource.data) == linked(resource.data).difference([request.auth.uid].toSet()));
+
+      allow delete: if isOwner(caregiverId);
     }
 
     match /fl_contributions/{pid} {
