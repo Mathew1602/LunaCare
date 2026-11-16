@@ -115,10 +115,20 @@ final class CaregiverHomeViewModel: ObservableObject {
         }
         lastSeenAlertDate = UserDefaults.standard.object(forKey: Self.seenKey(for: mother)) as? Date
 
-        async let reports = reportRepo.fetchReports(for: mother, days: Self.historyDays)
-        async let alerts = mother.permissions.riskAlerts
-            ? alertRepo.fetchAlerts(motherUid: mother.id, days: Self.historyDays) : []
-        (self.reports, self.alerts) = try await (reports, alerts)
+        async let alerts = loadAlerts(for: mother)
+        reports = try await reportRepo.fetchReports(for: mother, days: Self.historyDays)
+        self.alerts = await alerts
+    }
+
+    /// Alerts are loaded independently so a failure here never hides the daily reports.
+    private func loadAlerts(for mother: LinkedMother) async -> [RiskAlert] {
+        guard mother.permissions.riskAlerts else { return [] }
+        do {
+            return try await alertRepo.fetchAlerts(motherUid: mother.id, days: Self.historyDays)
+        } catch {
+            print("Failed to load risk alerts:", error)
+            return []
+        }
     }
 
     private static func seenKey(for mother: LinkedMother) -> String {

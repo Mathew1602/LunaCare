@@ -79,7 +79,7 @@ struct CaregiverTab<Content: View>: View {
     private var alertsButton: some View {
         Button { vm.isShowingAlerts = true } label: {
             Image(systemName: vm.unseenAlertCount > 0 ? "bell.badge.fill" : "bell")
-                .symbolRenderingMode(.multicolor)
+                .symbolRenderingMode(vm.unseenAlertCount > 0 ? .multicolor : .monochrome)
         }
         .accessibilityLabel(vm.unseenAlertCount > 0 ? "Alerts, \(vm.unseenAlertCount) new" : "Alerts")
     }
