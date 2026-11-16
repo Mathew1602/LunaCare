@@ -11,6 +11,7 @@ import FirebaseFirestore
 final class CaregiverRepository {
 
     private let db = Firestore.firestore()
+    private let doctorRepo = DoctorRepository()
 
     /// Caregivers linked to the mother, merged with the permissions she granted each one.
     func fetchCaregivers(uid: String) async throws -> [Caregiver] {
@@ -41,11 +42,22 @@ final class CaregiverRepository {
         .sorted { $0.lastName < $1.lastName }
     }
 
-    func updatePermissions(uid: String, caregiverId: String, permissions: CaregiverPermissions) async throws {
-        try await db.collection(FSPath.caregiverLinks(uid)).document(caregiverId).setData([
+    /// Writes the grant. The caregiver can only read this doc, so the mother's name and
+    /// (if shared) her doctors' contacts are copied here.
+    func updatePermissions(uid: String, motherName: String, caregiverId: String, permissions: CaregiverPermissions) async throws {
+        var data: [String: Any] = [
             "permissions": permissions.data,
+            "motherName": motherName,
             "updatedAt": FieldValue.serverTimestamp()
-        ], merge: true)
+        ]
+        if permissions.doctorContact {
+            let doctors = try await doctorRepo.fetchDoctors(uid: uid)
+            data["doctorContacts"] = doctors.map { DoctorContact(doctor: $0).data }
+        } else {
+            data["doctorContacts"] = FieldValue.delete()
+        }
+
+        try await db.collection(FSPath.caregiverLinks(uid)).document(caregiverId).setData(data, merge: true)
     }
 
     /// Unlinks the caregiver: removes the grant and the mother's uid from their profile.

@@ -23,6 +23,7 @@ final class AuthViewModel: ObservableObject {
     @Published var lastName: String = ""
     @Published var errorMessage: String = ""
     @Published var didResolveAuthState: Bool = false
+    @Published var isCaregiver: Bool = false        // true = show the caregiver app instead of the mother's
     private var authHandle: AuthStateDidChangeListenerHandle?
 
     var displayName: String {
@@ -45,11 +46,13 @@ final class AuthViewModel: ObservableObject {
                 self.uid  = user.uid
 
                 UserRepository().fetchUserProfile(uid: user.uid) { first, last in
-                    DispatchQueue.main.async {
+                    Task { @MainActor in
+                        let isCaregiver = await CaregiverReportRepository().isCaregiver(uid: user.uid)
                         guard Auth.auth().currentUser?.uid == user.uid else { return }
                         if let first { self.firstName = first }
                         if let last { self.lastName = last }
-                        self.sendProfileToWatch()
+                        self.isCaregiver = isCaregiver
+                        if !isCaregiver { self.sendProfileToWatch() }
                         self.didResolveAuthState = true
                     }
                 }
@@ -58,6 +61,7 @@ final class AuthViewModel: ObservableObject {
                 self.isAuthenticated = false
                 self.email = ""
                 self.uid   = ""
+                self.isCaregiver = false
 
                 let isGuest = UserDefaults.standard.bool(forKey: GuestKeys.noAccount)
                 if isGuest {

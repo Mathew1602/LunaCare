@@ -86,7 +86,7 @@ struct CaregiversView: View {
             set: { newValue in
                 var permissions = caregiver.permissions
                 permissions[keyPath: keyPath] = newValue
-                Task { await vm.update(permissions, for: caregiver, uid: auth.uid) }
+                Task { await vm.update(permissions, for: caregiver, uid: auth.uid, motherName: auth.firstName) }
             }
         )) {
             Label(title, systemImage: systemImage)

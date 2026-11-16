@@ -35,13 +35,14 @@ final class CaregiversViewModel: ObservableObject {
     }
 
     /// Applies the change immediately so toggles feel responsive; rolls back if the write fails.
-    func update(_ permissions: CaregiverPermissions, for caregiver: Caregiver, uid: String) async {
+    func update(_ permissions: CaregiverPermissions, for caregiver: Caregiver, uid: String, motherName: String) async {
         let previous = caregiver.permissions
         setPermissions(permissions, for: caregiver.id)
 
         await perform(on: caregiver) {
             do {
-                try await self.repo.updatePermissions(uid: uid, caregiverId: caregiver.id, permissions: permissions)
+                try await self.repo.updatePermissions(uid: uid, motherName: motherName,
+                                                      caregiverId: caregiver.id, permissions: permissions)
             } catch {
                 self.setPermissions(previous, for: caregiver.id)
                 throw error
