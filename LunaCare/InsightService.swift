@@ -115,7 +115,7 @@ final class InsightService {
         } catch {
             print("Insight load failed: \(error)")
             return InsightDataSnapshot(
-                insights: LocalStorageInsights.shared.load(),
+                insights: [],
                 measurements: [],
                 metricCoverage: [:],
                 loadErrorMessage: error.localizedDescription
@@ -164,7 +164,16 @@ final class InsightService {
         moods: [CalendarDayLog],
         symptoms: [SymptomLogSummary]
     ) -> [Measurement] {
-        var records = measurements
+        var records = measurements.map { measurement in
+            var measurement = measurement
+            measurement.mood1to5 = nil
+            measurement.fatigue1to10 = nil
+            measurement.bleeding1to10 = nil
+            measurement.hairLoss1to10 = nil
+            measurement.appetiteIssue1to10 = nil
+            measurement.sleepTrouble1to10 = nil
+            return measurement
+        }
         records.append(contentsOf: moods.map {
             Measurement(
                 createdAt: $0.createdAt,
@@ -176,9 +185,12 @@ final class InsightService {
         records.append(contentsOf: symptoms.compactMap { log in
             func value(for names: [String]) -> Double? {
                 let candidates = Set(names.map { $0.lowercased() })
-                return log.rows.first {
+                guard let value = log.rows.first(where: {
                     candidates.contains($0.name.lowercased())
-                }.map { Double($0.value) }
+                })?.value, (1...10).contains(value) else {
+                    return nil
+                }
+                return Double(value)
             }
 
             let measurement = Measurement(

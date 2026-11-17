@@ -166,7 +166,7 @@ struct InsightsOverviewView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
-        .task { await vm.loadIfNeeded() }
+        .task { await vm.loadInsights(includeRiskAssessment: true) }
         .refreshable { await vm.loadInsights(includeRiskAssessment: true) }
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.inline)

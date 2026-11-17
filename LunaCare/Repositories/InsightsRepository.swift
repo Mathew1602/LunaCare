@@ -88,12 +88,21 @@ final class InsightsRepository: ObservableObject {
                 if let kept { latestByMetric[kept.metric] = kept }
             }
 
+            let generatedMetrics = Set(generated.map(\.metric))
+            for entry in existing where !generatedMetrics.contains(entry.insight.metric) {
+                duplicates.append(entry.ref)
+            }
+
             let toSave = generated.filter { insight in
                 guard let latest = latestByMetric[insight.metric] else { return true }
                 return !Self.hasSameContent(latest, insight)
             }
 
-            var ops: [(WriteBatch) throws -> Void] = duplicates.map { ref in { $0.deleteDocument(ref) } }
+            var deletedPaths: Set<String> = []
+            var ops: [(WriteBatch) throws -> Void] = duplicates.compactMap { ref in
+                guard deletedPaths.insert(ref.path).inserted else { return nil }
+                return { $0.deleteDocument(ref) }
+            }
             ops += toSave.map { insight in
                 var copy = insight
                 copy.localOnly = false
@@ -108,7 +117,7 @@ final class InsightsRepository: ObservableObject {
                 try await batch.commit()
             }
 
-            print("Insights sync: \(toSave.count) saved, \(duplicates.count) duplicates removed")
+            print("Insights sync: \(toSave.count) saved, \(deletedPaths.count) stale or duplicate insights removed")
         } catch {
             print("Failed syncing insights: \(error.localizedDescription)")
         }

@@ -27,7 +27,11 @@ struct RecommendationsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 48)
                 } else if vm.recommendations.isEmpty {
-                    emptyState
+                    if let error = vm.errorMessage {
+                        loadErrorState(error)
+                    } else {
+                        emptyState
+                    }
                 } else {
                     recommendationSummary
 
@@ -66,7 +70,7 @@ struct RecommendationsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             notificationsDenied = await NotificationManager.shared.authorizationStatus() == .denied
-            await vm.loadIfNeeded()
+            await vm.loadInsights(includeRiskAssessment: true)
         }
         .alert("Notifications are off", isPresented: $showPermissionAlert) {
             Button("Open Settings") {
@@ -165,6 +169,7 @@ struct RecommendationsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 22)
         .padding(.vertical, 28)
@@ -173,6 +178,28 @@ struct RecommendationsView: View {
             RoundedRectangle(cornerRadius: 22)
                 .stroke(Color.purple.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [6]))
         }
+    }
+
+    private func loadErrorState(_ error: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundColor(.orange)
+            Text("Recommendations paused")
+                .font(.headline)
+            Text("LunaCare couldn’t verify your current records, so it won’t use saved trends to make recommendations. Check your connection or sync settings, then try Insights again.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            Text(error)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 28)
+        .background(.background, in: RoundedRectangle(cornerRadius: 22))
     }
 
     // MARK: - Reminders

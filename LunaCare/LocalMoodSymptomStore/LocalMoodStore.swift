@@ -54,7 +54,9 @@ final class LocalMoodStore {
             }
             persist(logs)
         }
-        return logs
+        return logs.filter {
+            !DemoDataFilter.isSeedDocument(id: $0.id ?? "", source: $0.source)
+        }
     }
 
     private func persist(_ logs: [MoodLog]) {

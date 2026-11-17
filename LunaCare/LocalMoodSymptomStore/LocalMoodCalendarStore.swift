@@ -102,7 +102,7 @@ final class LocalMoodCalendarStore {
             let data = StorageScope.data(forKey: key),
             let logs = try? JSONDecoder().decode([CalendarDayLog].self, from: data)
         else { return [] }
-        return logs
+        return logs.filter { !DemoDataFilter.isSeedDocument(id: $0.id) }
     }
 
     private func persist(_ logs: [CalendarDayLog]) {

@@ -63,7 +63,7 @@ final class InsightsViewModel: ObservableObject {
         insights = weekly
         metricCoverage = snapshot.metricCoverage
         if let loadError = snapshot.loadErrorMessage {
-            errorMessage = "Showing saved insights because the latest data couldn’t be loaded: \(loadError)"
+            errorMessage = "Insights are hidden until current health data can be loaded: \(loadError)"
         }
         if isFreshData {
             RiskAlertScheduler.shared.scheduleIfNeeded(from: weekly)
@@ -185,7 +185,8 @@ final class InsightsViewModel: ObservableObject {
 
     // MARK: - Recommendations
     var recommendations: [RecommendationEngine.RecommendationItem] {
-        RecommendationEngine.build(from: insights, ppdRiskScore: ppdRiskScore)
+        guard errorMessage == nil else { return [] }
+        return RecommendationEngine.build(from: insights, ppdRiskScore: ppdRiskScore)
     }
 
     var eligibleMetricCount: Int {

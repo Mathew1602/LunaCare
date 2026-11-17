@@ -53,6 +53,11 @@ struct SettingsView: View {
                     if !isGuest {
                         NavigationLink("Data Privacy") { DataPrivacyView() }
                     }
+                    NavigationLink {
+                        HealthSummaryView()
+                    } label: {
+                        Label("Appointment Health Summary", systemImage: "doc.text.magnifyingglass")
+                    }
                     NavigationLink("Data Export") { DataExportView() }
 
                     if isGuest {

@@ -62,7 +62,9 @@ final class LocalMeasurementStore {
             let data = StorageScope.data(forKey: key),
             let measurements = try? JSONDecoder().decode([Measurement].self, from: data)
         else { return [] }
-        return measurements
+        return measurements.filter {
+            !DemoDataFilter.isSeedDocument(id: $0.id ?? "", source: $0.source)
+        }
     }
 
     func persist(_ measurements: [Measurement]) {
