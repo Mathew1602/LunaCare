@@ -77,9 +77,9 @@ private struct InsightBreakdownCard: View {
                 .frame(height: 150)
 
             HStack {
-                Text("Previous: \(String(format: "%.2f", insight.prev7Avg))")
+                Text("Previous 7 days: \(String(format: "%.2f", insight.prev7Avg))")
                 Spacer()
-                Text("Last: \(String(format: "%.2f", insight.last7Avg))")
+                Text("Current 7 days: \(String(format: "%.2f", insight.last7Avg))")
             }
             .font(.caption.monospacedDigit())
             .foregroundColor(.secondary)
@@ -90,7 +90,7 @@ private struct InsightBreakdownCard: View {
 
             if let coverage = vm.coverage(for: insight.metric) {
                 Label(
-                    "\(coverage.previousWeekDays)/7 days previous · \(coverage.lastWeekDays)/7 days last",
+                    "\(coverage.previousWeekDays)/7 days previous · \(coverage.lastWeekDays)/7 days current",
                     systemImage: coverage.isSufficient ? "checkmark.circle" : "exclamationmark.circle"
                 )
                 .font(.caption2)

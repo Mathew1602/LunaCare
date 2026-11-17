@@ -68,6 +68,7 @@ final class SymptomCalendarRepository {
         for doc in snapshot.documents {
 
             guard
+                !DemoDataFilter.isSeedDocument(id: doc.documentID, source: doc.data()["source"] as? String),
                 let timestamp =
                     doc.data()["createdAt"]
                     as? Timestamp
@@ -140,7 +141,6 @@ final class SymptomCalendarRepository {
                     by: "createdAt",
                     descending: true
                 )
-                .limit(to: 1)
 
 
         let snapshot =
@@ -148,7 +148,9 @@ final class SymptomCalendarRepository {
 
 
         guard let doc =
-                snapshot.documents.first
+                snapshot.documents.first(where: {
+                    !DemoDataFilter.isSeedDocument(id: $0.documentID, source: $0.data()["source"] as? String)
+                })
         else {
             return nil
         }
@@ -250,6 +252,13 @@ final class SymptomCalendarRepository {
 
         for doc in snapshot.documents {
 
+            guard !DemoDataFilter.isSeedDocument(
+                id: doc.documentID,
+                source: doc.data()["source"] as? String
+            ) else {
+                continue
+            }
+
             guard let values =
                     doc.data()["values"]
                     as? [String: Int]
@@ -312,6 +321,13 @@ final class SymptomCalendarRepository {
 
             let data =
                 doc.data()
+
+            guard !DemoDataFilter.isSeedDocument(
+                id: doc.documentID,
+                source: data["source"] as? String
+            ) else {
+                continue
+            }
 
 
             guard let timestamp =

@@ -75,6 +75,6 @@ final class RiskAlertScheduler {
 
     private func makeBody(from insight: WeeklyInsight) -> String {
         let change = insight.percentChange.map { " (\(String(format: "%+.1f%%", $0)))" } ?? ""
-        return "Your \(insight.metric) is \(insight.direction.lowercased()) than last week\(change). Open LunaCare to see what this means."
+        return "Your \(insight.metric) is \(insight.direction.lowercased()) than in the previous 7-day period\(change). Open LunaCare to see what this means."
     }
 }

@@ -117,7 +117,7 @@ enum RecommendationEngine {
             priority = 3
             title = "Keep deep-sleep estimates in context"
             subtitle = adverse
-                ? "This estimate was lower than last week. Sleep-stage readings can vary, so focus on your overall rest rather than one number."
+                ? "This estimate was lower than in the previous 7-day period. Sleep-stage readings can vary, so focus on your overall rest rather than one number."
                 : "Your recorded estimate increased. Sleep-stage readings can vary, so focus on your overall rest rather than one number."
         case "rem sleep hours":
             adverse = insight.direction == "lower"
@@ -131,8 +131,8 @@ enum RecommendationEngine {
             priority = 3
             title = "Look at your core-sleep trend gently"
             subtitle = adverse
-                ? "This estimate was lower than last week. It can vary from night to night and doesn’t explain sleep quality on its own."
-                : "This estimate was higher than last week. It can vary from night to night and doesn’t explain sleep quality on its own."
+                ? "This estimate was lower than in the previous 7-day period. It can vary from night to night and doesn’t explain sleep quality on its own."
+                : "This estimate was higher than in the previous 7-day period. It can vary from night to night and doesn’t explain sleep quality on its own."
         case "sleep efficiency":
             adverse = insight.direction == "lower"
             priority = 3
@@ -254,8 +254,8 @@ enum RecommendationEngine {
         }
 
         let context = insight.percentChange.map {
-            "Your \(insight.metric) was \(insight.direction) compared with last week (\(pctStr($0)))."
-        } ?? "Your \(insight.metric) was \(insight.direction) compared with last week."
+            "Your \(insight.metric) was \(insight.direction) compared with the previous 7-day period (\(pctStr($0)))."
+        } ?? "Your \(insight.metric) was \(insight.direction) compared with the previous 7-day period."
         return (
             priority,
             .init(

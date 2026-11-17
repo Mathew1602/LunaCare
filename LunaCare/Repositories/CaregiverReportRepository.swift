@@ -101,6 +101,12 @@ final class CaregiverReportRepository {
             .getDocuments()
 
         return snapshot.documents.compactMap { doc in
+            guard !DemoDataFilter.isSeedDocument(
+                id: doc.documentID,
+                source: doc.data()["source"] as? String
+            ) else {
+                return nil
+            }
             guard let timestamp = doc["createdAt"] as? Timestamp else { return nil }
             return (timestamp.dateValue(), doc.data())
         }

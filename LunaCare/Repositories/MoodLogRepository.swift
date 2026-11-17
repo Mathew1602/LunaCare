@@ -47,6 +47,7 @@ final class MoodLogsRepository: MoodLogsRepositoryType {
 
         for doc in snap.documents {
             guard
+                !DemoDataFilter.isSeedDocument(id: doc.documentID, source: doc["source"] as? String),
                 let score = doc["mood"] as? Int,
                 let ts = doc["createdAt"] as? Timestamp
             else { continue }

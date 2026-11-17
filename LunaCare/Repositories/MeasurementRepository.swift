@@ -162,6 +162,12 @@ final class MeasurementRepository {
 
     private static func decodeMeasurement(_ doc: QueryDocumentSnapshot) -> Measurement? {
         let d = doc.data()
+        guard !DemoDataFilter.isSeedDocument(
+            id: doc.documentID,
+            source: d["source"] as? String
+        ) else {
+            return nil
+        }
 
         let createdAt: Date
         if let ts = d["createdAt"] as? Timestamp {

@@ -27,6 +27,7 @@ final class MoodCalendarRepository {
         for doc in snapshot.documents {
             let data = doc.data()
             guard
+                !DemoDataFilter.isSeedDocument(id: doc.documentID, source: data["source"] as? String),
                 let score = data["mood"] as? Int,
                 let ts = data["createdAt"] as? Timestamp
             else { continue }
@@ -59,6 +60,7 @@ final class MoodCalendarRepository {
         return snapshot.documents.compactMap { doc in
             let data = doc.data()
             guard
+                !DemoDataFilter.isSeedDocument(id: doc.documentID, source: data["source"] as? String),
                 let score = data["mood"] as? Int,
                 let ts = data["createdAt"] as? Timestamp
             else { return nil }

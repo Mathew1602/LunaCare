@@ -60,7 +60,7 @@ Turning it off:
 Builds one record per day for the last 30 days by merging:
 - daily `measurements` (HealthKit),
 - `mood_logs` → `mood_1to5` (ecstatic 5, happy 4, okay 3, sad 2, angry 1),
-- `symptom_logs` → fatigue, bleeding, hair loss, appetite, sleep trouble on 1–10 (unselected = 1).
+- `symptom_logs` → explicitly selected fatigue, bleeding, hair loss, appetite, and sleep-trouble ratings (1–10); unselected values are missing.
 
 If several logs exist on the same day, the latest one wins. Data comes from Firestore if cloud sync
 is on, otherwise from the local stores on the phone. The same loader is used for on-device scoring

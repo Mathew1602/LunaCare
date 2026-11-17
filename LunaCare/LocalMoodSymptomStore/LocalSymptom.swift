@@ -28,7 +28,9 @@ final class LocalSymptomStore {
             }
             persist(logs)
         }
-        return logs
+        return logs.filter {
+            !DemoDataFilter.isSeedDocument(id: $0.id ?? "")
+        }
     }
 
     /// Save a pre-built log (preserves its original createdAt). Deduplicates by id, or by createdAt within 1 second.

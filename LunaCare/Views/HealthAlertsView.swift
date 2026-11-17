@@ -79,7 +79,7 @@ struct HealthAlertsView: View {
             Text("No active alerts")
                 .font(.system(size: 17, weight: .semibold))
 
-            Text("No data-based red flags or high model-score alerts are active. Trend checks need at least five days of data in each of the two complete weeks.")
+            Text("No data-based red flags or high model-score alerts are active. Trend checks need at least five days of data in each of two consecutive 7-day periods.")
                 .font(.system(size: 13))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -126,7 +126,7 @@ private struct AlertCard: View {
                     .font(.system(size: 14))
                     .foregroundColor(.primary)
 
-                Label("Compared with the previous week", systemImage: "clock")
+                Label("Compared with the previous 7-day period", systemImage: "clock")
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
             }

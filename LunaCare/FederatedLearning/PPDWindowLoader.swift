@@ -15,7 +15,7 @@ struct PPDWindowLoader {
     /// Mood.score (4, 2, 0, -1, -2) -> training scale mood_1to5 (higher = better).
     static let moodScale: [Int: Double] = [4: 5, 2: 4, 0: 3, -1: 2, -2: 1]
 
-    /// SymptomLevel values (2/6/9) are already on the 1-10 scale; unselected (0) means "none" = 1.
+    /// Symptom values come only from an explicitly selected rating in a manual log.
     static let symptomFields: [String: WritableKeyPath<Measurement, Double?>] = [
         "Fatigue": \.fatigue1to10,
         "Bleeding": \.bleeding1to10,
@@ -74,9 +74,15 @@ struct PPDWindowLoader {
         for path in [FSPath.measurements(uid), FSPath.moodLogs(uid), FSPath.symptomLogs(uid)] {
             let snapshot = try await Firestore.firestore().collection(path)
                 .whereField("createdAt", isLessThan: threshold)
-                .limit(to: 1)
                 .getDocuments()
-            if !snapshot.isEmpty { return true }
+            if snapshot.documents.contains(where: { doc in
+                !DemoDataFilter.isSeedDocument(
+                    id: doc.documentID,
+                    source: doc.data()["source"] as? String
+                )
+            }) {
+                return true
+            }
         }
         return false
     }
@@ -84,7 +90,19 @@ struct PPDWindowLoader {
     static func merge(_ measurements: [Measurement],
                       moods: [(date: Date, score: Int)],
                       symptoms: [(date: Date, values: [String: Int])]) -> [Measurement] {
-        var byDay = Dictionary(measurements.map { ($0.dayKey, $0) }) { a, b in a.createdAt >= b.createdAt ? a : b }
+        let healthMeasurements = measurements.map { measurement in
+            var measurement = measurement
+            measurement.mood1to5 = nil
+            measurement.fatigue1to10 = nil
+            measurement.bleeding1to10 = nil
+            measurement.hairLoss1to10 = nil
+            measurement.appetiteIssue1to10 = nil
+            measurement.sleepTrouble1to10 = nil
+            return measurement
+        }
+        var byDay = Dictionary(healthMeasurements.map { ($0.dayKey, $0) }) { a, b in
+            a.createdAt >= b.createdAt ? a : b
+        }
 
         for log in moods.sorted(by: { $0.date < $1.date }) {
             guard let value = moodScale[log.score] else { continue }
@@ -98,7 +116,9 @@ struct PPDWindowLoader {
             let key = Measurement(createdAt: log.date).dayKey
             var m = byDay[key] ?? Measurement(createdAt: log.date, source: "logs")
             for (name, field) in symptomFields {
-                if let raw = log.values[name] { m[keyPath: field] = Double(min(max(raw, 1), 10)) }
+                if let raw = log.values[name], (1...10).contains(raw) {
+                    m[keyPath: field] = Double(raw)
+                }
             }
             byDay[key] = m
         }
@@ -113,6 +133,12 @@ struct PPDWindowLoader {
             .getDocuments().documents
             .compactMap { doc in
                 let data = doc.data()
+                guard !DemoDataFilter.isSeedDocument(
+                    id: doc.documentID,
+                    source: data["source"] as? String
+                ) else {
+                    return nil
+                }
                 return (data["createdAt"] as? Timestamp).map { ($0.dateValue(), data) }
             }
     }
