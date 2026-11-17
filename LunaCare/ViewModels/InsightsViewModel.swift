@@ -193,6 +193,24 @@ final class InsightsViewModel: ObservableObject {
         metricCoverage.values.filter(\.isSufficient).count
     }
 
+    var manualCheckInCoverage: [(metric: String, coverage: InsightMetricCoverage)] {
+        [
+            InsightMetric.mood,
+            InsightMetric.fatigue,
+            InsightMetric.bleeding,
+            InsightMetric.hairLoss,
+            InsightMetric.appetiteIssue,
+            InsightMetric.sleepTrouble
+        ].compactMap { metric in
+            guard let coverage = metricCoverage[metric.label],
+                  coverage.previousWeekDays > 0 || coverage.lastWeekDays > 0
+            else {
+                return nil
+            }
+            return (metric.label, coverage)
+        }
+    }
+
     func coverage(for metric: String) -> InsightMetricCoverage? {
         metricCoverage[metric]
     }

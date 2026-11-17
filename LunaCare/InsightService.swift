@@ -129,8 +129,9 @@ final class InsightService {
         calendar: Calendar
     ) -> [String: InsightMetricCoverage] {
         let today = calendar.startOfDay(for: now)
-        guard let previousStart = calendar.date(byAdding: .day, value: -14, to: today),
-              let recentStart = calendar.date(byAdding: .day, value: -7, to: today)
+        guard let previousStart = calendar.date(byAdding: .day, value: -13, to: today),
+              let recentStart = calendar.date(byAdding: .day, value: -6, to: today),
+              let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)
         else {
             return [:]
         }
@@ -153,7 +154,7 @@ final class InsightService {
                 metric.label,
                 InsightMetricCoverage(
                     previousWeekDays: coveredDays(from: previousStart, to: recentStart),
-                    lastWeekDays: coveredDays(from: recentStart, to: today)
+                    lastWeekDays: coveredDays(from: recentStart, to: tomorrow)
                 )
             )
         })

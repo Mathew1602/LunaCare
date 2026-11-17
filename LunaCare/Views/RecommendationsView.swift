@@ -168,6 +168,27 @@ struct RecommendationsView: View {
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            if !vm.manualCheckInCoverage.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Check-in coverage")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Trends need at least 5 distinct days in each 7-day period. Today’s check-ins are included in the current period.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    ForEach(vm.manualCheckInCoverage, id: \.metric) { item in
+                        Label(
+                            "\(item.metric.capitalized): \(item.coverage.lastWeekDays)/7 current · \(item.coverage.previousWeekDays)/7 previous days",
+                            systemImage: "calendar"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+            }
         }
 
         .frame(maxWidth: .infinity)

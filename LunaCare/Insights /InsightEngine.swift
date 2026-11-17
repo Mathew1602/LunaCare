@@ -9,7 +9,7 @@ import Foundation
 
 struct InsightEngine {
 
-    /// Compare the last 7 complete calendar days with the 7 days before them.
+    /// Compare the current 7 calendar days (including today) with the 7 days before them.
     static func compareLast7vsPrev7(
         records: [Measurement],
         metric: InsightMetric,
@@ -18,8 +18,9 @@ struct InsightEngine {
     ) -> InsightResult? {
         let today = calendar.startOfDay(for: now)
         guard
-            let previousStart = calendar.date(byAdding: .day, value: -14, to: today),
-            let recentStart = calendar.date(byAdding: .day, value: -7, to: today)
+            let previousStart = calendar.date(byAdding: .day, value: -13, to: today),
+            let recentStart = calendar.date(byAdding: .day, value: -6, to: today),
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)
         else {
             return nil
         }
@@ -35,7 +36,7 @@ struct InsightEngine {
             in: records,
             metric: metric,
             from: recentStart,
-            to: today,
+            to: tomorrow,
             calendar: calendar
         )
 
@@ -102,12 +103,12 @@ struct InsightEngine {
 
         if let pct = r.percentChange {
             return String(
-                format: "Your %@ is %@ vs last week (%0.2f → %0.2f, %+0.2f, %+0.1f%%) — %@.",
+                format: "Your %@ is %@ vs the previous 7-day period (%0.2f → %0.2f, %+0.2f, %+0.1f%%) — %@.",
                 metric.label, r.direction, r.prev7Avg, r.last7Avg, r.delta, pct, goodOrBad
             )
         }
         return String(
-            format: "Your %@ is %@ vs last week (%0.2f → %0.2f, %+0.2f) — %@.",
+            format: "Your %@ is %@ vs the previous 7-day period (%0.2f → %0.2f, %+0.2f) — %@.",
             metric.label, r.direction, r.prev7Avg, r.last7Avg, r.delta, goodOrBad
         )
     }

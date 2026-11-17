@@ -263,7 +263,7 @@ struct InsightsOverviewView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(vm.insights.count) trends ready")
                     .font(.headline)
-                Text("Compared with the previous week")
+                Text("Compared with the previous 7-day period")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -304,10 +304,25 @@ struct InsightsOverviewView: View {
                     .tint(Color.lcLavender)
             }
 
-            Text("Showing a trend only when that metric has valid readings on at least 5 distinct days in both weeks. Coverage counts are shown on each trend.")
+            Text("Showing a trend only when that metric has valid readings on at least 5 distinct days in both 7-day periods. The current period includes today's check-ins.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if !vm.manualCheckInCoverage.isEmpty {
+                Divider()
+                Text("Mood and symptom check-ins")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+                ForEach(vm.manualCheckInCoverage, id: \.metric) { item in
+                    Label(
+                        "\(item.metric.capitalized): \(item.coverage.lastWeekDays)/7 days current · \(item.coverage.previousWeekDays)/7 previous",
+                        systemImage: item.coverage.isSufficient ? "checkmark.circle" : "calendar"
+                    )
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+            }
         }
         .padding(15)
         .background(.background, in: RoundedRectangle(cornerRadius: 18))
@@ -328,18 +343,36 @@ struct InsightsOverviewView: View {
             VStack(spacing: 7) {
                 Text("Your trends are taking shape")
                     .font(.headline)
-                Text("Insights appear when a metric has data on at least 5 days in each of the last two complete weeks.")
+                Text("Insights appear when a metric has data on at least 5 days in each of two 7-day periods. Today's check-ins count in the current period.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Label("Sync Apple Health or keep logging check-ins", systemImage: "arrow.triangle.2.circlepath")
-                .font(.caption.weight(.medium))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 2)
+            if !vm.manualCheckInCoverage.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Your recent check-ins")
+                        .font(.subheadline.weight(.semibold))
+                    ForEach(vm.manualCheckInCoverage, id: \.metric) { item in
+                        Label(
+                            "\(item.metric.capitalized): \(item.coverage.lastWeekDays)/7 days current · \(item.coverage.previousWeekDays)/7 previous",
+                            systemImage: item.coverage.isSufficient ? "checkmark.circle" : "calendar"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color.lcLavenderSoft, in: RoundedRectangle(cornerRadius: 14))
+            } else {
+                Label("Sync Apple Health or keep logging check-ins", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 22)
@@ -464,7 +497,7 @@ private struct InsightCard: View {
 
             if let coverage = vm.coverage(for: insight.metric) {
                 Label(
-                    "Data coverage: \(coverage.previousWeekDays)/7 days previous, \(coverage.lastWeekDays)/7 days last",
+                    "Data coverage: \(coverage.previousWeekDays)/7 days previous, \(coverage.lastWeekDays)/7 days current",
                     systemImage: coverage.isSufficient ? "checkmark.circle" : "exclamationmark.circle"
                 )
                 .font(.caption2.weight(.medium))
