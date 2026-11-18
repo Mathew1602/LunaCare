@@ -7,11 +7,12 @@
 
 import Foundation
 
-/// Mother-side management of linked caregivers and what each one can see.
+/// Mother-side management of linked caregivers, what each one can see, and pending invites.
 @MainActor
 final class CaregiversViewModel: ObservableObject {
 
     @Published private(set) var caregivers: [Caregiver] = []
+    @Published private(set) var invites: [CaregiverInvite] = []
     @Published private(set) var isLoading = false
     @Published private(set) var inProgressIds: Set<String> = []
     @Published var errorMessage: String? = nil
@@ -27,10 +28,22 @@ final class CaregiversViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
+        async let invites = loadInvites(uid: uid)
         do {
             caregivers = try await repo.fetchCaregivers(uid: uid)
         } catch {
             errorMessage = error.localizedDescription
+        }
+        self.invites = await invites
+    }
+
+    /// Loaded independently so a failure here never hides the linked caregivers.
+    private func loadInvites(uid: String) async -> [CaregiverInvite] {
+        do {
+            return try await repo.fetchInvites(uid: uid)
+        } catch {
+            print("Failed to load caregiver invites:", error)
+            return []
         }
     }
 
@@ -54,6 +67,32 @@ final class CaregiversViewModel: ObservableObject {
         await perform(on: caregiver) {
             try await self.repo.remove(uid: uid, caregiverId: caregiver.id)
             self.caregivers.removeAll { $0.id == caregiver.id }
+        }
+    }
+
+    /// Returns the new invite so the sheet can show its code, or nil if creation failed.
+    func createInvite(email: String, relationship: String, permissions: CaregiverPermissions, uid: String) async -> CaregiverInvite? {
+        guard CaregiverInvite.isValidEmail(email) else {
+            errorMessage = "Enter a valid email address."
+            return nil
+        }
+        do {
+            let invite = try await repo.createInvite(uid: uid, email: email, relationship: relationship, permissions: permissions)
+            invites.append(invite)
+            invites.sort { $0.expiresAt < $1.expiresAt }
+            return invite
+        } catch {
+            errorMessage = "Couldn't create the invite: \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    func cancel(_ invite: CaregiverInvite) async {
+        do {
+            try await repo.cancelInvite(code: invite.code)
+            invites.removeAll { $0.code == invite.code }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

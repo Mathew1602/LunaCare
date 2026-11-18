@@ -25,6 +25,9 @@ final class AuthViewModel: ObservableObject {
     @Published var didResolveAuthState: Bool = false
     @Published var isCaregiver: Bool = false        // true = show the caregiver app instead of the mother's
     private var authHandle: AuthStateDidChangeListenerHandle?
+    /// Set while a caregiver account is being created, so the auth listener doesn't route
+    /// the new user to the mother's app before their caregiver profile is saved.
+    private var isCreatingCaregiver = false
 
     var displayName: String {
         let full = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
@@ -52,8 +55,8 @@ final class AuthViewModel: ObservableObject {
                         // Caregivers keep their name on their caregiver profile, not users/{uid}.
                         if let first = caregiver?.firstName ?? first { self.firstName = first }
                         if let last = caregiver?.lastName ?? last { self.lastName = last }
-                        self.isCaregiver = caregiver != nil
-                        if caregiver == nil { self.sendProfileToWatch() }
+                        self.isCaregiver = caregiver != nil || self.isCreatingCaregiver
+                        if !self.isCaregiver { self.sendProfileToWatch() }
                         self.didResolveAuthState = true
                     }
                 }
@@ -104,6 +107,7 @@ final class AuthViewModel: ObservableObject {
                 password: String,
                 firstName rawFirstName: String,
                 lastName rawLastName: String,
+                asCaregiver: Bool = false,
                 completion: @escaping (Bool) -> Void = { _ in }) {
         errorMessage = ""
         let email     = rawEmail.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -115,16 +119,25 @@ final class AuthViewModel: ObservableObject {
             return
         }
         let wasGuest = noAccount
+        isCreatingCaregiver = asCaregiver
 
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             guard let self = self else { return }
             if let error = error {
+                self.isCreatingCaregiver = false
                 self.errorMessage = self.message(for: error)
                 completion(false)
                 return
             }
             guard let user = result?.user else {
+                self.isCreatingCaregiver = false
                 completion(false)
+                return
+            }
+
+            if asCaregiver {
+                self.finishCaregiverSignUp(user: user, email: email, firstName: firstName,
+                                           lastName: lastName, completion: completion)
                 return
             }
 
@@ -146,6 +159,30 @@ final class AuthViewModel: ObservableObject {
                                                lastName: lastName)
             self.sendProfileToWatch()
             completion(true)
+        }
+    }
+
+    /// Caregivers get a `caregivers/{uid}` profile instead of a mother's `users/{uid}` profile.
+    /// If that write fails, the new auth account is deleted so the user can simply try again.
+    private func finishCaregiverSignUp(user: User, email: String, firstName: String, lastName: String,
+                                       completion: @escaping (Bool) -> Void) {
+        Task { @MainActor in
+            defer { self.isCreatingCaregiver = false }
+            do {
+                try await CaregiverReportRepository().createCaregiverProfile(
+                    uid: user.uid, email: email, firstName: firstName, lastName: lastName)
+                UserDefaults.standard.set(false, forKey: GuestKeys.noAccount)
+                self.uid = user.uid
+                self.email = email
+                self.firstName = firstName
+                self.lastName = lastName
+                self.isCaregiver = true
+                completion(true)
+            } catch {
+                try? await user.delete()
+                self.errorMessage = "Couldn't create your caregiver account. Please try again."
+                completion(false)
+            }
         }
     }
 
