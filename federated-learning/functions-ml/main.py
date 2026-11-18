@@ -44,6 +44,21 @@ def redeem_caregiver_invite(req: https_fn.CallableRequest) -> dict:
     return redeem(firestore.client(), req.auth.uid, email, (req.data or {}).get("code"))
 
 
+# Gmail address + app password, set with `firebase functions:secrets:set SMTP_USER` / `SMTP_PASSWORD`.
+@firestore_fn.on_document_created(document="invites/{code}", region="us-central1",
+                                  memory=options.MemoryOption.MB_256,
+                                  secrets=["SMTP_USER", "SMTP_PASSWORD"])
+def send_caregiver_invite_email(event: firestore_fn.Event[firestore_fn.DocumentSnapshot]) -> None:
+    import os
+
+    from caregiver_invites import send_invite_email
+
+    if event.data is None:
+        return
+    send_invite_email(firestore.client(), event.params["code"], event.data.to_dict() or {},
+                      os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
+
+
 @scheduler_fn.on_schedule(schedule="every sunday 03:00", timezone="America/Toronto",
                           region="us-central1", memory=options.MemoryOption.GB_2,
                           timeout_sec=1800)

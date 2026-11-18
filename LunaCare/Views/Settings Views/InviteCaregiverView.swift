@@ -37,7 +37,7 @@ struct InviteCaregiverView: View {
                             ForEach(Self.relationships, id: \.self) { Text($0) }
                         }
                     } footer: {
-                        Text("When they sign up as a family caregiver with this email, they'll be linked to you automatically.")
+                        Text("We'll email them an invite. When they sign up as a family caregiver with this email, they'll be linked to you automatically.")
                     }
                     Section {
                         CaregiverPermissionToggles(permissions: $permissions)
@@ -83,7 +83,7 @@ struct InviteCaregiverView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 44))
                     .foregroundColor(.green)
-                Text("Invite ready for")
+                Text("Invite emailed to")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 Text(invite.email)
@@ -105,7 +105,7 @@ struct InviteCaregiverView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 8)
         } footer: {
-            Text("Let them know to sign up in LunaCare as a family caregiver with this email. If they already have a caregiver account, they'll be linked next time they open the app.")
+            Text("It may take a minute to arrive, so ask them to check spam too. You can also share the invite yourself. If they already have a caregiver account, they'll be linked next time they open the app.")
         }
     }
 
