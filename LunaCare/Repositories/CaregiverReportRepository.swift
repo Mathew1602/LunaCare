@@ -7,11 +7,13 @@
 
 import Foundation
 import FirebaseFirestore
+import FirebaseFunctions
 
 /// Reads used by the signed-in caregiver. Every read here is gated by the mother's grant in the security rules.
 final class CaregiverReportRepository {
 
     private let db = Firestore.firestore()
+    private let functions = Functions.functions(region: "us-central1")
 
     /// The caregiver's own name, or nil if this user isn't a caregiver.
     func fetchCaregiverProfile(uid: String) async -> (firstName: String, lastName: String)? {
@@ -19,6 +21,37 @@ final class CaregiverReportRepository {
               let data = try? await db.collection(FSPath.caregivers).document(uid).getDocument().data()
         else { return nil }
         return (data["firstName"] as? String ?? "", data["lastName"] as? String ?? "")
+    }
+
+    /// Creates the caregiver's own profile at sign-up. Rules require `userIds` to start empty.
+    func createCaregiverProfile(uid: String, email: String, firstName: String, lastName: String) async throws {
+        try await db.collection(FSPath.caregivers).document(uid).setData([
+            "caregiverId": uid,
+            "firstName": firstName,
+            "lastName": lastName,
+            "displayName": "\(firstName) \(lastName)",
+            "email": email,
+            "phone": NSNull(),
+            "fcmTokens": [String](),
+            "notifications": ["dailyReport": true, "riskAlerts": true],
+            "userIds": [String](),
+            "createdAt": FieldValue.serverTimestamp(),
+            "updatedAt": FieldValue.serverTimestamp()
+        ])
+    }
+
+    /// Links the signed-in caregiver to every pending invite sent to their sign-in email.
+    /// Returns how many mothers were newly linked.
+    func acceptPendingInvites() async throws -> Int {
+        let result = try await functions.httpsCallable("redeem_caregiver_invite").call([String: Any]())
+        return (result.data as? [String: Any])?["linked"] as? Int ?? 0
+    }
+
+    /// Backup path: links the invite with this code. Error messages come from the function
+    /// and are written to be shown to the user.
+    func redeemInvite(code: String) async throws {
+        _ = try await functions.httpsCallable("redeem_caregiver_invite")
+            .call(["code": CaregiverInvite.normalize(code)])
     }
 
     func updateCaregiverProfile(uid: String, firstName: String, lastName: String) async throws {

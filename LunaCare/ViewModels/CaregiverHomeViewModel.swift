@@ -23,6 +23,8 @@ final class CaregiverHomeViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var errorMessage: String? = nil
     @Published var isShowingAlerts = false
+    @Published var isShowingRedeem = false
+    @Published var redeemError: String? = nil
 
     private let reportRepo: CaregiverReportRepository
     private let alertRepo: RiskAlertRepository
@@ -76,10 +78,11 @@ final class CaregiverHomeViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            mothers = try await reportRepo.fetchLinkedMothers(caregiverUid: caregiverUid)
-            // Keep the current selection across refreshes, with its latest permissions.
-            selectedMother = mothers.first { $0.id == selectedMother?.id } ?? mothers.first
-            try await loadData(for: selectedMother)
+            try await refreshMothers(caregiverUid: caregiverUid)
+            // Picks up invites sent to this caregiver's email since the last load.
+            if await acceptPendingInvites() > 0 {
+                try await refreshMothers(caregiverUid: caregiverUid)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -98,6 +101,27 @@ final class CaregiverHomeViewModel: ObservableObject {
         }
     }
 
+    /// Accepts an invite code, then shows the newly linked mother. Returns true on success.
+    func redeemInvite(code: String, caregiverUid: String) async -> Bool {
+        redeemError = nil
+        guard CaregiverInvite.normalize(code).count == CaregiverInvite.codeLength else {
+            redeemError = "Enter the \(CaregiverInvite.codeLength)-character code."
+            return false
+        }
+        do {
+            let previousIds = Set(mothers.map(\.id))
+            try await reportRepo.redeemInvite(code: code)
+            await load(caregiverUid: caregiverUid)
+            if let newMother = mothers.first(where: { !previousIds.contains($0.id) }) {
+                await select(newMother)
+            }
+            return true
+        } catch {
+            redeemError = error.localizedDescription
+            return false
+        }
+    }
+
     func markAlertsSeen() {
         guard let mother = selectedMother else { return }
         let now = Date()
@@ -106,6 +130,24 @@ final class CaregiverHomeViewModel: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func refreshMothers(caregiverUid: String) async throws {
+        mothers = try await reportRepo.fetchLinkedMothers(caregiverUid: caregiverUid)
+        // Keep the current selection across refreshes, with its latest permissions.
+        selectedMother = mothers.first { $0.id == selectedMother?.id } ?? mothers.first
+        try await loadData(for: selectedMother)
+    }
+
+    /// Never blocks the rest of the load: if the function is unreachable, the caregiver
+    /// still sees the mothers they're already linked to.
+    private func acceptPendingInvites() async -> Int {
+        do {
+            return try await reportRepo.acceptPendingInvites()
+        } catch {
+            print("Failed to accept pending invites:", error)
+            return 0
+        }
+    }
 
     private func loadData(for mother: LinkedMother?) async throws {
         guard let mother else {

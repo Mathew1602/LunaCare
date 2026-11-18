@@ -34,6 +34,16 @@ def build_training_sample(event: firestore_fn.Event[firestore_fn.Change]) -> Non
         print(f"fl_contributions/{pid[:8]}…: deleted (opted out or user deleted)")
 
 
+@https_fn.on_call(region="us-central1", memory=options.MemoryOption.MB_256)
+def redeem_caregiver_invite(req: https_fn.CallableRequest) -> dict:
+    from caregiver_invites import redeem
+
+    if req.auth is None:
+        raise https_fn.HttpsError(https_fn.FunctionsErrorCode.UNAUTHENTICATED, "Sign in to accept an invite.")
+    email = req.auth.token.get("email", "")
+    return redeem(firestore.client(), req.auth.uid, email, (req.data or {}).get("code"))
+
+
 @scheduler_fn.on_schedule(schedule="every sunday 03:00", timezone="America/Toronto",
                           region="us-central1", memory=options.MemoryOption.GB_2,
                           timeout_sec=1800)

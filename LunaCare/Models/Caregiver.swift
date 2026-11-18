@@ -116,3 +116,49 @@ struct RiskAlert: Identifiable, Hashable {
     let id: String
     let createdAt: Date
 }
+
+// MARK: - Invites
+
+/// An invite for one email address. The caregiver is linked automatically when they sign in with
+/// that email; the code is a backup they can enter by hand. Stored at `invites/{code}`.
+struct CaregiverInvite: Identifiable, Hashable {
+    static let codeLength = 6
+    static let lifetime: TimeInterval = 48 * 60 * 60
+    /// No look-alike characters (0/O, 1/I/L) so codes are easy to read aloud and type.
+    private static let alphabet = Array("ABCDEFGHJKMNPQRSTUVWXYZ23456789")
+
+    let code: String
+    let email: String
+    let relationship: String
+    let permissions: CaregiverPermissions
+    let expiresAt: Date
+
+    var id: String { code }
+
+    /// "K7P2QX" → "K7P-2QX"
+    var displayCode: String { "\(code.prefix(3))-\(code.suffix(3))" }
+
+    var shareMessage: String {
+        "I'd like you to support me on LunaCare. Sign up as a family caregiver with \(email) and you'll be linked to me automatically. If asked, enter code \(displayCode). It expires in 48 hours."
+    }
+
+    static func makeCode() -> String {
+        String((0..<codeLength).map { _ in alphabet.randomElement()! })
+    }
+
+    /// Lowercased and trimmed, matching how Firebase Auth reports the caregiver's email.
+    static func normalizeEmail(_ input: String) -> String {
+        input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    static func isValidEmail(_ input: String) -> Bool {
+        let email = normalizeEmail(input)
+        guard let at = email.firstIndex(of: "@") else { return false }
+        return at != email.startIndex && email[at...].contains(".") && !email.contains(" ")
+    }
+
+    /// Strips dashes/spaces and uppercases what the caregiver typed.
+    static func normalize(_ input: String) -> String {
+        input.uppercased().filter { $0.isLetter || $0.isNumber }
+    }
+}

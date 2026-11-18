@@ -17,6 +17,7 @@ struct RegistrationView: View {
     @State private var username        = ""
     @State private var password        = ""
     @State private var confirmPassword = ""
+    @State private var isCaregiver     = false
 
     @State private var localError = ""
     @State private var isLoading  = false
@@ -41,6 +42,22 @@ struct RegistrationView: View {
                 .foregroundColor(Color(.systemIndigo))
 
             VStack(spacing: 15) {
+                // Guests upgrading from Settings are always mothers, so only offer the choice on a fresh sign-up.
+                if !isFromSettings {
+                    Picker("I am a", selection: $isCaregiver) {
+                        Text("New mother").tag(false)
+                        Text("Family caregiver").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if isCaregiver {
+                        Text("You'll enter the invite code she shared with you after signing up.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+
                 TextField("First Name", text: $firstName)
                     .textFieldStyle(.roundedBorder)
                 TextField("Last Name", text: $lastName)
@@ -84,7 +101,8 @@ struct RegistrationView: View {
                 auth.signUp(email: username,
                             password: password,
                             firstName: firstName,
-                            lastName: lastName) { success in
+                            lastName: lastName,
+                            asCaregiver: isCaregiver && !isFromSettings) { success in
                     isLoading = false
                     if success && isFromSettings {
                         dismiss()
