@@ -120,3 +120,58 @@ def redeem(db, caregiver_uid: str, caregiver_email: str, raw_code=None) -> dict:
             # An expired or otherwise unusable invite shouldn't block the others.
             print(f"invites/{doc.id[:3]}…: skipped ({err.message})")
     return {"linked": len(names), "motherNames": names}
+
+
+# MARK: - Invite email
+
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 465
+
+
+def _invite_email(to: str, mother_name: str, relationship: str, code: str) -> "EmailMessage":
+    from email.message import EmailMessage
+
+    inviter = mother_name or "Someone"
+    display_code = f"{code[:3]}-{code[3:]}"
+    msg = EmailMessage()
+    msg["To"] = to
+    msg["Subject"] = f"{inviter} invited you to LunaCare"
+    msg.set_content(
+        f"Hi,\n\n"
+        f"{inviter} would like your support during her postpartum recovery and has invited you"
+        f"{f' as her {relationship.lower()}' if relationship else ''} on LunaCare.\n\n"
+        f"To accept:\n"
+        f"1. Open the LunaCare app and tap Register.\n"
+        f"2. Choose \"Family caregiver\".\n"
+        f"3. Sign up with this email address: {to}\n\n"
+        f"You'll be connected to {inviter} automatically and can follow her daily check-ins.\n\n"
+        f"If you're asked for a code, enter: {display_code}\n"
+        f"This invite expires in 48 hours.\n\n"
+        f"If you weren't expecting this, you can ignore this email.\n\n"
+        f"— LunaCare"
+    )
+    return msg
+
+
+def send_invite_email(db, code: str, invite: dict, smtp_user: str, smtp_password: str) -> None:
+    """Emails the invited caregiver, then records the outcome on the invite for debugging."""
+    import smtplib
+
+    to = invite.get("email", "")
+    if not to:
+        return
+    mother = db.collection("users").document(invite.get("motherUid", "")).get()
+    mother_name = (mother.to_dict() or {}).get("firstName", "") if mother.exists else ""
+
+    msg = _invite_email(to, mother_name, invite.get("relationship", ""), code)
+    msg["From"] = f"LunaCare <{smtp_user}>"
+
+    invite_ref = db.collection("invites").document(code)
+    try:
+        with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=20) as smtp:
+            smtp.login(smtp_user, smtp_password)
+            smtp.send_message(msg)
+        invite_ref.update({"emailStatus": "sent", "emailSentAt": firestore.SERVER_TIMESTAMP})
+    except Exception as err:  # noqa: BLE001 - record any SMTP failure instead of retrying forever
+        print(f"invites/{code[:3]}…: email failed ({type(err).__name__}: {err})")
+        invite_ref.update({"emailStatus": f"failed: {type(err).__name__}"})
