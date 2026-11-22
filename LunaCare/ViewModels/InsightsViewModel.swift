@@ -7,6 +7,21 @@
 
 import Foundation
 
+struct ManualCheckInReading: Identifiable {
+    let metric: String
+    let value: Double
+    let recordedAt: Date
+
+    var id: String { "\(metric)-\(recordedAt.timeIntervalSince1970)" }
+}
+
+struct ManualCheckInDay: Identifiable {
+    let date: Date
+    let readings: [ManualCheckInReading]
+
+    var id: Date { date }
+}
+
 @MainActor
 final class InsightsViewModel: ObservableObject {
 
@@ -16,6 +31,7 @@ final class InsightsViewModel: ObservableObject {
     @Published private(set) var ppdRiskScore: Double?
     @Published private(set) var riskAssessmentMessage: String?
     @Published private(set) var metricCoverage: [String: InsightMetricCoverage] = [:]
+    @Published private(set) var recentManualCheckIns: [ManualCheckInDay] = []
 
     private let auth: AuthViewModel
     private let env: AppEnvironment
@@ -62,6 +78,7 @@ final class InsightsViewModel: ObservableObject {
 
         insights = weekly
         metricCoverage = snapshot.metricCoverage
+        recentManualCheckIns = Self.manualCheckInHistory(from: snapshot.measurements)
         if let loadError = snapshot.loadErrorMessage {
             errorMessage = "Insights are hidden until current health data can be loaded: \(loadError)"
         }
@@ -189,26 +206,95 @@ final class InsightsViewModel: ObservableObject {
         return RecommendationEngine.build(from: insights, ppdRiskScore: ppdRiskScore)
     }
 
-    var eligibleMetricCount: Int {
-        metricCoverage.values.filter(\.isSufficient).count
+    private static let manualMetrics: [InsightMetric] = [
+        .mood,
+        .fatigue,
+        .bleeding,
+        .hairLoss,
+        .appetiteIssue,
+        .sleepTrouble
+    ]
+
+    var manualCheckInCoverage: [InsightCoverageItem] {
+        coverageItems(for: Self.manualMetrics)
     }
 
-    var manualCheckInCoverage: [(metric: String, coverage: InsightMetricCoverage)] {
-        [
-            InsightMetric.mood,
-            InsightMetric.fatigue,
-            InsightMetric.bleeding,
-            InsightMetric.hairLoss,
-            InsightMetric.appetiteIssue,
-            InsightMetric.sleepTrouble
-        ].compactMap { metric in
-            guard let coverage = metricCoverage[metric.label],
-                  coverage.previousWeekDays > 0 || coverage.lastWeekDays > 0
-            else {
+    var manualMetricLabels: [String] {
+        Self.manualMetrics.map(\.label)
+    }
+
+    var recentManualMetricLabels: [String] {
+        manualMetricLabels.filter { metric in
+            recentManualCheckIns.contains { day in
+                day.readings.contains { $0.metric == metric }
+            }
+        }
+    }
+
+    var healthMetricCoverage: [InsightCoverageItem] {
+        let manualMetrics = Set(Self.manualMetrics.map(\.label))
+        return coverageItems(for: InsightMetric.allCases.filter {
+            !manualMetrics.contains($0.label)
+        })
+    }
+
+    var availableHealthMetricCount: Int {
+        healthMetricCoverage.count
+    }
+
+    var readyHealthMetricCount: Int {
+        healthMetricCoverage.filter { $0.coverage.isSufficient }.count
+    }
+
+    var availableManualMetricCount: Int {
+        manualCheckInCoverage.count
+    }
+
+    var readyManualMetricCount: Int {
+        manualCheckInCoverage.filter { $0.coverage.isSufficient }.count
+    }
+
+    private func coverageItems(for metrics: [InsightMetric]) -> [InsightCoverageItem] {
+        metrics.compactMap { metric in
+            guard let coverage = metricCoverage[metric.label], coverage.hasData else {
                 return nil
             }
-            return (metric.label, coverage)
+            return InsightCoverageItem(metric: metric, coverage: coverage)
         }
+    }
+
+    private static func manualCheckInHistory(from records: [Measurement]) -> [ManualCheckInDay] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let start = calendar.date(byAdding: .day, value: -13, to: today),
+              let end = calendar.date(byAdding: .day, value: 1, to: today)
+        else {
+            return []
+        }
+
+        var readingsByDay: [Date: [ManualCheckInReading]] = [:]
+        for record in records where record.source == "manual" && record.createdAt >= start && record.createdAt < end {
+            let day = calendar.startOfDay(for: record.createdAt)
+            for metric in manualMetrics {
+                guard let value = metric.value(from: record), value.isFinite else { continue }
+                readingsByDay[day, default: []].append(
+                    ManualCheckInReading(metric: metric.label, value: value, recordedAt: record.createdAt)
+                )
+            }
+        }
+
+        return readingsByDay.map { date, readings in
+            ManualCheckInDay(
+                date: date,
+                readings: readings.sorted {
+                    if $0.recordedAt == $1.recordedAt {
+                        return $0.metric < $1.metric
+                    }
+                    return $0.recordedAt < $1.recordedAt
+                }
+            )
+        }
+        .sorted { $0.date > $1.date }
     }
 
     func coverage(for metric: String) -> InsightMetricCoverage? {

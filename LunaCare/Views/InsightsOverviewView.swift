@@ -93,8 +93,16 @@ enum InsightCategory: String, CaseIterable, Hashable {
 
 // MARK: - View
 
+private struct ManualMetricDailyAverage: Identifiable {
+    let date: Date
+    let average: Double
+
+    var id: Date { date }
+}
+
 struct InsightsOverviewView: View {
     @EnvironmentObject var vm: InsightsViewModel
+    @State private var selectedManualMetric = InsightMetric.mood.label
 
     var body: some View {
         ScrollView {
@@ -117,13 +125,21 @@ struct InsightsOverviewView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 48)
 
-                } else if vm.insights.isEmpty && !vm.hasAlerts && !vm.hasRiskScore {
-                    emptyState
-
                 } else {
                     if !vm.insights.isEmpty {
                         summaryCard
+                    }
+
+                    if !vm.metricCoverage.isEmpty {
                         dataCoverageCard
+                    }
+
+                    if !vm.recentManualCheckIns.isEmpty {
+                        recentManualCheckInsCard
+                    }
+
+                    if vm.insights.isEmpty && !vm.hasAlerts && !vm.hasRiskScore {
+                        emptyState
                     }
 
                     if let score = vm.ppdRiskScore {
@@ -168,6 +184,11 @@ struct InsightsOverviewView: View {
         }
         .task { await vm.loadInsights(includeRiskAssessment: true) }
         .refreshable { await vm.loadInsights(includeRiskAssessment: true) }
+        .onChange(of: vm.recentManualMetricLabels) { _, labels in
+            if !labels.contains(selectedManualMetric), let first = labels.first {
+                selectedManualMetric = first
+            }
+        }
         .navigationTitle("Insights")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -282,47 +303,68 @@ struct InsightsOverviewView: View {
     }
 
     private var dataCoverageCard: some View {
-        let metricsWithData = vm.metricCoverage.values.filter {
-            $0.previousWeekDays > 0 || $0.lastWeekDays > 0
-        }.count
-        let coveredMetrics = vm.eligibleMetricCount
-
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundColor(Color.lcLavender)
-                Text("Data coverage")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text("\(coveredMetrics)/\(metricsWithData)")
-                    .font(.caption.weight(.bold).monospacedDigit())
-                    .foregroundColor(.secondary)
-            }
+            Label("Data coverage", systemImage: "calendar.badge.clock")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(Color.lcLavender)
 
-            if metricsWithData > 0 {
-                ProgressView(value: Double(coveredMetrics), total: Double(metricsWithData))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Apple Health & device metrics", systemImage: "heart.text.square")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Text("\(vm.readyHealthMetricCount)/\(vm.availableHealthMetricCount) ready")
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                if vm.availableHealthMetricCount > 0 {
+                    ProgressView(
+                        value: Double(vm.readyHealthMetricCount),
+                        total: Double(vm.availableHealthMetricCount)
+                    )
                     .tint(Color.lcLavender)
+                    DisclosureGroup("Available metrics") {
+                        VStack(alignment: .leading, spacing: 7) {
+                            ForEach(vm.healthMetricCoverage) { item in
+                                MetricCoverageRow(item: item)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    .font(.caption)
+                } else {
+                    Text("No health-device metrics recorded in these 14 days.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
-            Text("Showing a trend only when that metric has valid readings on at least 5 distinct days in both 7-day periods. The current period includes today's check-ins.")
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label("Mood & symptom check-ins", systemImage: "face.smiling")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Text("\(vm.readyManualMetricCount)/\(vm.availableManualMetricCount) ready")
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                if vm.manualCheckInCoverage.isEmpty {
+                    Text("No mood or symptom check-ins recorded in these 14 days.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(vm.manualCheckInCoverage) { item in
+                        MetricCoverageRow(item: item)
+                    }
+                }
+            }
+
+            Text("Only metric types with recorded data in these 14 days are included in each total. A trend needs valid readings on at least 5 distinct days in both 7-day periods; today's check-ins count in the current period.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-
-            if !vm.manualCheckInCoverage.isEmpty {
-                Divider()
-                Text("Mood and symptom check-ins")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(.secondary)
-                ForEach(vm.manualCheckInCoverage, id: \.metric) { item in
-                    Label(
-                        "\(item.metric.capitalized): \(item.coverage.lastWeekDays)/7 days current · \(item.coverage.previousWeekDays)/7 previous",
-                        systemImage: item.coverage.isSufficient ? "checkmark.circle" : "calendar"
-                    )
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                }
-            }
         }
         .padding(15)
         .background(.background, in: RoundedRectangle(cornerRadius: 18))
@@ -330,6 +372,111 @@ struct InsightsOverviewView: View {
             RoundedRectangle(cornerRadius: 18)
                 .stroke(Color.lcLavender.opacity(0.15), lineWidth: 1)
         }
+    }
+
+    private var recentManualCheckInsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Recent check-ins", systemImage: "chart.bar.xaxis")
+                .font(.headline)
+
+            Text("Daily averages for the last 14 days. Only days you logged are plotted; no values are filled in for missing days.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Picker("Check-in metric", selection: $selectedManualMetric) {
+                ForEach(vm.recentManualMetricLabels, id: \.self) { metric in
+                    Text(metric.capitalized).tag(metric)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Color.lcLavender)
+
+            if selectedMetricDailyAverages.isEmpty {
+                Text("No entries for this metric in the last 14 days.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 110)
+            } else {
+                Chart(selectedMetricDailyAverages) { point in
+                    BarMark(
+                        x: .value("Day", point.date, unit: .day),
+                        y: .value("Daily average", point.average)
+                    )
+                    .foregroundStyle(Color.lcLavender.gradient)
+                    .cornerRadius(4)
+                }
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 5)) {
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    }
+                }
+                .frame(height: 150)
+            }
+
+            DisclosureGroup("Day-by-day history") {
+                VStack(spacing: 0) {
+                    ForEach(last14Days, id: \.self) { date in
+                        let readings = readings(on: date)
+                        HStack(alignment: .top, spacing: 12) {
+                            Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                .font(.caption.weight(.semibold))
+                                .frame(width: 105, alignment: .leading)
+                            if readings.isEmpty {
+                                Text("No check-ins recorded")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    ForEach(readings) { reading in
+                                        Text("\(reading.metric.capitalized): \(reading.value, specifier: "%.0f")")
+                                            .font(.caption)
+                                    }
+                                }
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 7)
+                        if date != last14Days.last {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            }
+            .font(.subheadline.weight(.medium))
+        }
+        .padding(16)
+        .background(.background, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.lcLavender.opacity(0.15), lineWidth: 1)
+        }
+    }
+
+    private var selectedMetricDailyAverages: [ManualMetricDailyAverage] {
+        vm.recentManualCheckIns.compactMap { day in
+            let values = day.readings
+                .filter { $0.metric == selectedManualMetric }
+                .map(\.value)
+            guard !values.isEmpty else { return nil }
+            return ManualMetricDailyAverage(
+                date: day.date,
+                average: values.reduce(0, +) / Double(values.count)
+            )
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    private var last14Days: [Date] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return (0..<14).compactMap {
+            calendar.date(byAdding: .day, value: -$0, to: today)
+        }
+    }
+
+    private func readings(on date: Date) -> [ManualCheckInReading] {
+        vm.recentManualCheckIns.first(where: { $0.date == date })?.readings ?? []
     }
 
     private var emptyState: some View {
@@ -350,23 +497,7 @@ struct InsightsOverviewView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if !vm.manualCheckInCoverage.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Your recent check-ins")
-                        .font(.subheadline.weight(.semibold))
-                    ForEach(vm.manualCheckInCoverage, id: \.metric) { item in
-                        Label(
-                            "\(item.metric.capitalized): \(item.coverage.lastWeekDays)/7 days current · \(item.coverage.previousWeekDays)/7 previous",
-                            systemImage: item.coverage.isSufficient ? "checkmark.circle" : "calendar"
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(Color.lcLavenderSoft, in: RoundedRectangle(cornerRadius: 14))
-            } else {
+            if vm.recentManualCheckIns.isEmpty {
                 Label("Sync Apple Health or keep logging check-ins", systemImage: "arrow.triangle.2.circlepath")
                     .font(.caption.weight(.medium))
                     .foregroundColor(.secondary)
@@ -399,6 +530,25 @@ struct InsightsOverviewView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .shadow(color: .lcCardShadow, radius: 10, y: 6)
         }
+    }
+}
+
+struct MetricCoverageRow: View {
+    let item: InsightCoverageItem
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: item.coverage.isSufficient ? "checkmark.circle" : "calendar")
+                .foregroundColor(item.coverage.isSufficient ? .green : .secondary)
+            Text(item.metric.label.capitalized)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Text("\(item.coverage.lastWeekDays)/7 current · \(item.coverage.previousWeekDays)/7 previous")
+                .monospacedDigit()
+                .foregroundColor(.secondary)
+        }
+        .font(.caption)
+        .accessibilityElement(children: .combine)
     }
 }
 
