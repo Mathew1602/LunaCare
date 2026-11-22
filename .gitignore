@@ -27,3 +27,6 @@ firestore-debug.log
 
 # Local risk-tier rationale doc
 RISK_TIERS.md
+
+# Local-only federated learning notes
+federated-learning/docs/

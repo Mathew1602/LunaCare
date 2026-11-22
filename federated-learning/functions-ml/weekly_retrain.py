@@ -68,8 +68,10 @@ def evaluate(model, base: pd.DataFrame, real_holdout: pd.DataFrame) -> dict:
         y = real_holdout["label"].to_numpy(float)
         p = model.predict(to_matrix(real_holdout["features"].tolist()))
         m["mae_real"] = float(mean_absolute_error(y, p))
-        if len(set(y)) == 2:
-            m["auc_real"] = float(roc_auc_score(y, p))
+        # AUC only over binary diagnoses; doctor-verified labels are continuous scores.
+        binary = np.isin(y, (0.0, 1.0))
+        if len(set(y[binary])) == 2:
+            m["auc_real"] = float(roc_auc_score(y[binary], p[binary]))
     return m
 
 
