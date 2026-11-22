@@ -178,6 +178,8 @@ final class MeasurementRepository {
             return nil
         }
 
+        let cloudUpdatedAt = (d["updatedAt"] as? Timestamp)?.dateValue()
+
         func intVal(_ key: String) -> Int? {
             if let v = d[key] as? Int { return v }
             if let v = d[key] as? Int64 { return Int(v) }
@@ -195,6 +197,7 @@ final class MeasurementRepository {
         return Measurement(
             id: doc.documentID,
             createdAt: createdAt,
+            cloudUpdatedAt: cloudUpdatedAt,
 
             mood1to5: dblVal("mood1to5"),
             bleeding1to10: dblVal("bleeding1to10"),

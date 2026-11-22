@@ -17,6 +17,8 @@ final class AppleWatchDataStore: ObservableObject {
     private init() {}
 
     @Published var isAuthorized = false
+    @Published private(set) var hasHealthDataAvailable = false
+    @Published private(set) var hasHealthReadings = false
 
     @Published var stepsToday: Int = 0
     @Published var activeEnergyKcal: Double = 0
@@ -32,6 +34,16 @@ final class AppleWatchDataStore: ObservableObject {
     @Published var latestMeasurement: Measurement? = nil
 
     func authorizeAndRefresh(lastDays: Int = 30) async {
+        hasHealthDataAvailable = repo.isHealthDataAvailable
+        guard hasHealthDataAvailable else {
+            isAuthorized = false
+            hasHealthReadings = false
+            dailyMeasurements = []
+            latestMeasurement = nil
+            clearLatestValues()
+            return
+        }
+
         do {
             try await repo.requestAuthorization()
             isAuthorized = true
@@ -39,6 +51,10 @@ final class AppleWatchDataStore: ObservableObject {
         } catch {
             print("HealthKit auth error: \(error.localizedDescription)")
             isAuthorized = false
+            hasHealthReadings = false
+            dailyMeasurements = []
+            latestMeasurement = nil
+            clearLatestValues()
         }
     }
 
@@ -49,16 +65,31 @@ final class AppleWatchDataStore: ObservableObject {
 
         dailyMeasurements = records
         latestMeasurement = records.last
+        hasHealthReadings = records.contains { record in
+            record.steps != nil ||
+            record.distanceWalkedKm != nil ||
+            record.flightsClimbed != nil ||
+            record.activeEnergyKcal != nil ||
+            record.basalEnergyKcal != nil ||
+            record.exerciseMinutes != nil ||
+            record.standHours != nil ||
+            record.avgHeartRateBpm != nil ||
+            record.restingHRBpm != nil ||
+            record.walkingHeartRateAvgBpm != nil ||
+            record.sleepHours != nil ||
+            record.deepSleepHours != nil ||
+            record.remSleepHours != nil ||
+            record.coreSleepHours != nil ||
+            record.sleepEfficiencyPct != nil ||
+            record.wakeAfterSleepOnsetMin != nil ||
+            record.hrvSDNNms != nil ||
+            record.respiratoryRateBpm != nil ||
+            record.oxygenSaturationPct != nil ||
+            record.vo2Max != nil || record.weightKg != nil
+        }
 
         guard let today = records.last else {
-            stepsToday = 0
-            activeEnergyKcal = 0
-            restingHR = 0
-            sleepHours = 0
-            hrvSDNN = 0
-            respiratoryRate = 0
-            spo2 = 0
-            vo2Max = 0
+            clearLatestValues()
             return
         }
 
@@ -71,5 +102,16 @@ final class AppleWatchDataStore: ObservableObject {
         respiratoryRate = today.respiratoryRateBpm ?? 0
         spo2 = today.oxygenSaturationPct ?? 0
         vo2Max = today.vo2Max ?? 0
+    }
+
+    private func clearLatestValues() {
+        stepsToday = 0
+        activeEnergyKcal = 0
+        restingHR = 0
+        sleepHours = 0
+        hrvSDNN = 0
+        respiratoryRate = 0
+        spo2 = 0
+        vo2Max = 0
     }
 }

@@ -18,9 +18,20 @@ struct InsightMetricCoverage {
     let previousWeekDays: Int
     let lastWeekDays: Int
 
+    var hasData: Bool {
+        previousWeekDays > 0 || lastWeekDays > 0
+    }
+
     var isSufficient: Bool {
         previousWeekDays >= 5 && lastWeekDays >= 5
     }
+}
+
+struct InsightCoverageItem: Identifiable {
+    let metric: InsightMetric
+    let coverage: InsightMetricCoverage
+
+    var id: String { metric.label }
 }
 
 @MainActor

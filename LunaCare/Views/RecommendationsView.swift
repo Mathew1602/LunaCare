@@ -61,6 +61,11 @@ struct RecommendationsView: View {
                     }
                 }
 
+                if !vm.isLoading &&
+                    (!vm.healthMetricCoverage.isEmpty || !vm.manualCheckInCoverage.isEmpty) {
+                    coverageSummary
+                }
+
                 remindersSection
             }
             .padding(.horizontal, 24)
@@ -169,26 +174,6 @@ struct RecommendationsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if !vm.manualCheckInCoverage.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Check-in coverage")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Trends need at least 5 distinct days in each 7-day period. Today’s check-ins are included in the current period.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    ForEach(vm.manualCheckInCoverage, id: \.metric) { item in
-                        Label(
-                            "\(item.metric.capitalized): \(item.coverage.lastWeekDays)/7 current · \(item.coverage.previousWeekDays)/7 previous days",
-                            systemImage: "calendar"
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(Color.purple.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
-            }
         }
 
         .frame(maxWidth: .infinity)
@@ -199,6 +184,67 @@ struct RecommendationsView: View {
             RoundedRectangle(cornerRadius: 22)
                 .stroke(Color.purple.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [6]))
         }
+    }
+
+    private var coverageSummary: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Data behind your recommendations", systemImage: "calendar.badge.clock")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Apple Health & device metrics")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Text("\(vm.readyHealthMetricCount)/\(vm.availableHealthMetricCount) ready")
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                if vm.healthMetricCoverage.isEmpty {
+                    Text("No health-device metrics recorded in these 14 days.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    DisclosureGroup("Show available metrics") {
+                        VStack(spacing: 7) {
+                            ForEach(vm.healthMetricCoverage) { item in
+                                MetricCoverageRow(item: item)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    .font(.caption)
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Text("Mood & symptom check-ins")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    Text("\(vm.readyManualMetricCount)/\(vm.availableManualMetricCount) ready")
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                if vm.manualCheckInCoverage.isEmpty {
+                    Text("No mood or symptom check-ins recorded in these 14 days.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(vm.manualCheckInCoverage) { item in
+                        MetricCoverageRow(item: item)
+                    }
+                }
+            }
+
+            Text("Each total includes only metrics with at least one valid reading in the last 14 days. Trends require 5 distinct days in both 7-day periods.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
     }
 
     private func loadErrorState(_ error: String) -> some View {

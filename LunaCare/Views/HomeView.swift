@@ -36,12 +36,16 @@ struct HomeContentView: View {
     @EnvironmentObject var env: AppEnvironment
     @EnvironmentObject var auth: AuthViewModel
     @StateObject private var health = AppleWatchDataStore.shared
+    @StateObject private var healthPersistence = HealthDataPersistence.shared
     @StateObject private var insightsVM: InsightsViewModel
     @Environment(\.scenePhase) private var scenePhase
     private var isSyncedToCloud: Bool { !auth.uid.isEmpty && env.isCloudSyncOn }
     @StateObject private var metricsStore = HomeMetricsStore.shared
     @State private var showEditMetrics = false
     @State private var storedMeasurements: [Measurement] = []
+    @State private var storedMeasurementsAreCloudBacked = false
+    @State private var cloudMeasurementsAreEmpty = false
+    @State private var measurementsLoadError: String?
 
     @State private var showingMLTestAlert = false
     @State private var mlTestTitle = "Your Wellbeing Check"
@@ -69,7 +73,7 @@ struct HomeContentView: View {
                         HStack {
                             Image(systemName: isSyncedToCloud ? "icloud" : "internaldrive")
                                 .imageScale(.small)
-                            Text(isSyncedToCloud ? "Synced to Cloud" : "Local Only")
+                            Text(isSyncedToCloud ? "Cloud Sync On" : "Local Only")
                         }
                         .font(.caption)
                         .padding(.horizontal, 8)
@@ -100,16 +104,38 @@ struct HomeContentView: View {
                             spacing: 12
                         ) {
                             ForEach(Array(metricsStore.selected.enumerated()), id: \.element.id) { index, metric in
+                                let display = metricDisplay(for: metric)
                                 ColorfulMetricCard(
                                     icon: metric.icon,
-                                    value: displayValue(for: metric),
+                                    value: display.value,
                                     label: metric.title,
+                                    detail: display.detail,
                                     tint: HomePalette.tint(for: metric.title, index: index)
                                 )
                             }
                         }
                     }
                     .padding(.top, 10)
+
+                    if let measurementsLoadError {
+                        Label(measurementsLoadError, systemImage: "icloud.slash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if cloudMeasurementsAreEmpty {
+                        Label("No health readings found in Firebase. Showing saved data on this device.", systemImage: "icloud")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if isSyncedToCloud, healthPersistence.lastUploadError != nil {
+                        Label("Could not sync recent health readings to Firebase. Check your connection and reopen Home.", systemImage: "icloud.slash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if health.hasHealthDataAvailable && health.isAuthorized && !health.hasHealthReadings {
+                        Label("Apple Health returned no readings. Check Health app > profile > Apps and Services > LunaCare.", systemImage: "heart.slash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
                     if !insightsVM.isLoading && insightsVM.alertCount > 0 {
                         VStack(alignment: .leading, spacing: 10) {
@@ -273,10 +299,15 @@ struct HomeContentView: View {
                 await insightsVM.loadIfNeeded()
             }
             .onChange(of: env.isCloudSyncOn) { _, on in
-                Task { await loadStoredMeasurements() }
                 if on {
                     metricsStore.load(uid: auth.uid)
-                    Task { await HealthDataPersistence.shared.persist(health.dailyMeasurements, uid: auth.uid) }
+                }
+                Task {
+                    if on {
+                        await refreshHealth()
+                    } else {
+                        await loadStoredMeasurements()
+                    }
                 }
             }
             .onChange(of: env.isSyncing) { _, syncing in
@@ -309,26 +340,59 @@ struct HomeContentView: View {
 
     // MARK: - Stored measurement fallback (when HealthKit has no value)
 
-    private func displayValue(for metric: HealthMetric) -> String {
+    private func metricDisplay(for metric: HealthMetric) -> (value: String, detail: String) {
         if health.isAuthorized {
-            let live = metric.formattedValue(from: health.latestMeasurement)
-            if live != "--" { return live }
+            if let measurement = health.latestMeasurement {
+                let live = metric.formattedValue(from: measurement)
+                if live != "--" {
+                    return (live, "Apple Health - \(measurement.createdAt.formatted(date: .abbreviated, time: .omitted))")
+                }
+            }
         }
         for record in storedMeasurements.reversed() {
             let stored = metric.formattedValue(from: record)
-            if stored != "--" { return stored }
+            if stored != "--" {
+                if storedMeasurementsAreCloudBacked, let syncedAt = record.cloudUpdatedAt {
+                    return (
+                        stored,
+                        "Last synced \(syncedAt.formatted(date: .abbreviated, time: .shortened))\nData from \(record.createdAt.formatted(date: .abbreviated, time: .omitted))"
+                    )
+                }
+                let source = storedMeasurementsAreCloudBacked ? "Cloud data" : "Last saved locally"
+                return (stored, "\(source) - \(record.createdAt.formatted(date: .abbreviated, time: .omitted))")
+            }
         }
-        return "--"
+        return ("--", "No reading available")
     }
 
     private func loadStoredMeasurements() async {
         if isSyncedToCloud {
-            storedMeasurements = (try? await repo.fetchLastDays(uid: auth.uid, lastDays: 14)) ?? []
+            do {
+                let cloudRecords = try await repo.fetchLastDays(uid: auth.uid, lastDays: 365)
+                storedMeasurementsAreCloudBacked = true
+                storedMeasurements = cloudRecords
+                measurementsLoadError = nil
+                cloudMeasurementsAreEmpty = cloudRecords.isEmpty
+                if cloudRecords.isEmpty {
+                    loadLocalMeasurements()
+                }
+            } catch {
+                measurementsLoadError = "Could not load cloud health data. Showing saved data on this device."
+                cloudMeasurementsAreEmpty = false
+                loadLocalMeasurements()
+            }
         } else {
-            let today = Date()
-            let from = Calendar.current.date(byAdding: .day, value: -13, to: today) ?? today
-            storedMeasurements = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
+            measurementsLoadError = nil
+            cloudMeasurementsAreEmpty = false
+            loadLocalMeasurements()
         }
+    }
+
+    private func loadLocalMeasurements() {
+        let today = Date()
+        let from = Calendar.current.date(byAdding: .day, value: -364, to: today) ?? today
+        storedMeasurements = LocalMeasurementStore.shared.fetchRange(from: from, to: today)
+        storedMeasurementsAreCloudBacked = false
     }
 
     // MARK: - ML Test (last 30 days)
@@ -433,6 +497,7 @@ struct ColorfulMetricCard: View {
     let icon: String
     let value: String
     let label: String
+    var detail: String? = nil
     let tint: Color
 
     var body: some View {
@@ -458,10 +523,18 @@ struct ColorfulMetricCard: View {
                     .foregroundStyle(HomePalette.ink.opacity(0.6))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 9, design: .rounded))
+                        .foregroundStyle(HomePalette.ink.opacity(0.55))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
             }
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 122, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(tint)

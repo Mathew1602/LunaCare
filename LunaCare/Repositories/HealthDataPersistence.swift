@@ -6,14 +6,16 @@
 //
 
 import Foundation
+import Combine
 
 @MainActor
-final class HealthDataPersistence {
+final class HealthDataPersistence: ObservableObject {
     static let shared = HealthDataPersistence()
 
     private let repo = MeasurementRepository()
     private let pendingKey = "pendingHealthUploadDays"
     private var isUploading = false
+    @Published private(set) var lastUploadError: String?
 
     private init() {}
 
@@ -39,8 +41,12 @@ final class HealthDataPersistence {
             local.saveMany(changed)
         }
 
-        if !uid.isEmpty, !changed.isEmpty {
-            pendingDays = pendingDays.union(changed.map(\.dayKey))
+        if !uid.isEmpty {
+            var daysToUpload = Set(changed.map(\.dayKey))
+            if let latest = records.max(by: { $0.createdAt < $1.createdAt }) {
+                daysToUpload.insert(latest.dayKey)
+            }
+            pendingDays = pendingDays.union(daysToUpload)
         }
 
         await uploadPending(uid: uid)
@@ -57,7 +63,9 @@ final class HealthDataPersistence {
         do {
             _ = try await repo.upsertMany(uid: uid, measurements: toUpload)
             pendingDays = pendingDays.subtracting(toUpload.map(\.dayKey))
+            lastUploadError = nil
         } catch {
+            lastUploadError = error.localizedDescription
             print("Health upload failed, will retry: \(error.localizedDescription)")
         }
     }
