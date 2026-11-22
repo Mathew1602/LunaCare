@@ -8,14 +8,33 @@ from schema import X_COLUMNS
 
 SNAPSHOT_MAX_AGE = timedelta(days=14)
 PENDING_MAX_AGE = timedelta(days=30)
+# Admin labels (scripts/set_ppd_label.py) are absolute diagnoses.
 LABEL_VALUE = {"ppd": 1.0, "no_ppd": 0.0}
+# Doctor portal reviews (luna-backend POST /users/:id/ppd-label/verify|reject) confirm or reject the
+# model's predictionScore. A verified review uses that score as the target; a rejected one says the
+# score is wrong without giving a correct value, so it is not used for training.
+VERIFIED_STATUS = "verified"
 _X_SET = set(X_COLUMNS)
+
+
+def label_value(label: dict) -> float | None:
+    """ppdLabel -> training target in [0, 1], or None if the label can't be trained on."""
+    status = label.get("status")
+    if status in LABEL_VALUE:
+        return LABEL_VALUE[status]
+    if status == VERIFIED_STATUS:
+        score = label.get("predictionScore")
+        if isinstance(score, (int, float)) and not isinstance(score, bool) and math.isfinite(score) \
+                and 0.0 <= score <= 1.0:
+            return float(score)
+    return None
 
 
 def watched(d: dict) -> tuple:
     label = d.get("ppdLabel") or {}
     consent = (d.get("consent") or {}).get("contributeToModel")
-    return label.get("status"), label.get("verifiedAt"), consent, d.get("flPseudoId")
+    return (label.get("status"), label.get("verifiedAt"), label.get("predictionScore"),
+            consent, d.get("flPseudoId"))
 
 
 def clean_features(features) -> dict | None:
@@ -56,8 +75,9 @@ def sync_sample(db, pid: str, user: dict, now: datetime = None) -> str:
     status = label.get("status", "unverified")
     consent = (user.get("consent") or {}).get("contributeToModel", False)
     verified_at = label.get("verifiedAt")
+    value = label_value(label)
 
-    if not consent or status not in LABEL_VALUE or verified_at is None:
+    if not consent or value is None or verified_at is None:
         ref.delete()
         return "deleted"
 
@@ -80,7 +100,7 @@ def sync_sample(db, pid: str, user: dict, now: datetime = None) -> str:
     ref.set({
         "pending": False,
         "features": features,
-        "label": LABEL_VALUE[status],
+        "label": value,
         "labelStatus": status,
         "verifiedAt": verified_at,
         "snapshotId": snap.id,

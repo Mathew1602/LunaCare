@@ -61,6 +61,17 @@ def test_sample_lifecycle(db):
     snap = wait_for(db, lambda s: s.exists and s.get("labelStatus") == "no_ppd")
     assert snap.get("label") == 0.0
 
+    # Doctor portal review shape (luna-backend createPpdReviewHandler).
+    portal = {"status": "verified", "rejectionReason": None, "verifiedAt": firestore.SERVER_TIMESTAMP,
+              "verifiedBy": "doc1", "verifiedByName": "Dr. T", "predictionScore": 0.83, "modelVersion": "3",
+              "updatedAt": firestore.SERVER_TIMESTAMP}
+    user.update({"ppdLabel": portal})
+    snap = wait_for(db, lambda s: s.exists and s.get("labelStatus") == "verified")
+    assert snap.get("label") == 0.83 and snap.get("snapshotId") == "recent"
+
+    user.update({"ppdLabel": {**portal, "status": "rejected", "rejectionReason": "too high"}})
+    wait_for(db, lambda s: not s.exists)
+
     user.set({"ppdLabel": {"status": "unverified", "verifiedAt": firestore.SERVER_TIMESTAMP, "verifiedBy": "t"}}, merge=True)
     wait_for(db, lambda s: not s.exists)
 

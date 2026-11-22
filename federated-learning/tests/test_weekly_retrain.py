@@ -143,6 +143,26 @@ def test_evaluate_real_metrics(small_model):
     assert m["n_real_holdout"] == 6 and m["mae_real"] is not None and m["auc_real"] is not None
 
 
+def test_evaluate_continuous_real_labels(small_model):
+    real = fake_real(6)
+    real["label"] = [0.72, 0.81, 0.72, 0.81, 0.72, 0.81]
+    m = weekly_retrain.evaluate(small_model, fake_base(), real)
+    assert m["mae_real"] is not None and m["auc_real"] is None
+
+
+def test_label_value_matches_portal_and_admin_labels():
+    from build_training_sample import label_value
+    assert label_value({"status": "ppd"}) == 1.0
+    assert label_value({"status": "no_ppd"}) == 0.0
+    assert label_value({"status": "verified", "predictionScore": 0.83}) == 0.83
+    assert label_value({"status": "verified", "predictionScore": None}) is None
+    assert label_value({"status": "verified", "predictionScore": 1.7}) is None
+    assert label_value({"status": "verified", "predictionScore": True}) is None
+    assert label_value({"status": "rejected", "predictionScore": 0.83}) is None
+    assert label_value({"status": "unverified", "predictionScore": None}) is None
+    assert label_value({}) is None
+
+
 def test_coreml_structure(small_model):
     mlm = to_coreml(small_model, X_COLUMNS)
     publish.validate_spec(mlm, small_model.n_estimators, booster_base_score(small_model))
