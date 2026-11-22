@@ -168,6 +168,7 @@ struct CalendarDayLog: Codable, Identifiable, Hashable {
 struct Measurement: Codable, Identifiable {
     var id: String? = nil
     var createdAt: Date = Date()
+    var cloudUpdatedAt: Date? = nil
 
     // Symptom / mood bases (from logs)
     var mood1to5: Double?

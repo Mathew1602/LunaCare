@@ -4,6 +4,10 @@ import HealthKit
 final class AppleWatchDataRepository {
     private let healthStore = HKHealthStore()
 
+    var isHealthDataAvailable: Bool {
+        HKHealthStore.isHealthDataAvailable()
+    }
+
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = []
 
@@ -67,7 +71,7 @@ final class AppleWatchDataRepository {
     }
 
     func requestAuthorization() async throws {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
+        guard isHealthDataAvailable else { return }
 
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             healthStore.requestAuthorization(toShare: [], read: readTypes) { _, err in
