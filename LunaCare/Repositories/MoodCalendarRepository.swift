@@ -27,7 +27,8 @@ final class MoodCalendarRepository {
         for doc in snapshot.documents {
             let data = doc.data()
             guard
-                !DemoDataFilter.isSeedDocument(id: doc.documentID, source: data["source"] as? String),
+                // Calendar screen only; fetchRange below feeds insights/exports and keeps the strict filter.
+                !DemoDataFilter.hideFromDisplay(id: doc.documentID, source: data["source"] as? String),
                 let score = data["mood"] as? Int,
                 let ts = data["createdAt"] as? Timestamp
             else { continue }

@@ -134,7 +134,8 @@ final class CaregiverReportRepository {
             .getDocuments()
 
         return snapshot.documents.compactMap { doc in
-            guard !DemoDataFilter.isSeedDocument(
+            // Caregiver Today/History are display-only.
+            guard !DemoDataFilter.hideFromDisplay(
                 id: doc.documentID,
                 source: doc.data()["source"] as? String
             ) else {

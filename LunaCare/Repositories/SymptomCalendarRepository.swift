@@ -68,7 +68,8 @@ final class SymptomCalendarRepository {
         for doc in snapshot.documents {
 
             guard
-                !DemoDataFilter.isSeedDocument(id: doc.documentID, source: doc.data()["source"] as? String),
+                // Calendar screen only; fetchRange feeds insights/exports and keeps the strict filter.
+                !DemoDataFilter.hideFromDisplay(id: doc.documentID, source: doc.data()["source"] as? String),
                 let timestamp =
                     doc.data()["createdAt"]
                     as? Timestamp

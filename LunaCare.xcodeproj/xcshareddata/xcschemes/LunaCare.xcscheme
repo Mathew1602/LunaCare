@@ -21,6 +21,19 @@
                ReferencedContainer = "container:LunaCare.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E71C14CF2EAA959B0021E34C"
+               BuildableName = "LunaCareWatchOS Watch App.app"
+               ReferencedContainer = "container:LunaCare.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
