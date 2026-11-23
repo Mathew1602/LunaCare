@@ -133,6 +133,7 @@ struct PPDWindowLoader {
             .getDocuments().documents
             .compactMap { doc in
                 let data = doc.data()
+                // Feeds the risk score and FL snapshots: always exclude seed data, never hideFromDisplay.
                 guard !DemoDataFilter.isSeedDocument(
                     id: doc.documentID,
                     source: data["source"] as? String
