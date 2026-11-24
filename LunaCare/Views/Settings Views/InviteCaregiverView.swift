@@ -89,11 +89,9 @@ struct InviteCaregiverView: View {
                 Text(invite.email)
                     .font(.headline)
                     .multilineTextAlignment(.center)
-                Text("Backup code: \(invite.displayCode) · expires \(invite.expiresAt.formatted(.relative(presentation: .named)))")
-                    .font(.footnote.monospaced())
+                Text("Expires \(invite.expiresAt.formatted(.relative(presentation: .named)))")
+                    .font(.footnote)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .textSelection(.enabled)
                 ShareLink(item: invite.shareMessage) {
                     Label("Share Invite", systemImage: "square.and.arrow.up")
                         .frame(maxWidth: .infinity)

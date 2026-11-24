@@ -41,7 +41,7 @@ def redeem_caregiver_invite(req: https_fn.CallableRequest) -> dict:
     if req.auth is None:
         raise https_fn.HttpsError(https_fn.FunctionsErrorCode.UNAUTHENTICATED, "Sign in to accept an invite.")
     email = req.auth.token.get("email", "")
-    return redeem(firestore.client(), req.auth.uid, email, (req.data or {}).get("code"))
+    return redeem(firestore.client(), req.auth.uid, email)
 
 
 # Gmail address + app password, set with `firebase functions:secrets:set SMTP_USER` / `SMTP_PASSWORD`.

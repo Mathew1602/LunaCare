@@ -1,12 +1,9 @@
-"""Redeem caregiver invites: link the caller (a caregiver) to the mother who invited them.
+"""Redeem caregiver invites: link the caller (a caregiver) to every mother who invited their email.
 
-Two ways in, both through the `redeem_caregiver_invite` callable:
-- no code: link every pending invite sent to the caller's sign-in email (runs on each app open)
-- code: link that one invite (backup if the caregiver signed up with a different email)
-
-Runs with the Admin SDK because the security rules never let a caregiver add a mother to their own
-`userIds`. Each invite is linked in one transaction and then deleted, so it works once.
-Code format must match CaregiverInvite in the iOS app (6 chars, no look-alike characters).
+The `redeem_caregiver_invite` callable runs on each caregiver app open and links every pending invite
+sent to the caller's sign-in email. Runs with the Admin SDK because the security rules never let a
+caregiver add a mother to their own `userIds`. Each invite is linked in one transaction and then
+deleted, so it works once.
 """
 
 from datetime import datetime, timezone
@@ -14,17 +11,12 @@ from datetime import datetime, timezone
 from firebase_admin import firestore
 from firebase_functions import https_fn
 
-CODE_LENGTH = 6
 PERMISSION_KEYS = ("mood", "symptoms", "riskAlerts", "doctorContact")
 Error = https_fn.FunctionsErrorCode
 
 
 def _fail(code: https_fn.FunctionsErrorCode, message: str):
     raise https_fn.HttpsError(code, message)
-
-
-def _normalize_code(raw) -> str:
-    return "".join(c for c in str(raw or "").upper() if c.isalnum())
 
 
 def _clean_permissions(raw) -> dict:
@@ -57,14 +49,13 @@ def _link(db, invite_ref, caregiver_uid: str, caregiver_email: str) -> str:
     def run(tx) -> str:
         invite = invite_ref.get(transaction=tx)
         if not invite.exists:
-            _fail(Error.NOT_FOUND, "This code isn't valid. Check it and try again.")
+            _fail(Error.NOT_FOUND, "This invite no longer exists.")
         data = invite.to_dict()
         expires_at = data.get("expiresAt")
         if not expires_at or expires_at < datetime.now(timezone.utc):
             _fail(Error.FAILED_PRECONDITION, "This invite has expired. Ask for a new one.")
 
-        invited_email = data.get("email", "")
-        if invited_email and invited_email != caregiver_email:
+        if data.get("email", "") != caregiver_email:
             _fail(Error.PERMISSION_DENIED, "This invite was sent to a different email address.")
         mother_uid = data.get("motherUid")
         if not mother_uid or mother_uid == caregiver_uid:
@@ -99,16 +90,8 @@ def _link(db, invite_ref, caregiver_uid: str, caregiver_email: str) -> str:
     return run(db.transaction())
 
 
-def redeem(db, caregiver_uid: str, caregiver_email: str, raw_code=None) -> dict:
+def redeem(db, caregiver_uid: str, caregiver_email: str) -> dict:
     email = (caregiver_email or "").strip().lower()
-
-    if raw_code:
-        code = _normalize_code(raw_code)
-        if len(code) != CODE_LENGTH:
-            _fail(Error.INVALID_ARGUMENT, "Enter the 6-character code.")
-        name = _link(db, db.collection("invites").document(code), caregiver_uid, email)
-        return {"linked": 1, "motherNames": [name]}
-
     if not email:
         return {"linked": 0, "motherNames": []}
 
@@ -128,11 +111,10 @@ SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
 
 
-def _invite_email(to: str, mother_name: str, relationship: str, code: str) -> "EmailMessage":
+def _invite_email(to: str, mother_name: str, relationship: str) -> "EmailMessage":
     from email.message import EmailMessage
 
     inviter = mother_name or "Someone"
-    display_code = f"{code[:3]}-{code[3:]}"
     msg = EmailMessage()
     msg["To"] = to
     msg["Subject"] = f"{inviter} invited you to LunaCare"
@@ -145,7 +127,6 @@ def _invite_email(to: str, mother_name: str, relationship: str, code: str) -> "E
         f"2. Choose \"Family caregiver\".\n"
         f"3. Sign up with this email address: {to}\n\n"
         f"You'll be connected to {inviter} automatically and can follow her daily check-ins.\n\n"
-        f"If you're asked for a code, enter: {display_code}\n"
         f"This invite expires in 48 hours.\n\n"
         f"If you weren't expecting this, you can ignore this email.\n\n"
         f"— LunaCare"
@@ -163,7 +144,7 @@ def send_invite_email(db, code: str, invite: dict, smtp_user: str, smtp_password
     mother = db.collection("users").document(invite.get("motherUid", "")).get()
     mother_name = (mother.to_dict() or {}).get("firstName", "") if mother.exists else ""
 
-    msg = _invite_email(to, mother_name, invite.get("relationship", ""), code)
+    msg = _invite_email(to, mother_name, invite.get("relationship", ""))
     msg["From"] = f"LunaCare <{smtp_user}>"
 
     invite_ref = db.collection("invites").document(code)

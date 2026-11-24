@@ -33,7 +33,6 @@ struct CaregiverHomeView: View {
             if phase == .active { Task { await vm.load(caregiverUid: auth.uid) } }
         }
         .sheet(isPresented: $vm.isShowingAlerts) { CaregiverAlertsView(vm: vm) }
-        .sheet(isPresented: $vm.isShowingRedeem) { RedeemInviteView(vm: vm) }
         .alert("Something went wrong", isPresented: Binding(get: { vm.errorMessage != nil }, set: { if !$0 { vm.errorMessage = nil } })) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -60,10 +59,7 @@ struct CaregiverTab<Content: View>: View {
                     ContentUnavailableView {
                         Label("Not linked yet", systemImage: "person.2.slash")
                     } description: {
-                        Text("Ask her to invite you from LunaCare using your sign-in email. You'll be linked automatically. Pull down to check again.")
-                    } actions: {
-                        Button("I have a code") { vm.isShowingRedeem = true }
-                            .buttonStyle(.bordered)
+                        Text("Ask her to invite \(auth.email.isEmpty ? "your sign-in email" : auth.email) from LunaCare. You'll be linked automatically. Pull down to check again.")
                     }
                 }
             }

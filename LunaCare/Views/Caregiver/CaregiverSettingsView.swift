@@ -23,14 +23,6 @@ struct CaregiverSettingsView: View {
                     sharedWithYouSection(for: mother)
                 }
 
-                Section {
-                    Button { vm.isShowingRedeem = true } label: {
-                        Label("Enter Invite Code", systemImage: "person.badge.plus")
-                    }
-                } footer: {
-                    Text("Use a code from a family member to follow her check-ins.")
-                }
-
                 Section("App Preferences") {
                     Picker("Theme", selection: $env.selectedTheme) {
                         ForEach(AppTheme.allCases, id: \.self) { theme in

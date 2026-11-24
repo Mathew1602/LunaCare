@@ -120,11 +120,10 @@ struct RiskAlert: Identifiable, Hashable {
 // MARK: - Invites
 
 /// An invite for one email address. The caregiver is linked automatically when they sign in with
-/// that email; the code is a backup they can enter by hand. Stored at `invites/{code}`.
+/// that email. Stored at `invites/{code}`; the code is only a random document ID, never shown.
 struct CaregiverInvite: Identifiable, Hashable {
     static let codeLength = 6
     static let lifetime: TimeInterval = 48 * 60 * 60
-    /// No look-alike characters (0/O, 1/I/L) so codes are easy to read aloud and type.
     private static let alphabet = Array("ABCDEFGHJKMNPQRSTUVWXYZ23456789")
 
     let code: String
@@ -135,11 +134,8 @@ struct CaregiverInvite: Identifiable, Hashable {
 
     var id: String { code }
 
-    /// "K7P2QX" → "K7P-2QX"
-    var displayCode: String { "\(code.prefix(3))-\(code.suffix(3))" }
-
     var shareMessage: String {
-        "I'd like you to support me on LunaCare. Sign up as a family caregiver with \(email) and you'll be linked to me automatically. If asked, enter code \(displayCode). It expires in 48 hours."
+        "I'd like you to support me on LunaCare. Sign up as a family caregiver with \(email) and you'll be linked to me automatically. The invite expires in 48 hours."
     }
 
     static func makeCode() -> String {
@@ -155,10 +151,5 @@ struct CaregiverInvite: Identifiable, Hashable {
         let email = normalizeEmail(input)
         guard let at = email.firstIndex(of: "@") else { return false }
         return at != email.startIndex && email[at...].contains(".") && !email.contains(" ")
-    }
-
-    /// Strips dashes/spaces and uppercases what the caregiver typed.
-    static func normalize(_ input: String) -> String {
-        input.uppercased().filter { $0.isLetter || $0.isNumber }
     }
 }

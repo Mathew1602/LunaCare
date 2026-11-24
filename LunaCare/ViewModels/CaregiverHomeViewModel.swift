@@ -23,8 +23,6 @@ final class CaregiverHomeViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var errorMessage: String? = nil
     @Published var isShowingAlerts = false
-    @Published var isShowingRedeem = false
-    @Published var redeemError: String? = nil
 
     private let reportRepo: CaregiverReportRepository
     private let alertRepo: RiskAlertRepository
@@ -98,27 +96,6 @@ final class CaregiverHomeViewModel: ObservableObject {
             try await loadData(for: mother)
         } catch {
             errorMessage = error.localizedDescription
-        }
-    }
-
-    /// Accepts an invite code, then shows the newly linked mother. Returns true on success.
-    func redeemInvite(code: String, caregiverUid: String) async -> Bool {
-        redeemError = nil
-        guard CaregiverInvite.normalize(code).count == CaregiverInvite.codeLength else {
-            redeemError = "Enter the \(CaregiverInvite.codeLength)-character code."
-            return false
-        }
-        do {
-            let previousIds = Set(mothers.map(\.id))
-            try await reportRepo.redeemInvite(code: code)
-            await load(caregiverUid: caregiverUid)
-            if let newMother = mothers.first(where: { !previousIds.contains($0.id) }) {
-                await select(newMother)
-            }
-            return true
-        } catch {
-            redeemError = error.localizedDescription
-            return false
         }
     }
 

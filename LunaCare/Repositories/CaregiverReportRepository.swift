@@ -47,13 +47,6 @@ final class CaregiverReportRepository {
         return (result.data as? [String: Any])?["linked"] as? Int ?? 0
     }
 
-    /// Backup path: links the invite with this code. Error messages come from the function
-    /// and are written to be shown to the user.
-    func redeemInvite(code: String) async throws {
-        _ = try await functions.httpsCallable("redeem_caregiver_invite")
-            .call(["code": CaregiverInvite.normalize(code)])
-    }
-
     func updateCaregiverProfile(uid: String, firstName: String, lastName: String) async throws {
         try await db.collection(FSPath.caregivers).document(uid).updateData([
             "firstName": firstName,

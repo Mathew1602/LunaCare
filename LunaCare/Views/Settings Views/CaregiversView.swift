@@ -72,9 +72,9 @@ struct CaregiversView: View {
             ForEach(vm.invites) { invite in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(invite.email.isEmpty ? invite.displayCode : invite.email)
+                        Text(invite.email)
                             .font(.headline)
-                        Text("\(invite.relationship) · code \(invite.displayCode) · expires \(invite.expiresAt.formatted(.relative(presentation: .named)))")
+                        Text("\(invite.relationship) · expires \(invite.expiresAt.formatted(.relative(presentation: .named)))")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
